@@ -303,6 +303,7 @@ export default function App() {
     if (u.password !== password) return "Incorrect password.";
     sessionStorage.setItem("wv_dash_user", JSON.stringify(u));
     setUser(u);
+    setAllUsers(getAllUsers().filter(x=>x.setupComplete)); // populate immediately on login
     setView(u.setupComplete ? "dashboard" : "setup");
     return null;
   }
@@ -621,8 +622,8 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
             {open&&<div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#fff"}}>{user.nickname||user.displayName}</div><button onClick={doLogout} style={{background:"none",border:"none",color:B.muted,fontSize:12,cursor:"pointer",padding:0,fontFamily:"'DM Sans',sans-serif"}}>Sign out</button></div>}
           </div>
         </div>
-        {/* Dev user switcher — remove before go-live */}
-        {open&&(
+        {/* Dev user switcher — manager only */}
+        {open&&user.email==="frazer@wildvision.io"&&(
           <div style={{padding:"8px 10px",borderTop:`1px solid ${B.border}`,background:"#0a0500"}}>
             <div style={{fontSize:9,color:"#d97706",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Dev: Switch User</div>
             <select onChange={e=>switchUser(e.target.value)} value={user.email} style={{fontSize:11,padding:"4px 6px",background:"#1a0e00",border:"1px solid #d9770644",color:"#d97706",borderRadius:4,width:"100%"}}>
@@ -2775,9 +2776,19 @@ function Admin({ user, allUsers, refreshAllUsers }) {
                 <Avatar user={u} size={32} />
                 <div style={{flex:1}}>
                   <div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{u.nickname||u.displayName}</div>
-                  <div style={{fontSize:12,color:"#e5e5e5"}}>{u.email} · {u.role}</div>
+                  <div style={{fontSize:12,color:"#aaa"}}>{u.email} · {u.role}</div>
                 </div>
-                {u.title&&<span style={{fontSize:12,color:u.accentColor||B.orange,fontWeight:600}}>{u.title}</span>}
+                {u.title&&<span style={{fontSize:12,color:u.accentColor||B.orange,fontWeight:600,marginRight:8}}>{u.title}</span>}
+                {u.email!=="frazer@wildvision.io"&&(
+                  <button onClick={()=>{
+                    if(!window.confirm(`Delete account for ${u.nickname||u.displayName}? This cannot be undone.`))return;
+                    LS.del("user:"+u.email.toLowerCase());
+                    LS.del("signings:"+u.email.toLowerCase());
+                    refreshAllUsers();
+                  }} style={{background:"transparent",border:"1px solid #3a1a1a",color:"#ef4444",padding:"4px 10px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>
+                    Delete
+                  </button>
+                )}
               </div>
             ))}
           </div>}
