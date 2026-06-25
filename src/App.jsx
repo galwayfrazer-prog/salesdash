@@ -1,4 +1,36 @@
 import { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ── SUPABASE ───────────────────────────────────────────────────────────────────
+// Set these in Vercel environment variables as VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || null;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || null;
+const sb = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+// Pull all rows from Supabase into localStorage on app start
+async function syncFromSupabase() {
+  if (!sb) return;
+  try {
+    const { data } = await sb.from("kv_store").select("key,value");
+    if (data) {
+      data.forEach(({ key, value }) => {
+        localStorage.setItem("wvos:" + key, value);
+      });
+    }
+  } catch(e) { console.warn("Supabase sync failed:", e); }
+}
+
+// Write a key to Supabase (fire and forget — localStorage already updated)
+function sbSet(key, value) {
+  if (!sb) return;
+  sb.from("kv_store").upsert({ key, value }).then();
+}
+
+// Delete a key from Supabase
+function sbDel(key) {
+  if (!sb) return;
+  sb.from("kv_store").delete().eq("key", key).then();
+}
 
 // ── BRAND ─────────────────────────────────────────────────────────────────────
 const B = {
@@ -26,10 +58,22 @@ const TITLE_OPTIONS = [
 ];
 
 // ── STORAGE ───────────────────────────────────────────────────────────────────
+// Reads from localStorage (instant, synchronous).
+// Writes go to localStorage immediately AND Supabase in the background.
+// On app load, Supabase data is pulled into localStorage so all devices stay in sync.
 const LS = {
   get(k){try{const v=localStorage.getItem("wvos:"+k);return v?JSON.parse(v):null;}catch{return null;}},
-  set(k,v){try{localStorage.setItem("wvos:"+k,JSON.stringify(v));return true;}catch{return false;}},
-  del(k){try{localStorage.removeItem("wvos:"+k);}catch{}},
+  set(k,v){
+    try{
+      const str=JSON.stringify(v);
+      localStorage.setItem("wvos:"+k,str);
+      sbSet(k, str); // sync to Supabase in background
+      return true;
+    }catch{return false;}
+  },
+  del(k){
+    try{localStorage.removeItem("wvos:"+k);sbDel(k);}catch{}
+  },
   keys(prefix){
     try{
       const out=[];
@@ -234,13 +278,19 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("login");
   const [allUsers, setAllUsers] = useState([]);
+  const [syncing, setSyncing] = useState(true);
 
   useEffect(() => {
-    if (!getUser("frazer@wildvision.io")) {
-      saveUser({email:"frazer@wildvision.io",password:"WildVision123",role:"manager",displayName:"Frazer",nickname:"Frazer",title:"Head of Sales",bio:"",accentColor:"#ff6700",photo:null,setupComplete:true,createdAt:Date.now()});
-    }
-    const saved = sessionStorage.getItem("wv_dash_user");
-    if (saved) { try { const u=JSON.parse(saved); setUser(u); setView(u.setupComplete?"dashboard":"setup"); } catch {} }
+    // Pull latest data from Supabase into localStorage first, THEN render login screen
+    // This ensures invite codes and user accounts are available before the rep tries to use them
+    syncFromSupabase().finally(() => {
+      if (!getUser("frazer@wildvision.io")) {
+        saveUser({email:"frazer@wildvision.io",password:"WildVision123",role:"manager",displayName:"Frazer",nickname:"Frazer",title:"Head of Sales",bio:"",accentColor:"#ff6700",photo:null,setupComplete:true,createdAt:Date.now()});
+      }
+      const saved = sessionStorage.getItem("wv_dash_user");
+      if (saved) { try { const u=JSON.parse(saved); setUser(u); setView(u.setupComplete?"dashboard":"setup"); } catch {} }
+      setSyncing(false);
+    });
   }, []);
 
   function refreshAllUsers() { setAllUsers(getAllUsers().filter(u=>u.setupComplete)); }
@@ -292,9 +342,16 @@ export default function App() {
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
       `}</style>
-      {view==="login" && <LoginScreen doLogin={doLogin} />}
-      {view==="setup" && user && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
-      {user && user.setupComplete && view!=="login" && view!=="setup" && (
+      {syncing && (
+        <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}>
+          <img src={WV_LOGO} alt="" style={{width:40,height:40,objectFit:"contain"}} />
+          <div style={{width:32,height:32,border:"3px solid #1a1a1a",borderTopColor:B.orange,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} />
+          <div style={{fontSize:13,color:"#555",letterSpacing:"0.06em",textTransform:"uppercase"}}>Loading...</div>
+        </div>
+      )}
+      {!syncing && view==="login" && <LoginScreen doLogin={doLogin} />}
+      {!syncing && view==="setup" && user && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
+      {!syncing && user && user.setupComplete && view!=="login" && view!=="setup" && (
         <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} switchUser={switchUser} />
       )}
     </div>
@@ -360,7 +417,7 @@ function LoginScreen({ doLogin }) {
           <img src={WV_LOGO} alt="" style={{width:34,height:34,objectFit:"contain"}} />
           <div>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,letterSpacing:"0.06em",textTransform:"uppercase",color:"#bbb"}}>Wild Vision</div>
-            <div style={{fontSize:12,color:"#e5e5e5",letterSpacing:"0.1em",textTransform:"uppercase",color:"#bbb"}}>Sales OS</div>
+            <div style={{fontSize:12,color:"#bbb",letterSpacing:"0.1em",textTransform:"uppercase"}}>Sales OS</div>
           </div>
         </div>
         <div style={{display:"flex",gap:3,background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22}}>
@@ -761,7 +818,7 @@ function Dashboard({ user, allUsers, announcement }) {
 
       {/* Personal forecast card */}
       <div className="card" style={{padding:16,marginBottom:12}}>
-        <div style={{fontSize:15,fontWeight:600,color:B.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:12,color:"#e5e5e5"}}>Personal Forecast — Q{q+1}</div>
+        <div style={{fontSize:15,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:12}}>Personal Forecast — Q{q+1}</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
           {platforms.map(p=>{
             const gap=p.target>0?p.target-p.signings:null;
@@ -1959,7 +2016,7 @@ function Incentives({ user, allUsers }) {
       </div>
       {editing&&(
         <div className="card fi" style={{padding:20,marginBottom:20,borderColor:B.orange+"44"}}>
-          <div style={{fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12,color:"#e5e5e5"}}>Set Incentive</div>
+          <div style={{fontSize:11,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Set Incentive</div>
           <div style={{display:"grid",gap:12}}>
             <div><label>Title</label><input placeholder='"Holiday to Ibiza 🏖️"' value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} /></div>
             <div><label>Description</label><textarea rows={2} value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} /></div>
