@@ -243,6 +243,93 @@ function splitTrend(email, platform) {
   return {curr:avg(currDeals),prev:avg(prevDeals)};
 }
 
+// ── PERFORMANCE SCORE ────────────────────────────────────────────────────────
+// Composite 0-100 score: target attainment (40%) + split quality (30%) + activity (20%) + team rank (10%)
+function calcPerformanceScore(email, allUsers, targets) {
+  const qStart = quarterStart();
+  const myTarget = targets[email] || {};
+
+  // 1. Target attainment across platforms that have targets (40%)
+  const platScores = PLATFORMS.map(p => {
+    const sig = platformSignings(email, p, qStart).length;
+    const tSig = myTarget[`signings_${p}`] || 0;
+    if (!tSig) return null;
+    return Math.min(100, Math.round((sig / tSig) * 100));
+  }).filter(s => s !== null);
+  const attainment = platScores.length > 0 ? platScores.reduce((a,b)=>a+b,0)/platScores.length : 50;
+
+  // 2. Split quality vs target for FB and MSN (30%)
+  const splitScores = ["Facebook","MSN"].map(p => {
+    const avg = avgSplitForPlatform(email, p, qStart);
+    const target = myTarget[`split_${p}`] || SPLIT_TARGETS[p] || 0;
+    if (!avg || !target) return null;
+    return Math.min(100, Math.round((avg / target) * 100));
+  }).filter(s => s !== null);
+  const splitQuality = splitScores.length > 0 ? splitScores.reduce((a,b)=>a+b,0)/splitScores.length : 50;
+
+  // 3. Recent activity — signed something in last 14 days (20%)
+  const twoWeeksAgo = Date.now() - 14*24*60*60*1000;
+  const recentSigs = approvedSignings(email, twoWeeksAgo).length;
+  const activity = recentSigs >= 2 ? 100 : recentSigs === 1 ? 60 : 15;
+
+  // 4. Team rank by total signings this quarter (10%)
+  const myTotal = approvedSignings(email, qStart).length;
+  const allTotals = allUsers.map(u => approvedSignings(u.email, qStart).length).sort((a,b)=>b-a);
+  const rankIdx = allTotals.findIndex(t => t <= myTotal);
+  const rankPct = allTotals.length > 1 ? Math.round(((allTotals.length - rankIdx) / allTotals.length) * 100) : 50;
+
+  const score = Math.round(attainment*0.40 + splitQuality*0.30 + activity*0.20 + rankPct*0.10);
+  return { score: Math.min(100, Math.max(0, score)), attainment: Math.round(attainment), splitQuality: Math.round(splitQuality), activity, rankPct };
+}
+
+function perfScoreColor(score) {
+  if (score >= 75) return "#16a34a";
+  if (score >= 50) return "#d97706";
+  return "#ef4444";
+}
+
+function perfScoreLabel(score) {
+  if (score >= 85) return "Excellent";
+  if (score >= 70) return "On track";
+  if (score >= 50) return "Building";
+  if (score >= 30) return "Needs focus";
+  return "Off track";
+}
+
+// ── MOMENTUM INDICATOR ────────────────────────────────────────────────────────
+// Compares last 4 weeks of signings vs previous 4 weeks
+function calcMomentum(email) {
+  const now = Date.now();
+  const wk = 7*24*60*60*1000;
+  const last4Start = now - 4*wk;
+  const prev4Start = now - 8*wk;
+
+  const last4 = approvedSignings(email, last4Start).length;
+  const prev4 = approvedSignings(email, prev4Start).filter(s => {
+    const t = new Date(s.contractDate).getTime();
+    return t >= prev4Start && t < last4Start;
+  }).length;
+
+  if (prev4 === 0 && last4 === 0) return { trend:"neutral", pct:0, last4, prev4, label:"No data" };
+  if (prev4 === 0 && last4 > 0) return { trend:"up", pct:100, last4, prev4, label:`↑ New activity` };
+  if (prev4 > 0 && last4 === 0) return { trend:"down", pct:100, last4, prev4, label:`↓ Gone quiet` };
+
+  const pct = Math.round(((last4 - prev4) / prev4) * 100);
+  if (Math.abs(pct) <= 10) return { trend:"neutral", pct:0, last4, prev4, label:"→ Steady" };
+  return {
+    trend: pct > 0 ? "up" : "down",
+    pct: Math.abs(pct),
+    last4, prev4,
+    label: pct > 0 ? `↑ ${Math.abs(pct)}% vs prev 4 wks` : `↓ ${Math.abs(pct)}% vs prev 4 wks`
+  };
+}
+
+function momentumColor(trend) {
+  if (trend === "up") return "#16a34a";
+  if (trend === "down") return "#ef4444";
+  return "#d97706";
+}
+
 function approvedSignings(email, since) {
   return getSignings(email).filter(s=>s.status==="approved"&&s.contractDate&&new Date(s.contractDate).getTime()>=(since||0));
 }
@@ -668,6 +755,8 @@ function Dashboard({ user, allUsers, announcement }) {
   const myTarget = targets[user.email]||{};
   const qStart = quarterStart();
   const pendingCount = getSignings(user.email).filter(s=>s.status==="pending").length;
+  const perfData = calcPerformanceScore(user.email, allUsers, targets);
+  const momentum = calcMomentum(user.email);
   const c = user.accentColor||B.orange;
   const daysLeft = daysLeftInQuarter();
   const daysElapsed = daysElapsedInQuarter();
@@ -773,6 +862,63 @@ function Dashboard({ user, allUsers, announcement }) {
           <div style={{fontSize:15,color:"#d97706"}}>⏳ <strong>{pendingCount} signing{pendingCount>1?"s":""}</strong> awaiting approval — won't count toward targets until approved</div>
         </div>
       )}
+
+      {/* Performance Score + Momentum */}
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10,marginBottom:14}}>
+        {/* Performance Score */}
+        <div className="card" style={{padding:18,borderColor:perfScoreColor(perfData.score)+"44",background:`linear-gradient(135deg,${perfScoreColor(perfData.score)}0a,#0d0d0d)`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Performance Score</div>
+              <div style={{display:"flex",alignItems:"flex-end",gap:10,marginBottom:4}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:56,fontWeight:700,color:perfScoreColor(perfData.score),lineHeight:1}}>{perfData.score}</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,color:"#555",lineHeight:1,paddingBottom:6}}>/100</div>
+              </div>
+              <div style={{fontSize:13,fontWeight:600,color:perfScoreColor(perfData.score)}}>{perfScoreLabel(perfData.score)}</div>
+            </div>
+            {/* Score breakdown */}
+            <div style={{display:"grid",gap:5,minWidth:140}}>
+              {[
+                {label:"Target Attainment",val:perfData.attainment,weight:"40%"},
+                {label:"Split Quality",val:perfData.splitQuality,weight:"30%"},
+                {label:"Recent Activity",val:perfData.activity,weight:"20%"},
+                {label:"Team Rank",val:perfData.rankPct,weight:"10%"},
+              ].map(s=>(
+                <div key={s.label}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                    <span style={{fontSize:10,color:"#777"}}>{s.label}</span>
+                    <span style={{fontSize:10,color:perfScoreColor(s.val),fontWeight:600}}>{s.val}</span>
+                  </div>
+                  <div style={{height:3,background:"#111",borderRadius:2,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${s.val}%`,background:perfScoreColor(s.val),borderRadius:2,transition:"width 0.5s"}} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Momentum */}
+        <div className="card" style={{padding:18,borderColor:momentumColor(momentum.trend)+"44",background:`linear-gradient(135deg,${momentumColor(momentum.trend)}0a,#0d0d0d)`,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+          <div style={{fontSize:11,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Momentum</div>
+          <div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:momentumColor(momentum.trend),lineHeight:1,marginBottom:4}}>
+              {momentum.trend==="up"?"↑":momentum.trend==="down"?"↓":"→"}
+              {momentum.pct>0?` ${momentum.pct}%`:""}
+            </div>
+            <div style={{fontSize:13,color:"#ddd",fontWeight:600,marginBottom:8}}>{momentum.label}</div>
+            <div style={{display:"flex",gap:12}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,color:momentumColor(momentum.trend)}}>{momentum.last4}</div>
+                <div style={{fontSize:10,color:"#666"}}>last 4 wks</div>
+              </div>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,color:"#555"}}>{momentum.prev4}</div>
+                <div style={{fontSize:10,color:"#666"}}>prev 4 wks</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Platform cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
@@ -1598,6 +1744,8 @@ function Leaderboard({ user, allUsers }) {
             const avgSp=getAvgSplit(u);
             const spTarget=SPLIT_TARGETS.Facebook; // use as benchmark
             const pData=PLATFORMS.map(p=>({p,n:platformSignings(u.email,p,cutoff).length,col:PLATFORM_COLOR[p]}));
+            const perf=calcPerformanceScore(u.email,allUsers,getTargets());
+            const mom=calcMomentum(u.email);
 
             return (
               <div key={u.email} className="card" style={{padding:16,borderColor:isMe?c+"66":B.border,background:isMe?c+"08":B.card,position:"relative",overflow:"hidden"}}>
@@ -1632,15 +1780,22 @@ function Leaderboard({ user, allUsers }) {
                       </span>}
                     </div>
                   </div>
-                  {/* Score + rank change */}
-                  <div style={{textAlign:"right",flexShrink:0}}>
-                    <AnimatedNumber value={s} color={c} size={28} />
-                    <div style={{fontSize:15,color:"#ddd",textTransform:"uppercase",letterSpacing:"0.05em"}}>signings</div>
-                    {rankChange!==0&&(
-                      <div style={{fontSize:14,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:2}}>
-                        {rankChange>0?"↑":"↓"}{Math.abs(rankChange)} this wk
+                  {/* Score + rank change + perf score + momentum */}
+                  <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
+                    <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
+                      <div style={{textAlign:"right"}}>
+                        <AnimatedNumber value={s} color={c} size={28} />
+                        <div style={{fontSize:13,color:"#ddd",textTransform:"uppercase",letterSpacing:"0.05em"}}>signings</div>
+                        {rankChange!==0&&<div style={{fontSize:12,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1}}>{rankChange>0?"↑":"↓"}{Math.abs(rankChange)} this wk</div>}
                       </div>
-                    )}
+                      <div style={{textAlign:"center",padding:"6px 10px",background:perfScoreColor(perf.score)+"18",border:`1px solid ${perfScoreColor(perf.score)}44`,borderRadius:8,minWidth:52}}>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:perfScoreColor(perf.score),lineHeight:1}}>{perf.score}</div>
+                        <div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:"0.04em"}}>score</div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:11,fontWeight:600,color:momentumColor(mom.trend),background:momentumColor(mom.trend)+"18",border:`1px solid ${momentumColor(mom.trend)}33`,borderRadius:6,padding:"2px 8px"}}>
+                      {mom.trend==="up"?"↑":mom.trend==="down"?"↓":"→"} {mom.pct>0?mom.pct+"%":"Steady"}
+                    </div>
                   </div>
                 </div>
               </div>
