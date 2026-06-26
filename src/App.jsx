@@ -798,8 +798,8 @@ function Dashboard({ user, allUsers, announcement }) {
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
           <div style={{textAlign:"right"}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:25,fontWeight:700,color:c}}>{daysLeft}</div>
-            <div style={{fontSize:13,color:"#ddd"}}>days left in Q{q+1}</div>
-            <div style={{fontSize:12,color:"#ddd",marginTop:3}}>{new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
+            <div style={{fontSize:15,color:"#ddd"}}>days left in Q{q+1}</div>
+            <div style={{fontSize:14,color:"#ddd",marginTop:3}}>{new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
           </div>
           {streaks.hotWeek&&<span style={{fontSize:14,fontWeight:600,color:"#f59e0b",background:"#f59e0b18",border:"1px solid #f59e0b33",borderRadius:12,padding:"2px 8px"}}>🔥 {streaks.thisWeekCount} this week</span>}
           {streaks.weeklyStreak>=2&&<span style={{fontSize:14,fontWeight:600,color:"#16a34a",background:"#16a34a18",border:"1px solid #16a34a33",borderRadius:12,padding:"2px 8px"}}>🔁 {streaks.weeklyStreak}-week streak</span>}
@@ -835,7 +835,7 @@ function Dashboard({ user, allUsers, announcement }) {
               </div>
               {recap.link&&<a href={recap.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:"#3b82f6",textDecoration:"none",fontWeight:600}}>View recording →</a>}
             </div>
-            {recap.summary&&<div style={{fontSize:13,color:"#ccc",lineHeight:1.6,marginBottom:recap.tasks?.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary}</div>}
+            {recap.summary&&<div style={{fontSize:15,color:"#ccc",lineHeight:1.6,marginBottom:recap.tasks?.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary}</div>}
             {recap.tasks?.length>0&&(
               <div>
                 <div style={{fontSize:11,fontWeight:600,color:"#60a5fa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your Tasks</div>
@@ -844,7 +844,7 @@ function Dashboard({ user, allUsers, announcement }) {
                     <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"7px 10px",background:"#080808",borderRadius:7,border:"1px solid #1e2a3a"}}>
                       <span style={{color:"#3b82f6",flexShrink:0,marginTop:1}}>◦</span>
                       <div>
-                        <div style={{fontSize:13,color:"#ddd"}}>{t.task}</div>
+                        <div style={{fontSize:15,color:"#ddd"}}>{t.task}</div>
                         {t.assignee&&t.assignee!=="All"&&<div style={{fontSize:11,color:"#555",marginTop:1}}>→ {t.assignee}</div>}
                       </div>
                     </div>
@@ -886,8 +886,8 @@ function Dashboard({ user, allUsers, announcement }) {
               ].map(s=>(
                 <div key={s.label}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                    <span style={{fontSize:10,color:"#777"}}>{s.label}</span>
-                    <span style={{fontSize:10,color:perfScoreColor(s.val),fontWeight:600}}>{s.val}</span>
+                    <span style={{fontSize:13,color:"#888"}}>{s.label}</span>
+                    <span style={{fontSize:12,color:perfScoreColor(s.val),fontWeight:600}}>{s.val}</span>
                   </div>
                   <div style={{height:3,background:"#111",borderRadius:2,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${s.val}%`,background:perfScoreColor(s.val),borderRadius:2,transition:"width 0.5s"}} />
@@ -905,14 +905,14 @@ function Dashboard({ user, allUsers, announcement }) {
               {momentum.trend==="up"?"↑":momentum.trend==="down"?"↓":"→"}
               {momentum.pct>0?` ${momentum.pct}%`:""}
             </div>
-            <div style={{fontSize:13,color:"#ddd",fontWeight:600,marginBottom:8}}>{momentum.label}</div>
+            <div style={{fontSize:15,color:"#ddd",fontWeight:600,marginBottom:8}}>{momentum.label}</div>
             <div style={{display:"flex",gap:12}}>
               <div style={{textAlign:"center"}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,color:momentumColor(momentum.trend)}}>{momentum.last4}</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:momentumColor(momentum.trend)}}>{momentum.last4}</div>
                 <div style={{fontSize:10,color:"#666"}}>last 4 wks</div>
               </div>
               <div style={{textAlign:"center"}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,color:"#555"}}>{momentum.prev4}</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:"#555"}}>{momentum.prev4}</div>
                 <div style={{fontSize:10,color:"#666"}}>prev 4 wks</div>
               </div>
             </div>
@@ -939,9 +939,19 @@ function Dashboard({ user, allUsers, announcement }) {
               {p.target>0&&<div style={{height:4,background:"#111",borderRadius:2,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${pct}%`,background:p.color,borderRadius:2,transition:"width 0.5s"}} /></div>}
 
               {/* Week/month comparison */}
-              <div style={{display:"flex",gap:8,marginBottom:p.avgSplit!=null?6:0}}>
-                <span style={{fontSize:14,color:wkDiff>0?"#16a34a":wkDiff<0?"#ef4444":B.muted}}>Wk: {p.thisWeek} {wkDiff!==0?`(${wkDiff>0?"+":""}${wkDiff})`:""}</span>
-                <span style={{fontSize:14,color:moDiff>0?"#16a34a":moDiff<0?"#ef4444":B.muted}}>Mo: {p.thisMonth} {moDiff!==0?`(${moDiff>0?"+":""}${moDiff})`:""}</span>
+              <div style={{display:"flex",gap:14,marginBottom:p.avgSplit!=null?8:0}}>
+                <div>
+                  <div style={{fontSize:11,color:"#666",marginBottom:2}}>This week</div>
+                  <div style={{fontSize:17,fontWeight:700,color:wkDiff>0?"#16a34a":wkDiff<0?"#ef4444":"#ddd"}}>
+                    {p.thisWeek}{wkDiff!==0&&<span style={{fontSize:13,fontWeight:400}}> ({wkDiff>0?"+":""}{wkDiff})</span>}
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:11,color:"#666",marginBottom:2}}>This month</div>
+                  <div style={{fontSize:17,fontWeight:700,color:moDiff>0?"#16a34a":moDiff<0?"#ef4444":"#ddd"}}>
+                    {p.thisMonth}{moDiff!==0&&<span style={{fontSize:13,fontWeight:400}}> ({moDiff>0?"+":""}{moDiff})</span>}
+                  </div>
+                </div>
               </div>
 
               {/* Split quality */}
@@ -974,9 +984,9 @@ function Dashboard({ user, allUsers, announcement }) {
               <div key={p.platform} style={{textAlign:"center",padding:"10px 8px",background:"#080808",borderRadius:8,border:`1px solid ${p.color}22`}}>
                 <div style={{fontSize:14,color:p.color,fontWeight:600,marginBottom:4}}>{p.platform}</div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:25,fontWeight:700,color:overUnder!=null&&overUnder>=0?"#16a34a":"#ef4444"}}>{p.forecast}</div>
-                <div style={{fontSize:9,color:B.muted}}>forecast</div>
-                {gap!=null&&<div style={{fontSize:9,marginTop:3,color:gap<=0?"#16a34a":"#d97706"}}>{gap<=0?"On track":"Need "+gap+" more"}</div>}
-                {overUnder!=null&&<div style={{fontSize:9,color:overUnder>=0?"#16a34a":"#ef4444",marginTop:1}}>{overUnder>=0?"+":""}{overUnder}% vs target</div>}
+                <div style={{fontSize:13,color:"#aaa",marginTop:2}}>forecast</div>
+                {gap!=null&&<div style={{fontSize:14,fontWeight:600,marginTop:5,color:gap<=0?"#16a34a":"#d97706"}}>{gap<=0?"✓ On track":"Need "+gap+" more"}</div>}
+                {overUnder!=null&&<div style={{fontSize:13,color:overUnder>=0?"#16a34a":"#ef4444",marginTop:3}}>{overUnder>=0?"+":""}{overUnder}% vs target</div>}
               </div>
             );
           })}
@@ -1205,8 +1215,8 @@ function RepStats({ user, allUsers }) {
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
-                <div style={{fontSize:11,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:2}}>{s.label}</div>
-                <div style={{fontSize:12,color:"#777"}}>{s.sub}</div>
+                <div style={{fontSize:14,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:2}}>{s.label}</div>
+                <div style={{fontSize:14,color:"#888"}}>{s.sub}</div>
               </div>
             ))}
           </div>
@@ -1221,7 +1231,7 @@ function RepStats({ user, allUsers }) {
                   <div key={p.platform} style={{background:"#080808",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#16a34a":"#d97706"):"#555",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
-                    <div style={{fontSize:12,color:"#aaa",marginBottom:p.total>0?8:0}}>{p.closed} closed · {p.lost} lost</div>
+                    <div style={{fontSize:14,color:"#aaa",marginBottom:p.total>0?8:0}}>{p.closed} closed · {p.lost} lost</div>
                     {p.total>0&&<div style={{height:5,background:"#111",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#16a34a":"#d97706",borderRadius:3,transition:"width 0.5s"}} /></div>}
                   </div>
                 );
@@ -1232,7 +1242,7 @@ function RepStats({ user, allUsers }) {
           {/* Cycle speed */}
           <div className="card" style={{padding:20,marginBottom:14}}>
             <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Sales Cycle Speed</div>
-            <div style={{fontSize:13,color:"#777",marginBottom:14}}>Days from deal created to reaching Ready to Submit / Awaiting Platform Approval.</div>
+            <div style={{fontSize:15,color:"#888",marginBottom:14}}>Days from deal created to reaching Ready to Submit / Awaiting Platform Approval.</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
               {stats.platCycles.map(p=>{
                 const pc=PLATFORM_COLOR[p.platform];
@@ -1240,7 +1250,7 @@ function RepStats({ user, allUsers }) {
                   <div key={p.platform} style={{background:"#080808",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.avgDays!==null?c:"#555",lineHeight:1,marginBottom:4}}>{p.avgDays!==null?p.avgDays+"d":"—"}</div>
-                    <div style={{fontSize:12,color:"#aaa"}}>{p.count} deal{p.count!==1?"s":""}</div>
+                    <div style={{fontSize:14,color:"#aaa"}}>{p.count} deal{p.count!==1?"s":""}</div>
                   </div>
                 );
               })}
@@ -1251,7 +1261,7 @@ function RepStats({ user, allUsers }) {
           {liveAll.length>0&&(
             <div className="card" style={{padding:20}}>
               <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Recent Live Deals</div>
-              <div style={{fontSize:13,color:"#777",marginBottom:14}}>Deals that made it all the way to Live — ops got them over the line.</div>
+              <div style={{fontSize:15,color:"#888",marginBottom:14}}>Deals that made it all the way to Live — ops got them over the line.</div>
               <div style={{display:"grid",gap:8}}>
                 {liveAll.slice(0,8).map((d,i)=>{
                   const plat=stats.normPlat(d),pc=PLATFORM_COLOR[plat]||"#888";
@@ -1262,11 +1272,11 @@ function RepStats({ user, allUsers }) {
                         <div style={{fontSize:14,fontWeight:600,color:"#fff",marginBottom:3}}>{d.Deal_Name}</div>
                         <div style={{display:"flex",gap:7,alignItems:"center"}}>
                           <span style={{fontSize:11,background:pc+"22",color:pc,border:`1px solid ${pc}33`,borderRadius:6,padding:"1px 7px",fontWeight:600}}>{plat}</span>
-                          {d.WV_Percentage>0&&<span style={{fontSize:11,color:"#bbb"}}>WV {d.WV_Percentage}%</span>}
-                          {d.Closing_Date&&<span style={{fontSize:11,color:"#777"}}>{new Date(d.Closing_Date).toLocaleDateString("en-GB")}</span>}
+                          {d.WV_Percentage>0&&<span style={{fontSize:14,color:"#bbb"}}>WV {d.WV_Percentage}%</span>}
+                          {d.Closing_Date&&<span style={{fontSize:14,color:"#888"}}>{new Date(d.Closing_Date).toLocaleDateString("en-GB")}</span>}
                         </div>
                       </div>
-                      {cyc!==null&&<div style={{textAlign:"right",flexShrink:0}}><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:c}}>{cyc}d</div><div style={{fontSize:10,color:"#777"}}>total cycle</div></div>}
+                      {cyc!==null&&<div style={{textAlign:"right",flexShrink:0}}><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:c}}>{cyc}d</div><div style={{fontSize:13,color:"#888"}}>total cycle</div></div>}
                     </div>
                   );
                 })}
@@ -1426,7 +1436,7 @@ function TeamStatsView({ allUsers, c, q }) {
         ].map(s=>(
           <div key={s.label} className="card" style={{padding:14}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
-            <div style={{fontSize:11,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.06em"}}>{s.label}</div>
+            <div style={{fontSize:14,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.06em"}}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -1453,7 +1463,7 @@ function TeamStatsView({ allUsers, c, q }) {
                     {label:"Closed · Lost",val:`${rs.salesClosed.length} · ${rs.lost.length}`,col:"#ddd"},
                   ].map(s=>(
                     <div key={s.label} style={{textAlign:"center"}}>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,color:s.col,lineHeight:1,marginBottom:2}}>{s.val}</div>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:s.col,lineHeight:1,marginBottom:2}}>{s.val}</div>
                       <div style={{fontSize:10,color:"#666",textTransform:"uppercase",letterSpacing:"0.05em"}}>{s.label}</div>
                     </div>
                   ))}
