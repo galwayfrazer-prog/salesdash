@@ -34,8 +34,8 @@ function sbDel(key) {
 
 // ── BRAND ─────────────────────────────────────────────────────────────────────
 const B = {
-  orange:"#ff6700", black:"#000000", white:"#ffffff",
-  card:"#0d0d0d", border:"#1a1a1a", muted:"#bbb", dim:"#888",
+  orange:"#ff6700", black:"var(--bg)", white:"var(--text)",
+  card:"var(--bg-card)", border:"var(--border)", muted:"var(--text-muted)", dim:"var(--text-dim)",
   fb:"#1877f2", msn:"#ff00a8", spotify:"#1db954",
 };
 const WV_LOGO = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20776%20760%22%3E%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M0%2C217V20C0%2C8%2C7%2C0%2C22%2C2c2%2C1%2C4%2C3%2C6%2C5%2C35%2C34%2C92%2C76%2C170%2C114%2C26%2C13%2C54%2C23%2C84%2C29%2C9%2C1%2C18-1%2C27-3%2C95-36%2C186-127%2C232-177%2C4-4%2C8-6%2C14-6%2C7%2C0%2C13%2C5%2C13%2C12v398c0%2C6-3%2C11-8%2C14L389%2C524c-4%2C3-8%2C6-10%2C11L310%2C681c-6%2C11-17%2C11-22%2C1L225%2C541c-2-4-5-6-8-8L5%2C405C2%2C403%2C0%2C400%2C0%2C396V217z%22/%3E%3C/svg%3E";
@@ -52,9 +52,9 @@ const SPLIT_TARGETS = {Facebook:39.5, MSN:41.5};
 const ACCENT_COLORS = ["#ff6700","#00d4ff","#ff2d78","#7c3aed","#16a34a","#f59e0b","#06b6d4","#ec4899","#84cc16","#f97316"];
 const BADGE_EMOJIS = ["🏅","🥇","🔥","⚡","💎","🎯","🚀","👑","💪","🌟"];
 const TITLE_OPTIONS = [
-  "The Closer","The Researcher","The Organiser","The Hunter",
-  "The Networker","The Strategist","The Negotiator","The Connector",
-  "The Grinder","The Dealmaker",
+  "The Grinder","The Hard Closer","The Come-From-Behind",
+  "The Sheet Spreader","The Click Bait","The Screamer",
+  "The Pipeline Filler","The One Who Begs For Signings","I Love Feet",
 ];
 
 // ── STORAGE ───────────────────────────────────────────────────────────────────
@@ -366,10 +366,20 @@ export default function App() {
   const [view, setView] = useState("login");
   const [allUsers, setAllUsers] = useState([]);
   const [syncing, setSyncing] = useState(true);
+  const [lightMode, setLightMode] = useState(false);
+
+  // Persist light mode preference to localStorage
+  function toggleLightMode() {
+    const next = !lightMode;
+    setLightMode(next);
+    localStorage.setItem("wvos:pref:lightmode", next ? "1" : "0");
+  }
 
   useEffect(() => {
     // Pull latest data from Supabase into localStorage first, THEN render login screen
     // This ensures invite codes and user accounts are available before the rep tries to use them
+    const savedMode = localStorage.getItem("wvos:pref:lightmode");
+    if (savedMode === "1") setLightMode(true);
     syncFromSupabase().finally(() => {
       if (!getUser("frazer@wildvision.io")) {
         saveUser({email:"frazer@wildvision.io",password:"WildVision123",role:"manager",displayName:"Frazer",nickname:"Frazer",title:"Head of Sales",bio:"",accentColor:"#ff6700",photo:null,setupComplete:true,createdAt:Date.now()});
@@ -404,27 +414,72 @@ export default function App() {
   useEffect(() => { if(user) refreshAllUsers(); }, [user?.email]);
 
   return (
-    <div style={{fontFamily:"'DM Sans',sans-serif",minHeight:"100vh",background:B.black,color:B.white}}>
+    <div className={lightMode?"light-mode":""} style={{fontFamily:"'DM Sans',sans-serif",minHeight:"100vh",background:"var(--bg)",color:"var(--text)"}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap');
+
+        /* ── THEME VARIABLES ── */
+        :root {
+          --bg: #000000;
+          --bg-card: #0d0d0d;
+          --bg-sub: #0a0a0a;
+          --bg-inner: #080808;
+          --bg-hover: #111111;
+          --border: #1a1a1a;
+          --border-sub: #1e1e1e;
+          --border-strong: #2a2a2a;
+          --text: #ffffff;
+          --text-2: #dddddd;
+          --text-3: #cccccc;
+          --text-muted: #bbbbbb;
+          --text-dim: #888888;
+          --text-dim2: #666666;
+          --text-dim3: #444444;
+          --input-bg: #0a0a0a;
+          --input-border: #1e1e1e;
+          --placeholder: #444444;
+          --scrollbar: #222222;
+        }
+        .light-mode {
+          --bg: #f5f6fa;
+          --bg-card: #ffffff;
+          --bg-sub: #f0f2f7;
+          --bg-inner: #f5f6fa;
+          --bg-hover: #e8eaf0;
+          --border: #e0e3ec;
+          --border-sub: #e8eaf0;
+          --border-strong: #d0d4e0;
+          --text: #111111;
+          --text-2: #222222;
+          --text-3: #333333;
+          --text-muted: #555555;
+          --text-dim: #777777;
+          --text-dim2: #888888;
+          --text-dim3: #999999;
+          --input-bg: #ffffff;
+          --input-border: #d0d4e0;
+          --placeholder: #aaaaaa;
+          --scrollbar: #cccccc;
+        }
+
         *{box-sizing:border-box;margin:0;padding:0;}
-        ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:#000;} ::-webkit-scrollbar-thumb{background:#222;border-radius:2px;}
-        .card{background:${B.card};border:1px solid ${B.border};border-radius:12px;}
+        ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:2px;}
+        .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;}
         .btn{border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;border-radius:8px;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;}
         .btn-p{background:${B.orange};color:#fff;padding:10px 20px;font-size:13px;}
         .btn-p:hover:not(:disabled){background:#e55d00;transform:translateY(-1px);}
         .btn-p:disabled{opacity:0.4;cursor:not-allowed;}
-        .btn-g{background:transparent;color:#ccc;border:1px solid #222;padding:8px 16px;font-size:13px;}
-        .btn-g:hover{border-color:#444;color:#fff;}
+        .btn-g{background:transparent;color:var(--text-muted);border:1px solid var(--border-strong);padding:8px 16px;font-size:13px;}
+        .btn-g:hover{border-color:var(--text-dim);color:var(--text);}
         .btn-sm{padding:6px 12px;font-size:12px;}
-        input,select,textarea{background:#0a0a0a;border:1px solid #1e1e1e;color:#fff;padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;width:100%;outline:none;transition:border-color 0.2s;}
+        input,select,textarea{background:var(--input-bg);border:1px solid var(--input-border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;width:100%;outline:none;transition:border-color 0.2s;}
         input:focus,select:focus,textarea:focus{border-color:${B.orange};}
-        input::placeholder,textarea::placeholder{color:#555;}
-        select option{background:#0a0a0a;}
-        label{display:block;font-size:11px;font-weight:600;color:#bbb;margin-bottom:5px;letter-spacing:0.07em;text-transform:uppercase;}
+        input::placeholder,textarea::placeholder{color:var(--placeholder);}
+        select option{background:var(--bg-card);color:var(--text);}
+        label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;letter-spacing:0.07em;text-transform:uppercase;}
         .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
-        .nav{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:500;color:#bbb;transition:all 0.15s;border:none;background:none;width:100%;}
-        .nav:hover{background:#111;color:#fff;}
+        .nav{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:500;color:var(--text-muted);transition:all 0.15s;border:none;background:none;width:100%;}
+        .nav:hover{background:var(--bg-hover);color:var(--text);}
         .nav.on{background:${B.orange}18;color:${B.orange};}
         .fi{animation:fadeIn 0.25s ease;}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -434,13 +489,13 @@ export default function App() {
         <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}>
           <img src={WV_LOGO} alt="" style={{width:40,height:40,objectFit:"contain"}} />
           <div style={{width:32,height:32,border:"3px solid #1a1a1a",borderTopColor:B.orange,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} />
-          <div style={{fontSize:13,color:"#555",letterSpacing:"0.06em",textTransform:"uppercase"}}>Loading...</div>
+          <div style={{fontSize:13,color:"var(--text-dim3)",letterSpacing:"0.06em",textTransform:"uppercase"}}>Loading...</div>
         </div>
       )}
       {!syncing && view==="login" && <LoginScreen doLogin={doLogin} />}
       {!syncing && view==="setup" && user && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
       {!syncing && user && user.setupComplete && view!=="login" && view!=="setup" && (
-        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} switchUser={switchUser} />
+        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} switchUser={switchUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />
       )}
     </div>
   );
@@ -504,11 +559,11 @@ function LoginScreen({ doLogin }) {
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:36}}>
           <img src={WV_LOGO} alt="" style={{width:34,height:34,objectFit:"contain"}} />
           <div>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,letterSpacing:"0.06em",textTransform:"uppercase",color:"#bbb"}}>Wild Vision</div>
-            <div style={{fontSize:12,color:"#bbb",letterSpacing:"0.1em",textTransform:"uppercase"}}>Sales OS</div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,letterSpacing:"0.06em",textTransform:"uppercase",color:"var(--text-muted)"}}>Wild Vision</div>
+            <div style={{fontSize:12,color:"var(--text-muted)",letterSpacing:"0.1em",textTransform:"uppercase"}}>Sales OS</div>
           </div>
         </div>
-        <div style={{display:"flex",gap:3,background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22}}>
+        <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22}}>
           <button style={T("signin")} onClick={()=>{setTab("signin");setErr("");}}>Sign In</button>
           <button style={T("signup")} onClick={()=>{setTab("signup");setErr("");}}>Sign Up</button>
           <button style={T("invite")} onClick={()=>{setTab("invite");setErr("");}}>Invite Code</button>
@@ -578,7 +633,7 @@ function SetupScreen({ user, refreshUser, setView }) {
       <div style={{width:"100%",maxWidth:460}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32}}>
           <img src={WV_LOGO} alt="" style={{width:26,height:26,objectFit:"contain"}} />
-          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,letterSpacing:"0.06em",textTransform:"uppercase",color:"#bbb"}}>Wild Vision Sales OS</span>
+          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,letterSpacing:"0.06em",textTransform:"uppercase",color:"var(--text-muted)"}}>Wild Vision Sales OS</span>
         </div>
         <div style={{display:"flex",gap:5,marginBottom:28}}>
           {stepLabels.map((s,i)=>(
@@ -633,8 +688,8 @@ function SetupScreen({ user, refreshUser, setView }) {
               </div>
             </div>
             {/* Preview */}
-            <div style={{marginTop:18,padding:14,background:"#0a0a0a",borderRadius:10,border:`1px solid ${c}33`}}>
-              <div style={{fontSize:11,color:"#ddd",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.07em"}}>Preview</div>
+            <div style={{marginTop:18,padding:14,background:"var(--bg-sub)",borderRadius:10,border:`1px solid ${c}33`}}>
+              <div style={{fontSize:11,color:"var(--text-2)",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.07em"}}>Preview</div>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{width:42,height:42,borderRadius:"50%",background:c+"22",border:`2px solid ${c}`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
                   {form.photo?<img src={form.photo} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,color:c}}>{initials(form.displayName||"?")}</span>}
@@ -673,7 +728,7 @@ function SetupScreen({ user, refreshUser, setView }) {
 }
 
 // ── SHELL ─────────────────────────────────────────────────────────────────────
-function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, switchUser }) {
+function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, switchUser, lightMode, toggleLightMode }) {
   const [open, setOpen] = useState(true);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
@@ -689,7 +744,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
   ];
   return (
     <div style={{display:"flex",minHeight:"100vh"}}>
-      <div style={{width:open?240:64,background:"#050505",borderRight:`1px solid ${B.border}`,display:"flex",flexDirection:"column",flexShrink:0,transition:"width 0.2s",overflow:"hidden"}}>
+      <div style={{width:open?240:64,background:"var(--bg)",borderRight:`1px solid ${B.border}`,display:"flex",flexDirection:"column",flexShrink:0,transition:"width 0.2s",overflow:"hidden"}}>
         <div style={{padding:"20px 16px",borderBottom:`1px solid ${B.border}`,display:"flex",alignItems:"center",gap:12}}>
           <img src={WV_LOGO} alt="" style={{width:30,height:30,objectFit:"contain",flexShrink:0}} />
           {open&&<div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,letterSpacing:"0.06em",textTransform:"uppercase",whiteSpace:"nowrap"}}>Sales OS</div>}
@@ -699,14 +754,20 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
             <button key={item.id} className={`nav${view===item.id?" on":""}`} onClick={()=>setView(item.id)} style={{justifyContent:open?"flex-start":"center",padding:"11px 14px",fontSize:15}}>
               <span style={{fontSize:18,flexShrink:0}}>{item.icon}</span>
               {open&&<span style={{whiteSpace:"nowrap",flex:1}}>{item.label}</span>}
-              {open&&item.badge>0&&<span style={{background:"#ef4444",color:"#fff",borderRadius:10,padding:"2px 8px",fontSize:11,fontWeight:600,flexShrink:0}}>{item.badge}</span>}
+              {open&&item.badge>0&&<span style={{background:"#ef4444",color:"var(--text)",borderRadius:10,padding:"2px 8px",fontSize:11,fontWeight:600,flexShrink:0}}>{item.badge}</span>}
             </button>
           ))}
         </nav>
         <div style={{padding:"12px 8px",borderTop:`1px solid ${B.border}`}}>
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px"}}>
             <Avatar user={user} size={32} />
-            {open&&<div style={{flex:1,minWidth:0}}><div style={{fontSize:14,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#fff"}}>{user.nickname||user.displayName}</div><button onClick={doLogout} style={{background:"none",border:"none",color:B.muted,fontSize:12,cursor:"pointer",padding:0,fontFamily:"'DM Sans',sans-serif"}}>Sign out</button></div>}
+            {open&&<div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:14,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"var(--text)"}}>{user.nickname||user.displayName}</div>
+            <div style={{display:"flex",gap:10,alignItems:"center",marginTop:2}}>
+              <button onClick={doLogout} style={{background:"none",border:"none",color:B.muted,fontSize:12,cursor:"pointer",padding:0,fontFamily:"'DM Sans',sans-serif"}}>Sign out</button>
+              <button onClick={toggleLightMode} style={{background:"none",border:"none",cursor:"pointer",padding:0,fontSize:14}} title={lightMode?"Switch to dark mode":"Switch to light mode"}>{lightMode?"🌙":"☀️"}</button>
+            </div>
+          </div>}
           </div>
         </div>
         {/* Dev user switcher — manager only */}
@@ -730,7 +791,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         {view==="calculator"&&<Calculator user={user} />}
         {view==="targets"&&<Targets user={user} allUsers={allUsers} />}
         {view==="incentive"&&<Incentives user={user} allUsers={allUsers} />}
-        {view==="profile"&&<Profile user={user} refreshUser={refreshUser} />}
+        {view==="profile"&&<Profile user={user} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
         {view==="admin"&&user.role==="manager"&&<Admin user={user} allUsers={allUsers} refreshAllUsers={refreshAllUsers} />}
       </div>
     </div>
@@ -798,8 +859,8 @@ function Dashboard({ user, allUsers, announcement }) {
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
           <div style={{textAlign:"right"}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:25,fontWeight:700,color:c}}>{daysLeft}</div>
-            <div style={{fontSize:15,color:"#ddd"}}>days left in Q{q+1}</div>
-            <div style={{fontSize:14,color:"#ddd",marginTop:3}}>{new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
+            <div style={{fontSize:15,color:"var(--text-2)"}}>days left in Q{q+1}</div>
+            <div style={{fontSize:14,color:"var(--text-2)",marginTop:3}}>{new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
           </div>
           {streaks.hotWeek&&<span style={{fontSize:14,fontWeight:600,color:"#f59e0b",background:"#f59e0b18",border:"1px solid #f59e0b33",borderRadius:12,padding:"2px 8px"}}>🔥 {streaks.thisWeekCount} this week</span>}
           {streaks.weeklyStreak>=2&&<span style={{fontSize:14,fontWeight:600,color:"#16a34a",background:"#16a34a18",border:"1px solid #16a34a33",borderRadius:12,padding:"2px 8px"}}>🔁 {streaks.weeklyStreak}-week streak</span>}
@@ -812,7 +873,7 @@ function Dashboard({ user, allUsers, announcement }) {
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:18,flexShrink:0}}>{announcement.emoji||"📣"}</span>
             <div>
-              <div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{announcement.text}</div>
+              <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{announcement.text}</div>
               {announcement.from&&<div style={{fontSize:12,color:"#e5e5e5",marginTop:2}}>From {announcement.from} · {timeAgo(announcement.ts)}</div>}
             </div>
           </div>
@@ -830,22 +891,22 @@ function Dashboard({ user, allUsers, announcement }) {
                 <span style={{fontSize:16}}>📋</span>
                 <div>
                   <div style={{fontSize:13,fontWeight:700,color:"#60a5fa",letterSpacing:"0.04em",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
-                  {recap.date&&<div style={{fontSize:11,color:"#555",marginTop:1}}>{recap.date}</div>}
+                  {recap.date&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>{recap.date}</div>}
                 </div>
               </div>
               {recap.link&&<a href={recap.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:"#3b82f6",textDecoration:"none",fontWeight:600}}>View recording →</a>}
             </div>
-            {recap.summary&&<div style={{fontSize:15,color:"#ccc",lineHeight:1.6,marginBottom:recap.tasks?.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary}</div>}
+            {recap.summary&&<div style={{fontSize:15,color:"var(--text-3)",lineHeight:1.6,marginBottom:recap.tasks?.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary}</div>}
             {recap.tasks?.length>0&&(
               <div>
                 <div style={{fontSize:11,fontWeight:600,color:"#60a5fa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your Tasks</div>
                 <div style={{display:"grid",gap:5}}>
                   {recap.tasks.filter(t=>!t.assignee||t.assignee===user.nickname||t.assignee===user.displayName||t.assignee==="All").map((t,i)=>(
-                    <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"7px 10px",background:"#080808",borderRadius:7,border:"1px solid #1e2a3a"}}>
+                    <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"7px 10px",background:"var(--bg-inner)",borderRadius:7,border:"1px solid #1e2a3a"}}>
                       <span style={{color:"#3b82f6",flexShrink:0,marginTop:1}}>◦</span>
                       <div>
-                        <div style={{fontSize:15,color:"#ddd"}}>{t.task}</div>
-                        {t.assignee&&t.assignee!=="All"&&<div style={{fontSize:11,color:"#555",marginTop:1}}>→ {t.assignee}</div>}
+                        <div style={{fontSize:15,color:"var(--text-2)"}}>{t.task}</div>
+                        {t.assignee&&t.assignee!=="All"&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>→ {t.assignee}</div>}
                       </div>
                     </div>
                   ))}
@@ -869,10 +930,10 @@ function Dashboard({ user, allUsers, announcement }) {
         <div className="card" style={{padding:18,borderColor:perfScoreColor(perfData.score)+"44",background:`linear-gradient(135deg,${perfScoreColor(perfData.score)}0a,#0d0d0d)`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div>
-              <div style={{fontSize:11,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Performance Score</div>
+              <div style={{fontSize:11,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Performance Score</div>
               <div style={{display:"flex",alignItems:"flex-end",gap:10,marginBottom:4}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:56,fontWeight:700,color:perfScoreColor(perfData.score),lineHeight:1}}>{perfData.score}</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,color:"#555",lineHeight:1,paddingBottom:6}}>/100</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,color:"var(--text-dim3)",lineHeight:1,paddingBottom:6}}>/100</div>
               </div>
               <div style={{fontSize:13,fontWeight:600,color:perfScoreColor(perfData.score)}}>{perfScoreLabel(perfData.score)}</div>
             </div>
@@ -886,10 +947,10 @@ function Dashboard({ user, allUsers, announcement }) {
               ].map(s=>(
                 <div key={s.label}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                    <span style={{fontSize:13,color:"#888"}}>{s.label}</span>
+                    <span style={{fontSize:13,color:"var(--text-dim)"}}>{s.label}</span>
                     <span style={{fontSize:12,color:perfScoreColor(s.val),fontWeight:600}}>{s.val}</span>
                   </div>
-                  <div style={{height:3,background:"#111",borderRadius:2,overflow:"hidden"}}>
+                  <div style={{height:3,background:"var(--bg-hover)",borderRadius:2,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${s.val}%`,background:perfScoreColor(s.val),borderRadius:2,transition:"width 0.5s"}} />
                   </div>
                 </div>
@@ -899,21 +960,21 @@ function Dashboard({ user, allUsers, announcement }) {
         </div>
         {/* Momentum */}
         <div className="card" style={{padding:18,borderColor:momentumColor(momentum.trend)+"44",background:`linear-gradient(135deg,${momentumColor(momentum.trend)}0a,#0d0d0d)`,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
-          <div style={{fontSize:11,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Momentum</div>
+          <div style={{fontSize:11,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Momentum</div>
           <div>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:momentumColor(momentum.trend),lineHeight:1,marginBottom:4}}>
               {momentum.trend==="up"?"↑":momentum.trend==="down"?"↓":"→"}
               {momentum.pct>0?` ${momentum.pct}%`:""}
             </div>
-            <div style={{fontSize:15,color:"#ddd",fontWeight:600,marginBottom:8}}>{momentum.label}</div>
+            <div style={{fontSize:15,color:"var(--text-2)",fontWeight:600,marginBottom:8}}>{momentum.label}</div>
             <div style={{display:"flex",gap:12}}>
               <div style={{textAlign:"center"}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:momentumColor(momentum.trend)}}>{momentum.last4}</div>
-                <div style={{fontSize:10,color:"#666"}}>last 4 wks</div>
+                <div style={{fontSize:10,color:"var(--text-dim2)"}}>last 4 wks</div>
               </div>
               <div style={{textAlign:"center"}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:"#555"}}>{momentum.prev4}</div>
-                <div style={{fontSize:10,color:"#666"}}>prev 4 wks</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:"var(--text-dim3)"}}>{momentum.prev4}</div>
+                <div style={{fontSize:10,color:"var(--text-dim2)"}}>prev 4 wks</div>
               </div>
             </div>
           </div>
@@ -935,19 +996,19 @@ function Dashboard({ user, allUsers, announcement }) {
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,color:p.color,lineHeight:1,marginBottom:2}}>
                 {p.signings}<span style={{fontSize:15,color:"#e5e5e5",fontWeight:400}}>{p.target>0?` / ${p.target}`:""}</span>
               </div>
-              <div style={{fontSize:15,color:"#ddd",marginBottom:p.target>0?6:4}}>signings this quarter</div>
-              {p.target>0&&<div style={{height:4,background:"#111",borderRadius:2,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${pct}%`,background:p.color,borderRadius:2,transition:"width 0.5s"}} /></div>}
+              <div style={{fontSize:15,color:"var(--text-2)",marginBottom:p.target>0?6:4}}>signings this quarter</div>
+              {p.target>0&&<div style={{height:4,background:"var(--bg-hover)",borderRadius:2,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${pct}%`,background:p.color,borderRadius:2,transition:"width 0.5s"}} /></div>}
 
               {/* Week/month comparison */}
               <div style={{display:"flex",gap:14,marginBottom:p.avgSplit!=null?8:0}}>
                 <div>
-                  <div style={{fontSize:11,color:"#666",marginBottom:2}}>This week</div>
+                  <div style={{fontSize:11,color:"var(--text-dim2)",marginBottom:2}}>This week</div>
                   <div style={{fontSize:17,fontWeight:700,color:wkDiff>0?"#16a34a":wkDiff<0?"#ef4444":"#ddd"}}>
                     {p.thisWeek}{wkDiff!==0&&<span style={{fontSize:13,fontWeight:400}}> ({wkDiff>0?"+":""}{wkDiff})</span>}
                   </div>
                 </div>
                 <div>
-                  <div style={{fontSize:11,color:"#666",marginBottom:2}}>This month</div>
+                  <div style={{fontSize:11,color:"var(--text-dim2)",marginBottom:2}}>This month</div>
                   <div style={{fontSize:17,fontWeight:700,color:moDiff>0?"#16a34a":moDiff<0?"#ef4444":"#ddd"}}>
                     {p.thisMonth}{moDiff!==0&&<span style={{fontSize:13,fontWeight:400}}> ({moDiff>0?"+":""}{moDiff})</span>}
                   </div>
@@ -957,7 +1018,7 @@ function Dashboard({ user, allUsers, announcement }) {
               {/* Split quality */}
               {p.avgSplit!=null&&p.avgSplit>0&&(
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:15,color:"#ddd"}}>Avg split</span>
+                  <span style={{fontSize:15,color:"var(--text-2)"}}>Avg split</span>
                   <span style={{fontSize:14,fontWeight:600,color:p.avgSplit>=(p.splitTarget||0)?"#16a34a":"#ef4444"}}>
                     {fmtPct(p.avgSplit)}{p.splitTarget?` / ${fmtPct(p.splitTarget)}`:""}</span>
                 </div>
@@ -981,10 +1042,10 @@ function Dashboard({ user, allUsers, announcement }) {
             const gap=p.target>0?p.target-p.signings:null;
             const overUnder=p.target>0?Math.round(((p.forecast-p.target)/p.target)*100):null;
             return (
-              <div key={p.platform} style={{textAlign:"center",padding:"10px 8px",background:"#080808",borderRadius:8,border:`1px solid ${p.color}22`}}>
+              <div key={p.platform} style={{textAlign:"center",padding:"10px 8px",background:"var(--bg-inner)",borderRadius:8,border:`1px solid ${p.color}22`}}>
                 <div style={{fontSize:14,color:p.color,fontWeight:600,marginBottom:4}}>{p.platform}</div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:25,fontWeight:700,color:overUnder!=null&&overUnder>=0?"#16a34a":"#ef4444"}}>{p.forecast}</div>
-                <div style={{fontSize:13,color:"#aaa",marginTop:2}}>forecast</div>
+                <div style={{fontSize:13,color:"var(--text-dim)",marginTop:2}}>forecast</div>
                 {gap!=null&&<div style={{fontSize:14,fontWeight:600,marginTop:5,color:gap<=0?"#16a34a":"#d97706"}}>{gap<=0?"✓ On track":"Need "+gap+" more"}</div>}
                 {overUnder!=null&&<div style={{fontSize:13,color:overUnder>=0?"#16a34a":"#ef4444",marginTop:3}}>{overUnder>=0?"+":""}{overUnder}% vs target</div>}
               </div>
@@ -998,7 +1059,7 @@ function Dashboard({ user, allUsers, announcement }) {
         <div style={{background:`linear-gradient(135deg,${B.orange}18,#0d0d0d)`,border:`1px solid ${B.orange}44`,borderRadius:12,padding:14,marginBottom:12}}>
           <div style={{fontSize:14,fontWeight:600,color:B.orange,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:3}}>🔥 Current Incentive</div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:23,fontWeight:700,marginBottom:2}}>{incentive.title}</div>
-          <div style={{fontSize:14,color:"#ddd"}}>{incentive.description}</div>
+          <div style={{fontSize:14,color:"var(--text-2)"}}>{incentive.description}</div>
           {incentive.reward&&<div style={{fontSize:15,color:"#f59e0b",marginTop:3,fontWeight:600}}>Prize: {incentive.reward}</div>}
         </div>
       )}
@@ -1011,8 +1072,8 @@ function Dashboard({ user, allUsers, announcement }) {
           if (!all.length) return <div style={{color:"#e5e5e5",fontSize:15,textAlign:"center",padding:"16px 0"}}>No approved signings yet. Log your first once the contract is complete.</div>;
           return <div style={{display:"grid",gap:6}}>
             {all.map((s,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 11px",background:"#080808",borderRadius:8,border:`1px solid ${B.border}`}}>
-                <div><div style={{fontWeight:500,fontSize:14,color:"#fff"}}>{s.dealName}</div><div style={{fontSize:14,color:"#e5e5e5"}}>{s.platform}{s.split?" · "+s.split:""} · {s.contractDate}</div></div>
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 11px",background:"var(--bg-inner)",borderRadius:8,border:`1px solid ${B.border}`}}>
+                <div><div style={{fontWeight:500,fontSize:14,color:"var(--text)"}}>{s.dealName}</div><div style={{fontSize:14,color:"#e5e5e5"}}>{s.platform}{s.split?" · "+s.split:""} · {s.contractDate}</div></div>
                 <span style={{fontSize:15,color:PLATFORM_COLOR[s.platform]||c,fontWeight:600}}>{s.platform}</span>
               </div>
             ))}
@@ -1027,7 +1088,7 @@ function Dashboard({ user, allUsers, announcement }) {
             {badges.map((b,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:8,padding:"5px 10px"}}>
                 <span style={{fontSize:14}}>{b.emoji||"🏅"}</span>
-                <div><div style={{fontSize:15,fontWeight:600,color:"#f59e0b"}}>{b.name}</div><div style={{fontSize:15,color:"#ddd"}}>{new Date(b.awardedAt).toLocaleDateString("en-GB")}</div></div>
+                <div><div style={{fontSize:15,fontWeight:600,color:"#f59e0b"}}>{b.name}</div><div style={{fontSize:15,color:"var(--text-2)"}}>{new Date(b.awardedAt).toLocaleDateString("en-GB")}</div></div>
               </div>
             ))}
           </div>
@@ -1180,24 +1241,24 @@ function RepStats({ user, allUsers }) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,flexWrap:"wrap",gap:12}}>
         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase"}}>My Stats</div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{display:"flex",background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
+          <div style={{display:"flex",background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
             {[["quarter",`Q${q+1} Only`],["all","All Time"]].map(([k,l])=>(
               <button key={k} onClick={()=>setPeriod(k)} style={{padding:"6px 14px",borderRadius:6,border:"none",background:period===k?c:"transparent",color:period===k?"#fff":"#bbb",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"all 0.15s"}}>{l}</button>
             ))}
           </div>
-          <button onClick={loadDeals} disabled={loading} style={{background:"#1a1a1a",border:`1px solid ${c}44`,color:c,padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:loading?"not-allowed":"pointer",fontFamily:"'DM Sans',sans-serif"}}>{loading?"...":"↻"}</button>
+          <button onClick={loadDeals} disabled={loading} style={{background:"var(--border)",border:`1px solid ${c}44`,color:c,padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:loading?"not-allowed":"pointer",fontFamily:"'DM Sans',sans-serif"}}>{loading?"...":"↻"}</button>
         </div>
       </div>
-      <p style={{color:"#ddd",fontSize:15,marginBottom:4}}>Stats up to handoff — once it reaches Ready to Submit or Awaiting Platform Approval, it's out of your hands.</p>
-      <p style={{color:"#777",fontSize:13,marginBottom:20}}>Live from Zoho CRM.</p>
+      <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Stats up to handoff — once it reaches Ready to Submit or Awaiting Platform Approval, it's out of your hands.</p>
+      <p style={{color:"var(--text-dim2)",fontSize:13,marginBottom:20}}>Live from Zoho CRM.</p>
 
       {error==="demo"&&<div style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#d97706"}}>⚡ Demo data — live Zoho data loads in Bolt.</div>}
 
-      {loading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"#ddd",fontSize:15}}>Loading from Zoho...</div></div>}
+      {loading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
 
       {!loading&&<>
         {/* Tab bar */}
-        <div style={{display:"flex",gap:3,background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:20,width:"fit-content"}}>
+        <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:20,width:"fit-content"}}>
           <button style={T("overview")} onClick={()=>setActiveTab("overview")}>Overview</button>
           <button style={T("history")} onClick={()=>setActiveTab("history")}>Quarter History</button>
           {isManager&&<button style={T("team")} onClick={()=>setActiveTab("team")}>Team Stats</button>}
@@ -1215,24 +1276,24 @@ function RepStats({ user, allUsers }) {
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
-                <div style={{fontSize:14,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:2}}>{s.label}</div>
-                <div style={{fontSize:14,color:"#888"}}>{s.sub}</div>
+                <div style={{fontSize:14,color:"var(--text-dim)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:2}}>{s.label}</div>
+                <div style={{fontSize:14,color:"var(--text-dim)"}}>{s.sub}</div>
               </div>
             ))}
           </div>
 
           {/* Platform close rate */}
           <div className="card" style={{padding:20,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Close Rate by Platform</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Close Rate by Platform</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
               {stats.platRates.map(p=>{
                 const pc=PLATFORM_COLOR[p.platform];
                 return (
-                  <div key={p.platform} style={{background:"#080808",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
+                  <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#16a34a":"#d97706"):"#555",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
-                    <div style={{fontSize:14,color:"#aaa",marginBottom:p.total>0?8:0}}>{p.closed} closed · {p.lost} lost</div>
-                    {p.total>0&&<div style={{height:5,background:"#111",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#16a34a":"#d97706",borderRadius:3,transition:"width 0.5s"}} /></div>}
+                    <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} closed · {p.lost} lost</div>
+                    {p.total>0&&<div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#16a34a":"#d97706",borderRadius:3,transition:"width 0.5s"}} /></div>}
                   </div>
                 );
               })}
@@ -1241,16 +1302,16 @@ function RepStats({ user, allUsers }) {
 
           {/* Cycle speed */}
           <div className="card" style={{padding:20,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Sales Cycle Speed</div>
-            <div style={{fontSize:15,color:"#888",marginBottom:14}}>Days from deal created to reaching Ready to Submit / Awaiting Platform Approval.</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Sales Cycle Speed</div>
+            <div style={{fontSize:15,color:"var(--text-dim)",marginBottom:14}}>Days from deal created to reaching Ready to Submit / Awaiting Platform Approval.</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
               {stats.platCycles.map(p=>{
                 const pc=PLATFORM_COLOR[p.platform];
                 return (
-                  <div key={p.platform} style={{background:"#080808",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
+                  <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.avgDays!==null?c:"#555",lineHeight:1,marginBottom:4}}>{p.avgDays!==null?p.avgDays+"d":"—"}</div>
-                    <div style={{fontSize:14,color:"#aaa"}}>{p.count} deal{p.count!==1?"s":""}</div>
+                    <div style={{fontSize:14,color:"var(--text-dim)"}}>{p.count} deal{p.count!==1?"s":""}</div>
                   </div>
                 );
               })}
@@ -1260,23 +1321,23 @@ function RepStats({ user, allUsers }) {
           {/* Recent live deals */}
           {liveAll.length>0&&(
             <div className="card" style={{padding:20}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Recent Live Deals</div>
-              <div style={{fontSize:15,color:"#888",marginBottom:14}}>Deals that made it all the way to Live — ops got them over the line.</div>
+              <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Recent Live Deals</div>
+              <div style={{fontSize:15,color:"var(--text-dim)",marginBottom:14}}>Deals that made it all the way to Live — ops got them over the line.</div>
               <div style={{display:"grid",gap:8}}>
                 {liveAll.slice(0,8).map((d,i)=>{
                   const plat=stats.normPlat(d),pc=PLATFORM_COLOR[plat]||"#888";
                   const cyc=d.Created_Time&&d.Closing_Date?Math.floor((new Date(d.Closing_Date)-new Date(d.Created_Time))/864e5):null;
                   return (
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#080808",borderRadius:8,border:"1px solid #1e1e1e"}}>
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8,border:"1px solid var(--border-sub)"}}>
                       <div>
-                        <div style={{fontSize:14,fontWeight:600,color:"#fff",marginBottom:3}}>{d.Deal_Name}</div>
+                        <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:3}}>{d.Deal_Name}</div>
                         <div style={{display:"flex",gap:7,alignItems:"center"}}>
                           <span style={{fontSize:11,background:pc+"22",color:pc,border:`1px solid ${pc}33`,borderRadius:6,padding:"1px 7px",fontWeight:600}}>{plat}</span>
-                          {d.WV_Percentage>0&&<span style={{fontSize:14,color:"#bbb"}}>WV {d.WV_Percentage}%</span>}
-                          {d.Closing_Date&&<span style={{fontSize:14,color:"#888"}}>{new Date(d.Closing_Date).toLocaleDateString("en-GB")}</span>}
+                          {d.WV_Percentage>0&&<span style={{fontSize:14,color:"var(--text-muted)"}}>WV {d.WV_Percentage}%</span>}
+                          {d.Closing_Date&&<span style={{fontSize:14,color:"var(--text-dim)"}}>{new Date(d.Closing_Date).toLocaleDateString("en-GB")}</span>}
                         </div>
                       </div>
-                      {cyc!==null&&<div style={{textAlign:"right",flexShrink:0}}><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:c}}>{cyc}d</div><div style={{fontSize:13,color:"#888"}}>total cycle</div></div>}
+                      {cyc!==null&&<div style={{textAlign:"right",flexShrink:0}}><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:c}}>{cyc}d</div><div style={{fontSize:13,color:"var(--text-dim)"}}>total cycle</div></div>}
                     </div>
                   );
                 })}
@@ -1287,13 +1348,13 @@ function RepStats({ user, allUsers }) {
 
         {/* ── QUARTER HISTORY ── */}
         {activeTab==="history"&&<>
-          <p style={{color:"#ddd",fontSize:14,marginBottom:20}}>Close rate and cycle speed across the last 6 quarters. Spot trends in your performance over time.</p>
+          <p style={{color:"var(--text-2)",fontSize:14,marginBottom:20}}>Close rate and cycle speed across the last 6 quarters. Spot trends in your performance over time.</p>
           {history.length===0
-            ?<div className="card" style={{padding:40,textAlign:"center",color:"#555"}}>Not enough historical data yet.</div>
+            ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-dim3)"}}>Not enough historical data yet.</div>
             :<>
               {/* Close rate trend bars */}
               <div className="card" style={{padding:20,marginBottom:14}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Close Rate Trend</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Close Rate Trend</div>
                 <div style={{display:"flex",alignItems:"flex-end",gap:10,height:140,marginBottom:12}}>
                   {history.map((qh,i)=>{
                     const rate=qh.closeRate||0, isCurrent=i===history.length-1;
@@ -1315,7 +1376,7 @@ function RepStats({ user, allUsers }) {
 
               {/* Cycle speed trend */}
               <div className="card" style={{padding:20,marginBottom:14}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Avg Cycle Speed Trend</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Avg Cycle Speed Trend</div>
                 {(() => {
                   const maxCyc = Math.max(...history.map(h=>h.avgCycle||0),1);
                   return (
@@ -1344,17 +1405,17 @@ function RepStats({ user, allUsers }) {
 
               {/* Quarter table */}
               <div className="card" style={{padding:20}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Quarter Breakdown</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Quarter Breakdown</div>
                 <div style={{display:"grid",gap:8}}>
                   {[...history].reverse().map((qh,i)=>{
                     const isCurrent=i===0;
                     return (
                       <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"0a":"#080808",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#1e1e1e"}`}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#16a34a":qh.closeRate>=40?"#d97706":"#ef4444"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"#666"}}>close rate</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"#666"}}>avg cycle</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#16a34a"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"#666"}}>closed</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#ef4444":"#555"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"#666"}}>lost</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#16a34a":qh.closeRate>=40?"#d97706":"#ef4444"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>close rate</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>avg cycle</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#16a34a"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>closed</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#ef4444":"#555"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>lost</div></div>
                       </div>
                     );
                   })}
@@ -1398,7 +1459,7 @@ function TeamStatsView({ allUsers, c, q }) {
     setLoading(false);
   }
 
-  if (loading) return <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"#ddd",fontSize:15}}>Loading team data...</div></div>;
+  if (loading) return <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading team data...</div></div>;
 
   const repStats = allUsers.map(u => {
     const deals = teamDeals[u.email] || [];
@@ -1419,8 +1480,8 @@ function TeamStatsView({ allUsers, c, q }) {
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
-        <p style={{color:"#ddd",fontSize:14}}>Close rate and cycle speed per rep. Sort to see who's performing where.</p>
-        <div style={{display:"flex",background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
+        <p style={{color:"var(--text-2)",fontSize:14}}>Close rate and cycle speed per rep. Sort to see who's performing where.</p>
+        <div style={{display:"flex",background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
           {sortBtn("closeRate","Close Rate")}
           {sortBtn("cycle","Cycle Speed")}
           {sortBtn("closed","Deals Closed")}
@@ -1436,7 +1497,7 @@ function TeamStatsView({ allUsers, c, q }) {
         ].map(s=>(
           <div key={s.label} className="card" style={{padding:14}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
-            <div style={{fontSize:14,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.06em"}}>{s.label}</div>
+            <div style={{fontSize:14,color:"var(--text-dim)",textTransform:"uppercase",letterSpacing:"0.06em"}}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -1452,7 +1513,7 @@ function TeamStatsView({ allUsers, c, q }) {
               <div style={{position:"relative",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
                 <Avatar user={rs.u} size={36} />
                 <div style={{minWidth:120}}>
-                  <div style={{fontSize:15,fontWeight:600,color:"#fff"}}>{rs.u.nickname||rs.u.displayName}</div>
+                  <div style={{fontSize:15,fontWeight:600,color:"var(--text)"}}>{rs.u.nickname||rs.u.displayName}</div>
                   {rs.u.title&&<div style={{fontSize:11,color:repC}}>{rs.u.title}</div>}
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,flex:1}}>
@@ -1464,7 +1525,7 @@ function TeamStatsView({ allUsers, c, q }) {
                   ].map(s=>(
                     <div key={s.label} style={{textAlign:"center"}}>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:s.col,lineHeight:1,marginBottom:2}}>{s.val}</div>
-                      <div style={{fontSize:10,color:"#666",textTransform:"uppercase",letterSpacing:"0.05em"}}>{s.label}</div>
+                      <div style={{fontSize:10,color:"var(--text-dim2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>{s.label}</div>
                     </div>
                   ))}
                 </div>
@@ -1582,12 +1643,12 @@ function LogSigning({ user, refreshUser }) {
         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase"}}>Log a Signing</div>
         {lastDeal&&(
           <button onClick={copyLastDeal}
-            style={{background:"#1a1a1a",border:`1px solid ${c}55`,color:c,padding:"10px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",alignSelf:"center"}}>
+            style={{background:"var(--border)",border:`1px solid ${c}55`,color:c,padding:"10px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",alignSelf:"center"}}>
             ⧉ Copy Last Deal
           </button>
         )}
       </div>
-      <p style={{color:"#ddd",fontSize:16,marginBottom:26}}>Submit once the contract is fully signed by both parties. It counts toward the quarter the contract was completed in.</p>
+      <p style={{color:"var(--text-2)",fontSize:16,marginBottom:26}}>Submit once the contract is fully signed by both parties. It counts toward the quarter the contract was completed in.</p>
 
       {submitted&&(
         <div style={{background:"#0a150a",border:"1px solid #1a3a1a",borderRadius:12,padding:"16px 20px",marginBottom:20,fontSize:16,color:"#4ade80"}}>
@@ -1628,14 +1689,14 @@ function LogSigning({ user, refreshUser }) {
                 </select>
               </div>
             )}
-            {!needsSplit&&<div style={{display:"flex",alignItems:"flex-end",paddingBottom:4}}><span style={{fontSize:15,color:"#ddd"}}>Spotify — no split required</span></div>}
+            {!needsSplit&&<div style={{display:"flex",alignItems:"flex-end",paddingBottom:4}}><span style={{fontSize:15,color:"var(--text-2)"}}>Spotify — no split required</span></div>}
           </div>
           <div>
             <label style={{fontSize:13,marginBottom:8}}>Contract Completion Date</label>
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <input type="date" value={form.contractDate} onChange={e=>setForm(p=>({...p,contractDate:e.target.value}))} style={{flex:1,fontSize:16,padding:"13px 16px"}} />
               <button type="button" onClick={()=>setForm(p=>({...p,contractDate:todayStr()}))}
-                style={{background:"#1a1a1a",border:"1px solid #444",color:"#fff",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+                style={{background:"var(--border)",border:"1px solid #444",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
                 Today
               </button>
             </div>
@@ -1652,11 +1713,11 @@ function LogSigning({ user, refreshUser }) {
       {/* Pending signings */}
       {pending.length>0&&(
         <div className="card" style={{padding:20,marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14,color:"#ddd"}}>Pending Approval ({pending.length})</div>
+          <div style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14,color:"var(--text-2)"}}>Pending Approval ({pending.length})</div>
           <div style={{display:"grid",gap:10}}>
             {pending.map((s,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 16px",background:"#080808",borderRadius:10,border:"1px solid #222"}}>
-                <div><div style={{fontSize:16,fontWeight:600,color:"#fff",marginBottom:3}}>{s.dealName}</div><div style={{fontSize:14,color:"#ddd"}}>{s.platform}{s.split?` · ${s.split}`:""} · {s.contractDate}</div></div>
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 16px",background:"var(--bg-inner)",borderRadius:10,border:"1px solid var(--border-strong)"}}>
+                <div><div style={{fontSize:16,fontWeight:600,color:"var(--text)",marginBottom:3}}>{s.dealName}</div><div style={{fontSize:14,color:"var(--text-2)"}}>{s.platform}{s.split?` · ${s.split}`:""} · {s.contractDate}</div></div>
                 <span className="tag" style={{background:"#d9770618",color:"#d97706",fontSize:12,padding:"4px 10px"}}>Pending</span>
               </div>
             ))}
@@ -1667,14 +1728,14 @@ function LogSigning({ user, refreshUser }) {
       {/* Previous signings with duplicate button */}
       {approved.length>0&&(
         <div className="card" style={{padding:20}}>
-          <div style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,color:"#ddd"}}>Previous Signings</div>
-          <div style={{fontSize:14,color:"#bbb",marginBottom:14}}>Hit Duplicate to pre-fill the form with a previous deal's details.</div>
+          <div style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,color:"var(--text-2)"}}>Previous Signings</div>
+          <div style={{fontSize:14,color:"var(--text-muted)",marginBottom:14}}>Hit Duplicate to pre-fill the form with a previous deal's details.</div>
           <div style={{display:"grid",gap:10}}>
             {approved.map((s,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 16px",background:"#080808",borderRadius:10,border:"1px solid #222"}}>
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 16px",background:"var(--bg-inner)",borderRadius:10,border:"1px solid var(--border-strong)"}}>
                 <div>
-                  <div style={{fontSize:16,fontWeight:600,color:"#fff",marginBottom:3}}>{s.dealName}</div>
-                  <div style={{fontSize:14,color:"#ddd"}}>{s.platform}{s.split?` · ${s.split}`:""} · {s.contractDate}</div>
+                  <div style={{fontSize:16,fontWeight:600,color:"var(--text)",marginBottom:3}}>{s.dealName}</div>
+                  <div style={{fontSize:14,color:"var(--text-2)"}}>{s.platform}{s.split?` · ${s.split}`:""} · {s.contractDate}</div>
                 </div>
                 <button onClick={()=>duplicateSigning(s)}
                   style={{background:"transparent",border:`1px solid ${c}66`,color:c,padding:"10px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>
@@ -1732,12 +1793,12 @@ function Leaderboard({ user, allUsers }) {
 
       {/* Controls */}
       <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-        <div style={{display:"flex",background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
+        <div style={{display:"flex",background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
           {[["total","Total"],["Facebook","FB"],["MSN","MSN"],["Spotify","Spotify"]].map(([k,l])=>(
             <button key={k} onClick={()=>setMetric(k)} style={T(k,metric,k==="total"?B.orange:PLATFORM_COLOR[k])}>{l}</button>
           ))}
         </div>
-        <div style={{display:"flex",background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
+        <div style={{display:"flex",background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
           {[["quarter","Quarter"],["month","Month"],["week","Week"]].map(([k,l])=>(
             <button key={k} onClick={()=>setPeriod(k)} style={{...T(k,period),...(period===k?{background:"#222"}:{})}}>{l}</button>
           ))}
@@ -1777,7 +1838,7 @@ function Leaderboard({ user, allUsers }) {
                       {streaks.weeklyStreak>=2&&<span style={{fontSize:14,background:"#16a34a18",color:"#16a34a",border:"1px solid #16a34a33",borderRadius:10,padding:"1px 6px",fontWeight:600}}>🔁 {streaks.weeklyStreak}wk</span>}
                     </div>
                     {u.title&&<div style={{fontSize:15,color:c,fontWeight:600,marginBottom:2}}>{u.title}</div>}
-                    {u.bio&&<div style={{fontSize:13,color:"#bbb",marginBottom:4,fontStyle:"italic"}}>{u.bio}</div>}
+                    {u.bio&&<div style={{fontSize:13,color:"var(--text-muted)",marginBottom:4,fontStyle:"italic"}}>{u.bio}</div>}
                     {/* Platform pills */}
                     <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                       {pData.map(({p,n,col})=>(
@@ -1795,12 +1856,12 @@ function Leaderboard({ user, allUsers }) {
                     <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
                       <div style={{textAlign:"right"}}>
                         <AnimatedNumber value={s} color={c} size={28} />
-                        <div style={{fontSize:13,color:"#ddd",textTransform:"uppercase",letterSpacing:"0.05em"}}>signings</div>
+                        <div style={{fontSize:13,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>signings</div>
                         {rankChange!==0&&<div style={{fontSize:12,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1}}>{rankChange>0?"↑":"↓"}{Math.abs(rankChange)} this wk</div>}
                       </div>
                       <div style={{textAlign:"center",padding:"6px 10px",background:perfScoreColor(perf.score)+"18",border:`1px solid ${perfScoreColor(perf.score)}44`,borderRadius:8,minWidth:52}}>
                         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:perfScoreColor(perf.score),lineHeight:1}}>{perf.score}</div>
-                        <div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:"0.04em"}}>score</div>
+                        <div style={{fontSize:9,color:"var(--text-dim2)",textTransform:"uppercase",letterSpacing:"0.04em"}}>score</div>
                       </div>
                     </div>
                     <div style={{fontSize:11,fontWeight:600,color:momentumColor(mom.trend),background:momentumColor(mom.trend)+"18",border:`1px solid ${momentumColor(mom.trend)}33`,borderRadius:6,padding:"2px 8px"}}>
@@ -1830,7 +1891,7 @@ function Calculator({ user }) {
   return (
     <div className="fi" style={{maxWidth:640}}>
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Commission Calculator</div>
-      <p style={{color:"#ddd",fontSize:16,marginBottom:26}}>A quick aide — based on estimated monthly revenue. Actual commission is confirmed by the business.</p>
+      <p style={{color:"var(--text-2)",fontSize:16,marginBottom:26}}>A quick aide — based on estimated monthly revenue. Actual commission is confirmed by the business.</p>
       <div className="card" style={{padding:28,marginBottom:18}}>
         <div style={{display:"grid",gap:18,marginBottom:20}}>
           <div>
@@ -1863,14 +1924,14 @@ function Calculator({ user }) {
               {label:"Per Quarter",val:fmt$(result.quarterly),sub:"Paid quarterly"},
               {label:`${result.months}mo Total`,val:fmt$(result.total),sub:`Over ${result.months} months`}
             ].map(s=>(
-              <div key={s.label} style={{textAlign:"center",padding:"18px 12px",background:"#080808",borderRadius:10}}>
+              <div key={s.label} style={{textAlign:"center",padding:"18px 12px",background:"var(--bg-inner)",borderRadius:10}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:c,marginBottom:4}}>{s.val}</div>
-                <div style={{fontSize:12,fontWeight:600,color:"#bbb",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>{s.label}</div>
-                <div style={{fontSize:13,color:"#aaa"}}>{s.sub}</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>{s.label}</div>
+                <div style={{fontSize:13,color:"var(--text-dim)"}}>{s.sub}</div>
               </div>
             ))}
           </div>
-          <div style={{fontSize:14,color:"#bbb",fontStyle:"italic",textAlign:"center"}}>Estimate only — actual commission confirmed by the business.</div>
+          <div style={{fontSize:14,color:"var(--text-muted)",fontStyle:"italic",textAlign:"center"}}>Estimate only — actual commission confirmed by the business.</div>
         </div>
       )}
     </div>
@@ -1937,7 +1998,7 @@ function Targets({ user, allUsers }) {
         <div>
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 44, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Targets</div>
           <div style={{ fontSize: 14, color: B.orange, fontWeight: 600 }}>Q{q + 1} {now.getFullYear()} &nbsp;·&nbsp; {daysLeft} days left</div>
-          <div style={{fontSize:12,color:"#ddd",marginTop:2}}>{now.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
+          <div style={{fontSize:12,color:"var(--text-2)",marginTop:2}}>{now.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {isManager && <button className="btn btn-g btn-sm" onClick={toggleWeakFlag}>{settings.hideWeakFlag ? "Show" : "Hide"} Weak Flag</button>}
@@ -2203,7 +2264,7 @@ function Incentives({ user, allUsers }) {
         <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:14,padding:22,marginBottom:18}}>
           <div style={{fontSize:10,fontWeight:600,color:B.orange,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:7}}>Active Incentive</div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,marginBottom:5}}>{incentive.title}</div>
-          <div style={{fontSize:13,color:"#ddd",marginBottom:8}}>{incentive.description}</div>
+          <div style={{fontSize:13,color:"var(--text-2)",marginBottom:8}}>{incentive.description}</div>
           <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
             {incentive.reward&&<div><span style={{fontSize:12,color:"#e5e5e5"}}>Prize: </span><span style={{fontSize:13,fontWeight:600,color:"#f59e0b"}}>{incentive.reward}</span></div>}
             {incentive.goal&&<div><span style={{fontSize:12,color:"#e5e5e5"}}>Goal: </span><span style={{fontSize:13,fontWeight:600}}>{incentive.goal} signings</span></div>}
@@ -2221,8 +2282,8 @@ function Incentives({ user, allUsers }) {
                   <div style={{flex:1}}><div style={{fontWeight:500,fontSize:13}}>{u.nickname||u.displayName}{isMe?" (You)":""}</div></div>
                   <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,color:c}}>{p}</div>
                 </div>
-                <div style={{height:4,background:"#111",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${c},${c}99)`,borderRadius:2,transition:"width 0.5s"}} /></div>
-                <div style={{fontSize:11,color:"#ddd",marginTop:3,textAlign:"right"}}>{pct}% of goal</div>
+                <div style={{height:4,background:"var(--bg-hover)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${c},${c}99)`,borderRadius:2,transition:"width 0.5s"}} /></div>
+                <div style={{fontSize:11,color:"var(--text-2)",marginTop:3,textAlign:"right"}}>{pct}% of goal</div>
               </div>
             );
           })}
@@ -2233,7 +2294,7 @@ function Incentives({ user, allUsers }) {
 }
 
 // ── PROFILE ───────────────────────────────────────────────────────────────────
-function Profile({ user, refreshUser }) {
+function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
   const [form, setForm] = useState({displayName:user.displayName||"",title:user.title||"",bio:user.bio||"",accentColor:user.accentColor||B.orange,photo:user.photo||null,pw:"",pw2:""});
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState("");
@@ -2281,6 +2342,15 @@ function Profile({ user, refreshUser }) {
           </div>
           <div><label>Message</label><input value={form.bio} onChange={e=>setForm(p=>({...p,bio:e.target.value}))} /></div>
           <div><label>Accent Colour</label><div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>{ACCENT_COLORS.map(col=><div key={col} onClick={()=>setForm(p=>({...p,accentColor:col}))} style={{width:26,height:26,borderRadius:"50%",background:col,cursor:"pointer",border:`3px solid ${form.accentColor===col?"#fff":"transparent"}`,transform:form.accentColor===col?"scale(1.2)":"scale(1)",transition:"all 0.15s"}} />)}</div></div>
+          <div style={{borderTop:`1px solid ${B.border}`,paddingTop:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>Display Mode</div>
+              <div style={{fontSize:12,color:"var(--text-muted)",marginTop:2}}>{lightMode?"Light mode active":"Dark mode active"}</div>
+            </div>
+            <button onClick={toggleLightMode} style={{background:lightMode?B.orange:"var(--bg-hover)",border:`1px solid ${lightMode?B.orange:B.border}`,borderRadius:20,padding:"7px 16px",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:13,color:lightMode?"#fff":"var(--text-muted)",display:"flex",alignItems:"center",gap:6,transition:"all 0.2s"}}>
+              {lightMode?"☀️ Light":"🌙 Dark"}
+            </button>
+          </div>
           <div style={{borderTop:`1px solid ${B.border}`,paddingTop:14}}>
             <div style={{fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:10}}>Change Password (optional)</div>
             <div style={{display:"grid",gap:10}}>
@@ -2495,14 +2565,14 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase",marginBottom:22}}>Manager</div>
 
       {/* Tab bar */}
-      <div style={{display:"flex",gap:3,background:"#0a0a0a",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22,flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22,flexWrap:"wrap"}}>
         <button style={T("summary")} onClick={()=>setTab("summary")}>Summary</button>
         <button style={T("activity")} onClick={()=>setTab("activity")}>Activity</button>
         <button style={T("monthly")} onClick={()=>setTab("monthly")}>Month vs Month</button>
         <button style={T("recap")} onClick={()=>setTab("recap")}>Meeting Recap</button>
         <button style={T("announce")} onClick={()=>setTab("announce")}>Announce</button>
         <button style={T("approvals")} onClick={()=>setTab("approvals")}>
-          Approvals {pending.length>0&&<span style={{background:"#ef4444",color:"#fff",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:600,marginLeft:4}}>{pending.length}</span>}
+          Approvals {pending.length>0&&<span style={{background:"#ef4444",color:"var(--text)",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:600,marginLeft:4}}>{pending.length}</span>}
         </button>
         <button style={T("add")} onClick={()=>setTab("add")}>Add Deal</button>
         <button style={T("team")} onClick={()=>setTab("team")}>Team</button>
@@ -2548,11 +2618,11 @@ function Admin({ user, allUsers, refreshAllUsers }) {
               <div key={p} className="card" style={{padding:16,borderColor:PLATFORM_COLOR[p]+"44"}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:PLATFORM_COLOR[p],marginBottom:8}}>{p}</div>
                 <div style={{display:"flex",alignItems:"flex-end",gap:5,marginBottom:6}}>
-                  <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:700,color:"#fff",lineHeight:1}}>{sigs}</span>
-                  {target>0&&<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,color:"#ddd",lineHeight:1,paddingBottom:2}}>/ {target}</span>}
+                  <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:700,color:"var(--text)",lineHeight:1}}>{sigs}</span>
+                  {target>0&&<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,color:"var(--text-2)",lineHeight:1,paddingBottom:2}}>/ {target}</span>}
                 </div>
                 {target>0&&<>
-                  <div style={{height:5,background:"#111",borderRadius:3,overflow:"hidden",marginBottom:6}}>
+                  <div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden",marginBottom:6}}>
                     <div style={{height:"100%",width:`${pct}%`,background:PLATFORM_COLOR[p],borderRadius:3,transition:"width 0.5s"}} />
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
@@ -2574,17 +2644,17 @@ function Admin({ user, allUsers, refreshAllUsers }) {
         <div>
           <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Everything that's happened across the team, most recent first.</p>
           {feed.length===0
-            ?<div className="card" style={{padding:40,textAlign:"center",color:"#ddd"}}>No activity yet — starts filling up once the team logs signings.</div>
+            ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-2)"}}>No activity yet — starts filling up once the team logs signings.</div>
             :<div style={{display:"grid",gap:7}}>
               {feed.map((event,i)=>{
                 const c = event.user?.accentColor||B.orange;
                 return (
-                  <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 16px",background:"#0a0a0a",borderRadius:10,border:"1px solid #1a1a1a"}}>
+                  <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 16px",background:"var(--bg-sub)",borderRadius:10,border:"1px solid var(--border)"}}>
                     <div style={{width:32,height:32,borderRadius:"50%",background:c+"22",border:`1px solid ${c}44`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:14}}>
                       {ACTIVITY_ICONS[event.type]||"•"}
                     </div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:14,color:"#ddd",lineHeight:1.5}}>{activityText(event)}</div>
+                      <div style={{fontSize:14,color:"var(--text-2)",lineHeight:1.5}}>{activityText(event)}</div>
                       <div style={{fontSize:12,color:"#e5e5e5",marginTop:2}}>{timeAgo(event.ts)}</div>
                     </div>
                     <Avatar user={event.user} size={26} />
@@ -2660,7 +2730,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
             <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Per Rep Breakdown</div>
             {/* Header */}
             <div style={{display:"grid",gridTemplateColumns:`120px repeat(${months.length},1fr)`,gap:4,marginBottom:8}}>
-              <div style={{fontSize:11,color:"#ddd"}} />
+              <div style={{fontSize:11,color:"var(--text-2)"}} />
               {months.map((mo,i)=>(
                 <div key={i} style={{fontSize:11,color:i===months.length-1?B.orange:"#666",textAlign:"center",fontWeight:i===months.length-1?700:400}}>{mo.label}</div>
               ))}
@@ -2671,7 +2741,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
                 <div key={u.email} style={{display:"grid",gridTemplateColumns:`120px repeat(${months.length},1fr)`,gap:4,marginBottom:6,alignItems:"center"}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     <Avatar user={u} size={20} />
-                    <span style={{fontSize:12,color:"#ddd",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.nickname||u.displayName}</span>
+                    <span style={{fontSize:12,color:"var(--text-2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.nickname||u.displayName}</span>
                   </div>
                   {months.map((mo,i)=>{
                     const repData = mo.perRep.find(r=>r.u.email===u.email);
@@ -2693,12 +2763,12 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {/* ── ANNOUNCE ── */}
       {tab==="recap"&&(
         <div>
-          <p style={{color:"#ddd",fontSize:14,marginBottom:20}}>Post the weekly meeting summary and task list. It appears as a card on every rep's dashboard until you clear it.</p>
+          <p style={{color:"var(--text-2)",fontSize:14,marginBottom:20}}>Post the weekly meeting summary and task list. It appears as a card on every rep's dashboard until you clear it.</p>
 
           {recapSaved&&<div style={{background:"#0a150a",border:"1px solid #1a3a1a",borderRadius:10,padding:"10px 16px",marginBottom:14,fontSize:13,color:"#4ade80"}}>✓ Recap posted to all rep dashboards.</div>}
 
           <div className="card" style={{padding:22,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Meeting Details</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Meeting Details</div>
             <div style={{display:"grid",gap:12}}>
               <div><label>Meeting Date</label><input placeholder="e.g. 27 May 2026" value={recap.date} onChange={e=>setRecap(p=>({...p,date:e.target.value}))} /></div>
               <div><label>Fathom Recording Link (optional)</label><input placeholder="https://fathom.video/calls/..." value={recap.link} onChange={e=>setRecap(p=>({...p,link:e.target.value}))} /></div>
@@ -2710,18 +2780,18 @@ function Admin({ user, allUsers, refreshAllUsers }) {
           </div>
 
           <div className="card" style={{padding:22,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Tasks</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Tasks</div>
             <div style={{display:"grid",gap:8,marginBottom:14}}>
               {recap.tasks.map((t,i)=>(
-                <div key={t.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#080808",borderRadius:8,border:"1px solid #1e1e1e"}}>
+                <div key={t.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8,border:"1px solid var(--border-sub)"}}>
                   <div>
-                    <div style={{fontSize:13,color:"#fff",marginBottom:2}}>{t.task}</div>
+                    <div style={{fontSize:13,color:"var(--text)",marginBottom:2}}>{t.task}</div>
                     <div style={{fontSize:11,color:"#3b82f6",fontWeight:600}}>{t.assignee==="All"?"Everyone":t.assignee}</div>
                   </div>
                   <button onClick={()=>removeTask(t.id||i)} style={{background:"transparent",border:"none",color:"#ef4444",cursor:"pointer",fontSize:16,padding:"2px 6px"}}>×</button>
                 </div>
               ))}
-              {recap.tasks.length===0&&<div style={{color:"#555",fontSize:13}}>No tasks added yet.</div>}
+              {recap.tasks.length===0&&<div style={{color:"var(--text-dim3)",fontSize:13}}>No tasks added yet.</div>}
             </div>
             <div style={{display:"grid",gap:10}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10}}>
@@ -2740,29 +2810,29 @@ function Admin({ user, allUsers, refreshAllUsers }) {
           {/* Preview */}
           {(recap.summary||recap.tasks.length>0)&&(
             <div style={{marginTop:20}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#aaa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Preview (as reps see it)</div>
+              <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Preview (as reps see it)</div>
               <div style={{background:"#0a0d12",border:"1px solid #3b82f644",borderRadius:12,padding:"16px 20px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:16}}>📋</span>
                     <div>
                       <div style={{fontSize:13,fontWeight:700,color:"#60a5fa",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
-                      {recap.date&&<div style={{fontSize:11,color:"#555",marginTop:1}}>{recap.date}</div>}
+                      {recap.date&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>{recap.date}</div>}
                     </div>
                   </div>
                   {recap.link&&<span style={{fontSize:12,color:"#3b82f6",fontWeight:600}}>View recording →</span>}
                 </div>
-                {recap.summary&&<div style={{fontSize:13,color:"#ccc",lineHeight:1.6,marginBottom:recap.tasks.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary.slice(0,300)}{recap.summary.length>300?"...":""}</div>}
+                {recap.summary&&<div style={{fontSize:13,color:"var(--text-3)",lineHeight:1.6,marginBottom:recap.tasks.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary.slice(0,300)}{recap.summary.length>300?"...":""}</div>}
                 {recap.tasks.length>0&&(
                   <div>
                     <div style={{fontSize:11,fontWeight:600,color:"#60a5fa",textTransform:"uppercase",marginBottom:6}}>Tasks</div>
                     {recap.tasks.slice(0,3).map((t,i)=>(
-                      <div key={i} style={{display:"flex",gap:8,padding:"5px 8px",background:"#080808",borderRadius:6,marginBottom:4}}>
+                      <div key={i} style={{display:"flex",gap:8,padding:"5px 8px",background:"var(--bg-inner)",borderRadius:6,marginBottom:4}}>
                         <span style={{color:"#3b82f6"}}>◦</span>
-                        <div style={{fontSize:12,color:"#ddd"}}>{t.task} <span style={{color:"#3b82f6",fontSize:11}}>— {t.assignee==="All"?"Everyone":t.assignee}</span></div>
+                        <div style={{fontSize:12,color:"var(--text-2)"}}>{t.task} <span style={{color:"#3b82f6",fontSize:11}}>— {t.assignee==="All"?"Everyone":t.assignee}</span></div>
                       </div>
                     ))}
-                    {recap.tasks.length>3&&<div style={{fontSize:11,color:"#555"}}>+{recap.tasks.length-3} more tasks...</div>}
+                    {recap.tasks.length>3&&<div style={{fontSize:11,color:"var(--text-dim3)"}}>+{recap.tasks.length-3} more tasks...</div>}
                   </div>
                 )}
               </div>
@@ -2803,7 +2873,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
               <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:18}}>{announcement.emoji||"📣"}</span>
                 <div>
-                  <div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{announcement.text}</div>
+                  <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{announcement.text}</div>
                   <div style={{fontSize:12,color:"#e5e5e5",marginTop:2}}>From {user.nickname||user.displayName} · just now</div>
                 </div>
               </div>
@@ -2815,7 +2885,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {/* ── APPROVALS ── */}
       {tab==="add"&&(
         <div>
-          <p style={{color:"#ddd",fontSize:15,marginBottom:22}}>Add a signing directly for a team member. It will be marked as approved immediately and count toward their targets.</p>
+          <p style={{color:"var(--text-2)",fontSize:15,marginBottom:22}}>Add a signing directly for a team member. It will be marked as approved immediately and count toward their targets.</p>
           {addSubmitted&&(
             <div style={{background:"#0a150a",border:"1px solid #1a3a1a",borderRadius:12,padding:"14px 18px",marginBottom:18,fontSize:15,color:"#4ade80"}}>
               ✓ Deal added and approved for {allUsers.find(u=>u.email===addForm.repEmail)?.nickname||addForm.repEmail}.
@@ -2849,14 +2919,14 @@ function Admin({ user, allUsers, refreshAllUsers }) {
                     </select>
                   </div>
                 )}
-                {addForm.platform==="Spotify"&&<div style={{display:"flex",alignItems:"flex-end",paddingBottom:4}}><span style={{fontSize:15,color:"#ddd"}}>Spotify — no split required</span></div>}
+                {addForm.platform==="Spotify"&&<div style={{display:"flex",alignItems:"flex-end",paddingBottom:4}}><span style={{fontSize:15,color:"var(--text-2)"}}>Spotify — no split required</span></div>}
               </div>
               <div>
                 <label style={{fontSize:13,marginBottom:8}}>Contract Completion Date</label>
                 <div style={{display:"flex",gap:10,alignItems:"center"}}>
                   <input type="date" value={addForm.contractDate} onChange={e=>setAddForm(p=>({...p,contractDate:e.target.value}))} style={{flex:1,fontSize:16,padding:"13px 16px"}} />
                   <button type="button" onClick={()=>setAddForm(p=>({...p,contractDate:todayStr()}))}
-                    style={{background:"#1a1a1a",border:"1px solid #444",color:"#fff",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+                    style={{background:"var(--border)",border:"1px solid #444",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
                     Today
                   </button>
                 </div>
@@ -2875,10 +2945,10 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {tab==="approvals"&&(
         <div>
           {pending.length===0
-            ?<div className="card" style={{padding:40,textAlign:"center",color:"#ddd"}}>No pending signings. All clear ✓</div>
+            ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-2)"}}>No pending signings. All clear ✓</div>
             :<div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <div style={{fontSize:14,color:"#ddd"}}>{pending.length} signing{pending.length>1?"s":""} awaiting approval</div>
+                <div style={{fontSize:14,color:"var(--text-2)"}}>{pending.length} signing{pending.length>1?"s":""} awaiting approval</div>
                 <button className="btn btn-p btn-sm" onClick={()=>{
                   pending.forEach(s=>{
                     const all=getSignings(s.submittedBy);
@@ -2910,7 +2980,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
                     <div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                         <div>
-                          <div style={{fontSize:14,fontWeight:600,color:"#fff",marginBottom:3}}>{s.dealName}</div>
+                          <div style={{fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:3}}>{s.dealName}</div>
                           <div style={{fontSize:13,color:"#e5e5e5"}}>{s.submittedByName} · {s.platform}{s.split?" · "+s.split:""} · {s.contractDate}</div>
                           {s.notes&&<div style={{fontSize:13,color:"#e5e5e5",marginTop:3,fontStyle:"italic"}}>"{s.notes}"</div>}
                         </div>
@@ -2935,13 +3005,13 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {tab==="team"&&(
         <div className="card" style={{padding:18}}>
           <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Team ({allUsers.length})</div>
-          {allUsers.length===0?<div style={{color:"#ddd",fontSize:14}}>No team members yet.</div>:<div style={{display:"grid",gap:7}}>
+          {allUsers.length===0?<div style={{color:"var(--text-2)",fontSize:14}}>No team members yet.</div>:<div style={{display:"grid",gap:7}}>
             {allUsers.map(u=>(
-              <div key={u.email} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"#080808",borderRadius:8}}>
+              <div key={u.email} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8}}>
                 <Avatar user={u} size={32} />
                 <div style={{flex:1}}>
-                  <div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{u.nickname||u.displayName}</div>
-                  <div style={{fontSize:12,color:"#aaa"}}>{u.email} · {u.role}</div>
+                  <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{u.nickname||u.displayName}</div>
+                  <div style={{fontSize:12,color:"var(--text-dim)"}}>{u.email} · {u.role}</div>
                 </div>
                 {u.title&&<span style={{fontSize:12,color:u.accentColor||B.orange,fontWeight:600,marginRight:8}}>{u.title}</span>}
                 {u.email!=="frazer@wildvision.io"&&(
@@ -2969,8 +3039,8 @@ function Admin({ user, allUsers, refreshAllUsers }) {
             <div><label>Role</label><select value={role} onChange={e=>setRole(e.target.value)}><option value="rep">Sales Rep</option><option value="manager">Manager</option></select></div>
           </div>
           <button className="btn btn-p btn-sm" onClick={genInvite} disabled={!email.trim()}>Generate Invite Code</button>
-          {code&&<div style={{marginTop:14,padding:"12px 16px",background:"#080808",border:`1px solid ${B.orange}44`,borderRadius:8}}>
-            <div style={{fontSize:11,color:"#ddd",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Code for {email}</div>
+          {code&&<div style={{marginTop:14,padding:"12px 16px",background:"var(--bg-inner)",border:`1px solid ${B.orange}44`,borderRadius:8}}>
+            <div style={{fontSize:11,color:"var(--text-2)",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Code for {email}</div>
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:18,fontWeight:700,color:B.orange,letterSpacing:"0.1em"}}>{code}</div>
             <div style={{fontSize:12,color:"#e5e5e5",marginTop:5}}>They use this on the "Invite Code" tab at login.</div>
           </div>}
