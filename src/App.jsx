@@ -2218,10 +2218,1696 @@ function Targets({ user, allUsers }) {
 }
 
 // ── INCENTIVES ────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SNAKES & LADDERS — Sales Incentive Game (merged into Incentives tab)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+const SNAKES  = {99:80,94:26,91:73,83:57,69:32,59:1,56:48,25:3};
+const LADDERS = {4:14,9:31,20:38,28:84,36:44,42:63,51:67,62:81,71:90};
+const PUCKS = ['🦊','🐺','🦁','🐯','🐸','🐵','🐼','🐧','🐲','🚀','🛸','⚽','👑','💎','🔥','🐍','🪜','🎯'];
+
+const INITIAL_PRIZES = [
+  {id:'p01',sq:3,  tier:'Small',desc:'Drink from Naked',                     claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p02',sq:6,  tier:'Small',desc:'Leave 30 mins early',                  claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p03',sq:10, tier:'Small',desc:'Deliveroo/Amazon/Tesco voucher £10',   claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p04',sq:12, tier:'Small',desc:'Fancy biscuit tin',                    claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p05',sq:14, tier:'Small',desc:'Deliveroo/Amazon/Tesco voucher £10',   claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p06',sq:17, tier:'Small',desc:'WV mouse mat / Merch',                 claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p07',sq:19, tier:'Small',desc:'Snake escape token',                   claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'snakeEscape'},
+  {id:'p08',sq:21, tier:'Small',desc:'Pick unclaimed small prize',           claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'pickSmall'},
+  {id:'p09',sq:23, tier:'Mid',  desc:'Leave early ticket, 2 hours',          claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p10',sq:26, tier:'Small',desc:'Extra dice roll',                      claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'extraRoll'},
+  {id:'p11',sq:29, tier:'Mid',  desc:'Board game',                           claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p12',sq:32, tier:'Small',desc:'Deliveroo/Amazon/Tesco voucher £10',   claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p13',sq:34, tier:'Mid',  desc:'£20 snacks trip for whole office',     claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p14',sq:37, tier:'Small',desc:'Drink from Naked',                     claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p15',sq:39, tier:'Mid',  desc:'Wild Vision branded hoodie/clothing',  claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p16',sq:41, tier:'Mid',  desc:'Paid lunch',                           claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p17',sq:44, tier:'Small',desc:'Extra dice roll',                      claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'extraRoll'},
+  {id:'p18',sq:46, tier:'Mid',  desc:'M&S voucher £20',                      claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p19',sq:48, tier:'Small',desc:'Funko Pop figure',                     claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p20',sq:54, tier:'Small',desc:'Deliveroo/Amazon/Tesco voucher £10',   claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p21',sq:55, tier:'Mid',  desc:'Amazon Echo',                          claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p22',sq:57, tier:'Small',desc:'Luxury chocolates',                    claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p23',sq:61, tier:'Large',desc:'£50 voucher of choice',                claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p24',sq:63, tier:'Small',desc:'Leave 30 mins early',                  claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p25',sq:64, tier:'Mid',  desc:'Sleep in ticket, 2 hours',             claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p26',sq:66, tier:'Large',desc:'Swap positions with any player',       claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'swap'},
+  {id:'p27',sq:68, tier:'Small',desc:'Coffee bought',                        claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p28',sq:70, tier:'Mid',  desc:'Deliveroo voucher £30',                claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p29',sq:73, tier:'Small',desc:'Pick an unclaimed prize on the board', claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'pickAny'},
+  {id:'p30',sq:74, tier:'Mid',  desc:'Paid lunch',                           claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p31',sq:75, tier:'Large',desc:'Spa voucher £50',                      claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p32',sq:78, tier:'Small',desc:'2x Cinema tickets / Cinema voucher',   claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p33',sq:80, tier:'Small',desc:'Luxury chocolates',                    claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p34',sq:82, tier:'Small',desc:'Company logo mug',                     claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p35',sq:85, tier:'Large',desc:'The Ivy breakfast voucher for 2, £60', claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p36',sq:88, tier:'Mid',  desc:'Work from home day',                   claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p37',sq:90, tier:'Small',desc:'Pick an unclaimed prize on the board', claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'pickAny'},
+  {id:'p38',sq:92, tier:'Small',desc:'Pick an unclaimed prize on the board', claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'pickAny'},
+  {id:'p39',sq:93, tier:'Large',desc:'Pizza for whole team',                 claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p40',sq:96, tier:'Small',desc:'Pick an unclaimed prize on the board', claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:'',mechanic:'pickAny'},
+  {id:'p41',sq:97, tier:'Mid',  desc:'Escape room voucher £30',              claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+  {id:'p42',sq:100,tier:'Large',desc:'£150–£200 hotel stay',                 claimed:false,claimedBy:null,claimedDate:null,rollId:null,givenOut:false,notes:''},
+];
+
+const DEFAULT_SETTINGS = {
+  facebookThreshold:1, msnThreshold:3, spotifyThreshold:3,
+  managerApprovalRequired:true, partialProgressCarryover:true,
+  manualRollCreditsAllowed:true, allowOvershootFinish:false,
+  fallbackEnabled:true, startingFallbackTokens:1,
+  fallbackPool:['Coffee','Snack','Small voucher','Bonus roll','Leave 30 mins early','Snake escape token'],
+  pickAnyLargeNeedsApproval:true, swapChainReactions:false,
+};
+
+const DEFAULT_RULES = `1. You earn rolls by hitting qualifying sales milestones.
+2. Default roll rules:
+   - 1 Facebook signing = 1 roll
+   - 3 MSN signings = 1 roll
+   - 3 Spotify signings = 1 roll
+3. Rolls are earned individually — not team-wide.
+4. Submit your roll reason before rolling. Rolls may need manager approval.
+5. Dice rolls are automatic and random (1–6).
+6. Snake or ladder movement is automatic.
+7. Prizes are hidden. If you land on one, the app will tell you.
+8. Each prize can only be claimed once.
+9. Each player starts with 1 fallback token, usable on blank/already-claimed squares.
+10. The first player to reach square 100 wins the game.`;
+
+const TIER_COLOR = {Small:'#4ade80',Mid:'#fbbf24',Large:'#a78bfa'};
+const TIER_BG    = {Small:'#0a1f0a',Mid:'#1a1000',Large:'#100820'};
+const TIER_BORDER= {Small:'#16a34a44',Mid:'#d9770644',Large:'#7c3aed44'};
+
+// Sales OS design tokens (dark mode)
+const D = {
+  bg:'#000000', card:'#0d0d0d', sub:'#080808', border:'#1a1a1a',
+  border2:'#1e1e1e', orange:'#ff6700', text:'#ffffff', muted:'#bbbbbb',
+  dim:'#888888', fb:'#1877f2', msn:'#ff00a8', spotify:'#1db954',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+const ts  = () => new Date().toLocaleString('en-GB');
+
+// timeAgo() reused from dashboard's existing helper — no duplicate definition needed here
+
+function getSquarePos(sq) {
+  // Returns {row, col} where row 0 = top row, col 0 = left col
+  const rFromBottom = Math.floor((sq-1)/10); // 0-9
+  const pos = (sq-1)%10;
+  const col  = rFromBottom%2===0 ? pos : 9-pos;
+  return { row:9-rFromBottom, col };
+}
+
+function makeDefaultPlayers() {
+  return [
+    {id:'p1',name:'Player 1',puck:'🦊',pos:0,rolls:0,fb:0,msn:0,spotify:0,fallback:1,snakeEscape:0,prizes:[],active:true},
+    {id:'p2',name:'Player 2',puck:'🐺',pos:0,rolls:0,fb:0,msn:0,spotify:0,fallback:1,snakeEscape:0,prizes:[],active:true},
+    {id:'p3',name:'Player 3',puck:'🦁',pos:0,rolls:0,fb:0,msn:0,spotify:0,fallback:1,snakeEscape:0,prizes:[],active:true},
+    {id:'p4',name:'Player 4',puck:'🐯',pos:0,rolls:0,fb:0,msn:0,spotify:0,fallback:1,snakeEscape:0,prizes:[],active:true},
+    {id:'p5',name:'Player 5',puck:'🐸',pos:0,rolls:0,fb:0,msn:0,spotify:0,fallback:1,snakeEscape:0,prizes:[],active:true},
+  ];
+}
+
+function makeInitialState() {
+  return {
+    players: makeDefaultPlayers(),
+    prizes: JSON.parse(JSON.stringify(INITIAL_PRIZES)),
+    rollRequests: [],
+    auditLog: [],
+    activity: [],
+    settings: {...DEFAULT_SETTINGS},
+    rules: DEFAULT_RULES,
+    winner: null,
+    undoSnapshot: null,
+    pendingMechanic: null,
+    fallbackRequests: [],
+  };
+}
+
+// loadState/saveState replaced — game state now persists via the dashboard's
+// Supabase-synced LS.get/LS.set so the whole team sees the same board, not just one browser.
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOARD COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SNAKE_COLORS = ['#ef4444','#f97316','#ec4899','#8b5cf6','#06b6d4','#10b981','#fbbf24','#f43f5e'];
+const SNAKE_ENTRIES = Object.entries(SNAKES).map(([k,v],i)=>({from:parseInt(k),to:parseInt(v),color:SNAKE_COLORS[i%SNAKE_COLORS.length]}));
+
+const BOARD_CELL_SIZE = 74;
+
+function getCenter(sq, cs) {
+  const p = getSquarePos(sq);
+  return { x: p.col*cs + cs/2, y: p.row*cs + cs/2 };
+}
+
+function snakeControlPoints(from, to, cs) {
+  const f = getCenter(from, cs), t = getCenter(to, cs);
+  const dx = t.x-f.x, dy = t.y-f.y;
+  const len = Math.sqrt(dx*dx+dy*dy)||1;
+  const px = -dy/len, py = dx/len;
+  const wave = Math.min(45, len*0.28);
+  const c1 = { x: f.x+dx*0.25+px*wave, y: f.y+dy*0.25+py*wave };
+  const c2 = { x: f.x+dx*0.75-px*wave, y: f.y+dy*0.75-py*wave };
+  return { f, c1, c2, t };
+}
+
+function sampleSnakePath(from, to, cs, n=24) {
+  const { f, c1, c2, t } = snakeControlPoints(from, to, cs);
+  const pts = [];
+  for (let i=0; i<=n; i++) {
+    const u = i/n;
+    const x = Math.pow(1-u,3)*f.x + 3*Math.pow(1-u,2)*u*c1.x + 3*(1-u)*u*u*c2.x + u*u*u*t.x;
+    const y = Math.pow(1-u,3)*f.y + 3*Math.pow(1-u,2)*u*c1.y + 3*(1-u)*u*u*c2.y + u*u*u*t.y;
+    pts.push({x,y});
+  }
+  return pts;
+}
+
+function sampleLadderPath(from, to, cs, n=16) {
+  const f = getCenter(from, cs), t = getCenter(to, cs);
+  const pts = [];
+  for (let i=0; i<=n; i++) {
+    const u = i/n;
+    pts.push({ x: f.x+(t.x-f.x)*u, y: f.y+(t.y-f.y)*u });
+  }
+  return pts;
+}
+
+function SnakeSVG({ from, to, color, cs }) {
+  const { f, c1, c2, t } = snakeControlPoints(from, to, cs);
+  const c1x=c1.x, c1y=c1.y, c2x=c2.x, c2y=c2.y;
+  // Direction at tail for fork
+  const tailDx = t.x-c2x, tailDy = t.y-c2y;
+  const tlen = Math.sqrt(tailDx*tailDx+tailDy*tailDy)||1;
+  const tnx = -tailDy/tlen, tny = tailDx/tlen;
+  return (
+    <g>
+      {/* Shadow */}
+      <path d={`M${f.x},${f.y} C${c1x},${c1y} ${c2x},${c2y} ${t.x},${t.y}`} fill="none" stroke="#000" strokeWidth={8} opacity={0.4} strokeLinecap="round"/>
+      {/* Body */}
+      <path d={`M${f.x},${f.y} C${c1x},${c1y} ${c2x},${c2y} ${t.x},${t.y}`} fill="none" stroke={color} strokeWidth={6} opacity={0.92} strokeLinecap="round"/>
+      {/* Body pattern */}
+      <path d={`M${f.x},${f.y} C${c1x},${c1y} ${c2x},${c2y} ${t.x},${t.y}`} fill="none" stroke="#fff" strokeWidth={2} opacity={0.15} strokeLinecap="round" strokeDasharray="8,12"/>
+      {/* Head */}
+      <ellipse cx={f.x} cy={f.y} rx={11} ry={9} fill={color} opacity={0.95}/>
+      <ellipse cx={f.x} cy={f.y} rx={9} ry={7} fill={color} stroke="#fff" strokeWidth={1} opacity={0.7}/>
+      {/* Eyes */}
+      <circle cx={f.x-4} cy={f.y-2} r={2.5} fill="#fff"/>
+      <circle cx={f.x+4} cy={f.y-2} r={2.5} fill="#fff"/>
+      <circle cx={f.x-4} cy={f.y-2} r={1.2} fill="#000"/>
+      <circle cx={f.x+4} cy={f.y-2} r={1.2} fill="#000"/>
+      {/* Forked tongue */}
+      <line x1={t.x} y1={t.y} x2={t.x+tnx*7+tailDx/tlen*8} y2={t.y+tny*7+tailDy/tlen*8} stroke={color} strokeWidth={1.5} opacity={0.9}/>
+      <line x1={t.x} y1={t.y} x2={t.x-tnx*7+tailDx/tlen*8} y2={t.y-tny*7+tailDy/tlen*8} stroke={color} strokeWidth={1.5} opacity={0.9}/>
+    </g>
+  );
+}
+
+function LadderSVG({ from, to, cs }) {
+  const b = getCenter(from, cs), tp = getCenter(to, cs);
+  const dx = tp.x-b.x, dy = tp.y-b.y;
+  const len = Math.sqrt(dx*dx+dy*dy)||1;
+  const nx = -dy/len, ny = dx/len;
+  const w = 7;
+  const bx1=b.x+nx*w, by1=b.y+ny*w, tx1=tp.x+nx*w, ty1=tp.y+ny*w;
+  const bx2=b.x-nx*w, by2=b.y-ny*w, tx2=tp.x-nx*w, ty2=tp.y-ny*w;
+  const nRungs = Math.max(2, Math.floor(len/28));
+  const rungs = Array.from({length:nRungs},(_,i)=>{
+    const t=(i+1)/(nRungs+1);
+    return { x1:bx1+(tx1-bx1)*t, y1:by1+(ty1-by1)*t, x2:bx2+(tx2-bx2)*t, y2:by2+(ty2-by2)*t };
+  });
+  const railColor = '#fbbf24';
+  const rungColor = '#fde68a';
+  return (
+    <g>
+      {/* Rail shadows */}
+      <line x1={bx1+1} y1={by1+1} x2={tx1+1} y2={ty1+1} stroke="#000" strokeWidth={6} opacity={0.35} strokeLinecap="round"/>
+      <line x1={bx2+1} y1={by2+1} x2={tx2+1} y2={ty2+1} stroke="#000" strokeWidth={6} opacity={0.35} strokeLinecap="round"/>
+      {/* Rails */}
+      <line x1={bx1} y1={by1} x2={tx1} y2={ty1} stroke={railColor} strokeWidth={4.5} opacity={0.95} strokeLinecap="round"/>
+      <line x1={bx2} y1={by2} x2={tx2} y2={ty2} stroke={railColor} strokeWidth={4.5} opacity={0.95} strokeLinecap="round"/>
+      {/* Rungs */}
+      {rungs.map((r,i)=>(
+        <g key={i}>
+          <line x1={r.x1+0.5} y1={r.y1+0.5} x2={r.x2+0.5} y2={r.y2+0.5} stroke="#000" strokeWidth={4} opacity={0.25} strokeLinecap="round"/>
+          <line x1={r.x1} y1={r.y1} x2={r.x2} y2={r.y2} stroke={rungColor} strokeWidth={3} opacity={0.9} strokeLinecap="round"/>
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function Board({ players, managerView, prizes, animGhost }) {
+  const cellSize = BOARD_CELL_SIZE;
+  const totalSize = cellSize * 10;
+  const prizeSquares = new Set(prizes.map(p=>p.sq));
+
+  const grid = [];
+  for (let row=0; row<10; row++) {
+    grid[row]=[];
+    for (let col=0; col<10; col++) {
+      const rFromBottom = 9-row;
+      const pos = rFromBottom%2===0 ? col : 9-col;
+      const sq = rFromBottom*10 + pos + 1;
+      grid[row][col]=sq;
+    }
+  }
+
+  const playersOnSq = {};
+  players.filter(p=>p.active&&p.pos>0&&p.id!==animGhost?.playerId).forEach(p=>{
+    if (!playersOnSq[p.pos]) playersOnSq[p.pos]=[];
+    playersOnSq[p.pos].push(p);
+  });
+
+  function cellBg(sq, row, col) {
+    if (sq===100) return '#2a0a4a';
+    if (sq===1) return '#0a1535';
+    if (SNAKES[sq]) return '#2a0808';
+    if (Object.values(SNAKES).map(Number).includes(sq)) return '#1f0606';
+    if (LADDERS[sq]) return '#0a2010';
+    if (Object.values(LADDERS).map(Number).includes(sq)) return '#071808';
+    return (row+col)%2===0 ? '#0d0d18' : '#090912';
+  }
+
+  const ghostPos = animGhost ? (
+    animGhost.x!=null ? {x:animGhost.x, y:animGhost.y} : getCenter(animGhost.sq||0, cellSize)
+  ) : null;
+
+  const ghostGlow = !animGhost ? null
+    : animGhost.phase==='slide'
+      ? (animGhost.highlightType==='snake'
+          ? 'drop-shadow(0 0 5px rgba(239,68,68,0.95)) drop-shadow(0 2px 5px rgba(0,0,0,0.8))'
+          : 'drop-shadow(0 0 5px rgba(74,222,128,0.95)) drop-shadow(0 2px 5px rgba(0,0,0,0.8))')
+      : 'drop-shadow(0 2px 4px rgba(0,0,0,0.85))';
+
+  return (
+    <div style={{position:'relative',display:'inline-block',border:'2px solid #ff670055',borderRadius:8,overflow:'hidden',boxShadow:'0 4px 32px rgba(255,103,0,0.12), 0 0 0 1px #1a1a2a'}}>
+      <div style={{display:'grid',gridTemplateColumns:`repeat(10,${cellSize}px)`,gridTemplateRows:`repeat(10,${cellSize}px)`}}>
+        {grid.map((row,ri)=>row.map((sq,ci)=>{
+          const onSq = playersOnSq[sq]||[];
+          const isSnakeHead = !!SNAKES[sq];
+          const isLadderBot = !!LADDERS[sq];
+          const hasPrize = prizeSquares.has(sq);
+          const bg = cellBg(sq,ri,ci);
+          return (
+            <div key={sq} style={{width:cellSize,height:cellSize,background:bg,border:`1px solid #1a1a2a`,position:'relative',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+              {/* Square number */}
+              <div style={{fontSize:12,fontWeight:700,color:sq===100?'#c4b5fd':sq===1?'#93c5fd':'#ffffff',position:'absolute',top:3,left:4,lineHeight:1,textShadow:'0 1px 2px rgba(0,0,0,0.8)',zIndex:2}}>{sq}</div>
+              {/* Snake/ladder destination */}
+              {isSnakeHead&&<div style={{fontSize:9,color:'#f87171',position:'absolute',top:3,right:3,fontWeight:700,zIndex:2}}>↓{SNAKES[sq]}</div>}
+              {isLadderBot&&<div style={{fontSize:9,color:'#86efac',position:'absolute',top:3,right:3,fontWeight:700,zIndex:2}}>↑{LADDERS[sq]}</div>}
+              {/* Prize indicator (manager only) */}
+              {managerView&&hasPrize&&(
+                <div style={{position:'absolute',bottom:1,right:2,fontSize:10,zIndex:2}}>
+                  {prizes.find(p=>p.sq===sq)?.claimed?'✓':'⭐'}
+                </div>
+              )}
+              {/* Special square glow */}
+              {sq===100&&<div style={{position:'absolute',inset:0,background:'radial-gradient(circle,rgba(167,139,250,0.2) 0%,transparent 70%)'}}/>}
+              {sq===1&&<div style={{position:'absolute',inset:0,background:'radial-gradient(circle,rgba(147,197,253,0.15) 0%,transparent 70%)'}}/>}
+              {/* Players */}
+              {onSq.length>0&&(
+                <div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:1,maxWidth:'100%',position:'relative',zIndex:3}}>
+                  {onSq.map(p=>(
+                    <span key={p.id} style={{fontSize:onSq.length>2?17:22,lineHeight:1,filter:'drop-shadow(0 1px 2px rgba(0,0,0,0.8))'}} title={p.name}>{p.puck}</span>
+                  ))}
+                </div>
+              )}
+              {sq===100&&onSq.length===0&&!(animGhost&&animGhost.phase==='slide'&&animGhost.highlightTo===100)&&<div style={{fontSize:26,position:'relative',zIndex:2}}>🏆</div>}
+            </div>
+          );
+        }))}
+      </div>
+      {/* SVG overlay — ladders first (behind snakes) */}
+      <svg style={{position:'absolute',top:0,left:0,width:totalSize,height:totalSize,pointerEvents:'none'}} viewBox={`0 0 ${totalSize} ${totalSize}`}>
+        {Object.entries(LADDERS).map(([from,to])=>(
+          <LadderSVG key={`l${from}`} from={parseInt(from)} to={parseInt(to)} cs={cellSize}/>
+        ))}
+        {SNAKE_ENTRIES.map(({from,to,color})=>(
+          <SnakeSVG key={`s${from}`} from={from} to={to} color={color} cs={cellSize}/>
+        ))}
+        {/* Active snake/ladder highlight during slide animation */}
+        {animGhost?.phase==='slide'&&animGhost.highlightType==='snake'&&(
+          <g style={{filter:'drop-shadow(0 0 7px rgba(255,255,255,0.9))'}}>
+            <SnakeSVG from={animGhost.highlightFrom} to={animGhost.highlightTo} color="#fef2f2" cs={cellSize}/>
+          </g>
+        )}
+        {animGhost?.phase==='slide'&&animGhost.highlightType==='ladder'&&(
+          <g style={{filter:'drop-shadow(0 0 7px rgba(255,255,255,0.95))'}}>
+            <LadderSVG from={animGhost.highlightFrom} to={animGhost.highlightTo} cs={cellSize}/>
+          </g>
+        )}
+      </svg>
+      {/* Animated ghost token */}
+      {animGhost&&ghostPos&&(
+        <div style={{
+          position:'absolute', left:ghostPos.x, top:ghostPos.y,
+          transform:'translate(-50%,-50%)', fontSize:24, lineHeight:1,
+          pointerEvents:'none', zIndex:20, filter:ghostGlow,
+          transition: animGhost.phase==='hop' ? 'left 0.16s ease, top 0.16s ease' : 'none',
+        }}>
+          {animGhost.puck}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DICE COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+function DiceFace({ value }) {
+  const dots = {
+    1:[[50,50]], 2:[[25,25],[75,75]], 3:[[25,25],[50,50],[75,75]],
+    4:[[25,25],[75,25],[25,75],[75,75]], 5:[[25,25],[75,25],[50,50],[25,75],[75,75]],
+    6:[[25,25],[75,25],[25,50],[75,50],[25,75],[75,75]]
+  };
+  return (
+    <svg width={60} height={60} viewBox="0 0 100 100">
+      <rect width={100} height={100} rx={15} fill="#fff" stroke="#1f2937" strokeWidth={4}/>
+      {(dots[value]||[]).map(([cx,cy],i)=>(
+        <circle key={i} cx={cx} cy={cy} r={10} fill="#1f2937"/>
+      ))}
+    </svg>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESULT MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function ResultModal({ result, prizes, onClose, onUseFallback, onSnakeEscape, settings }) {
+  if (!result) return null;
+  const { playerName, puck, diceVal, startPos, landedOn, snakeOrLadder, finalPos, prizeResult, moved } = result;
+
+  const tierColor = prizeResult?.prize ? TIER_COLOR[prizeResult.prize.tier] : null;
+  const tierBg    = prizeResult?.prize ? TIER_BG[prizeResult.prize.tier] : null;
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+      <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:16,padding:32,maxWidth:460,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.8)',textAlign:'center'}}>
+        <div style={{fontSize:48,marginBottom:8}}>{puck}</div>
+        <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:700,marginBottom:16}}>{playerName}</div>
+
+        {!moved ? (
+          <div style={{background:'#1a1000',border:`1px solid ${D.border}`,borderRadius:8,padding:16,marginBottom:16}}>
+            <div style={{fontSize:15,fontWeight:600,color:TIER_COLOR.Mid}}>🎲 Rolled a {diceVal} — overshoot! No move (exact roll needed)</div>
+          </div>
+        ) : (
+          <>
+            <div style={{display:'flex',justifyContent:'center',marginBottom:16}}>
+              <DiceFace value={diceVal} />
+            </div>
+            <div style={{background:D.card,borderRadius:10,padding:16,marginBottom:16,textAlign:'left'}}>
+              <div style={{fontSize:14,color:'#ccc',marginBottom:4}}>🎲 Rolled: <strong>{diceVal}</strong></div>
+              <div style={{fontSize:14,color:'#ccc',marginBottom:4}}>📍 Started on: <strong>{startPos || 'Start'}</strong></div>
+              <div style={{fontSize:14,color:'#ccc',marginBottom:4}}>🎯 Landed on: <strong>{landedOn}</strong></div>
+              {snakeOrLadder && (
+                <div style={{fontSize:14,color:snakeOrLadder.type==='snake'?'#f87171':TIER_COLOR.Small,marginBottom:4,fontWeight:600}}>
+                  {snakeOrLadder.type==='snake' ? `🐍 Snake! Slid from ${snakeOrLadder.from} → ${snakeOrLadder.to}` : `🪜 Ladder! Climbed from ${snakeOrLadder.from} → ${snakeOrLadder.to}`}
+                </div>
+              )}
+              {snakeOrLadder && onSnakeEscape && (
+                <button onClick={onSnakeEscape} style={{background:'#1a1000',border:`1px solid ${D.border}`,borderRadius:6,padding:'6px 12px',marginTop:4,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600,color:TIER_COLOR.Mid,fontSize:13}}>
+                  🛡️ Use Snake Escape Token (stay on {landedOn})
+                </button>
+              )}
+              <div style={{fontSize:16,fontWeight:800,color:D.text,marginTop:6}}>📌 Final square: <strong>{finalPos}</strong></div>
+            </div>
+
+            {finalPos===100 && (
+              <div style={{background:'#100820',border:'2px solid #7c3aed',borderRadius:10,padding:20,marginBottom:16}}>
+                <div style={{fontSize:32,marginBottom:8}}>🏆</div>
+                <div style={{color:'#a78bfa',fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:700,textTransform:'uppercase'}}>WINNER! {playerName} reached square 100!</div>
+              </div>
+            )}
+
+            {prizeResult?.type==='won' && (
+              <div style={{background:tierBg,border:`2px solid ${tierColor}`,borderRadius:10,padding:16,marginBottom:16}}>
+                <div style={{fontSize:28,marginBottom:4}}>🎁</div>
+                <div style={{fontSize:18,fontWeight:800,color:tierColor,marginBottom:4}}>{prizeResult.prize.tier} Prize!</div>
+                <div style={{fontSize:16,fontWeight:600,color:D.text}}>{prizeResult.prize.desc}</div>
+              </div>
+            )}
+            {prizeResult?.type==='already_claimed' && (
+              <div style={{background:D.card,borderRadius:10,padding:14,marginBottom:16}}>
+                <div style={{fontSize:14,color:D.dim}}>This prize square has already been claimed by {prizeResult.claimedBy}.</div>
+                {settings.fallbackEnabled && (
+                  <button onClick={onUseFallback} style={{marginTop:8,background:D.fb+'22',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600,color:'#93c5fd',fontSize:13}}>
+                    🎰 Use Fallback Token
+                  </button>
+                )}
+              </div>
+            )}
+            {prizeResult?.type==='blank' && (
+              <div style={{background:D.card,borderRadius:10,padding:14,marginBottom:16}}>
+                <div style={{fontSize:14,color:D.dim}}>No prize this time — better luck next roll!</div>
+                {settings.fallbackEnabled && (
+                  <button onClick={onUseFallback} style={{marginTop:8,background:D.fb+'22',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600,color:'#93c5fd',fontSize:13}}>
+                    🎰 Use Fallback Token
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        <button onClick={onClose} style={{color:D.text,background:D.orange,border:'none',borderRadius:8,padding:'10px 28px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,cursor:'pointer'}}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PICK PRIZE MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function PickPrizeModal({ mechanic, prizes, onPick, onClose }) {
+  if (!mechanic) return null;
+  const { type, playerName, square } = mechanic;
+
+  let available = prizes.filter(p=>!p.claimed);
+  if (type==='pickSmall') available = available.filter(p=>p.tier==='Small');
+  else if (type==='pickAny') available = available.filter(p=>p.tier!=='Large' || !mechanic.largeNeedsApproval);
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+      <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:16,padding:28,maxWidth:480,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.8)'}}>
+        <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,textTransform:'uppercase',marginBottom:4}}>🎁 Pick a Prize</div>
+        <div style={{fontSize:14,color:D.dim,marginBottom:16}}>{playerName} — landed on square {square}</div>
+        <div style={{maxHeight:360,overflowY:'auto',display:'grid',gap:8}}>
+          {available.length===0 && <div style={{color:D.dim,textAlign:'center',padding:20}}>No unclaimed prizes available.</div>}
+          {available.map(p=>(
+            <button key={p.id} onClick={()=>onPick(p.id)} style={{background:TIER_BG[p.tier],border:`1px solid ${TIER_BORDER[p.tier]}`,borderRadius:8,padding:'10px 14px',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <span style={{color:TIER_COLOR[p.tier],fontWeight:700,fontSize:12}}>{p.tier} — Sq.{p.sq} </span>
+                <span style={{color:D.text,fontSize:14}}>{p.desc}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{marginTop:12,background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SWAP MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function SwapModal({ currentPlayer, players, onSwap, onClose }) {
+  const others = players.filter(p=>p.active&&p.id!==currentPlayer.id);
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+      <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:16,padding:28,maxWidth:400,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.8)'}}>
+        <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,textTransform:'uppercase',marginBottom:4}}>🔄 Swap Positions</div>
+        <div style={{fontSize:14,color:D.dim,marginBottom:16}}>{currentPlayer.puck} {currentPlayer.name} is on square {currentPlayer.pos}. Choose who to swap with:</div>
+        <div style={{display:'grid',gap:8}}>
+          {others.map(p=>(
+            <button key={p.id} onClick={()=>onSwap(p.id)} style={{background:D.card,border:'1px solid #1e1e1e',borderRadius:8,padding:'10px 14px',cursor:'pointer',textAlign:'left',fontSize:15,display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:24}}>{p.puck}</span>
+              <div><div style={{fontWeight:700,color:D.text}}>{p.name}</div><div style={{fontSize:12,color:D.dim}}>Square {p.pos||'Start'}</div></div>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{marginTop:12,background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCOREBOARD TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function Scoreboard({ players, settings }) {
+  const active = players.filter(p=>p.active);
+  return (
+    <div>
+      <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,textTransform:'uppercase',marginBottom:16}}>📊 Scoreboard</div>
+      <div style={{overflowX:'auto'}}>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+          <thead>
+            <tr style={{background:D.card}}>
+              {['Player','Square','Rolls','FB','MSN','SP','🛡️','🎰','Prizes','Last Move'].map(h=>(
+                <th key={h} style={{color:D.muted,padding:'8px 10px',textAlign:'left',fontWeight:700,borderBottom:`1px solid ${D.border}`,whiteSpace:'nowrap',fontSize:12,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {active.map((p,i)=>{
+              const small=p.prizes.filter(x=>x.tier==='Small').length;
+              const mid=p.prizes.filter(x=>x.tier==='Mid').length;
+              const large=p.prizes.filter(x=>x.tier==='Large').length;
+              return (
+                <tr key={p.id} style={{background:i%2===0?D.card:'#080808',borderBottom:`1px solid ${D.border}`}}>
+                  <td style={{padding:'8px 10px'}}><span style={{fontSize:20}}>{p.puck}</span> <span style={{fontWeight:600,color:D.text}}>{p.name}</span></td>
+                  <td style={{color:p.pos===100?'#a78bfa':D.text,padding:'8px 10px',fontWeight:700}}>{p.pos||'Start'}{p.pos===100?' 🏆':''}</td>
+                  <td style={{padding:'8px 10px'}}><span style={{color:D.text,background:p.rolls>0?D.fb+'22':'#1a1a1a',borderRadius:12,padding:'2px 8px',fontWeight:700}}>{p.rolls}</span></td>
+                  <td style={{padding:'8px 10px',color:D.fb,fontWeight:600}}>{p.fb}/{settings.facebookThreshold}</td>
+                  <td style={{padding:'8px 10px',color:D.msn,fontWeight:600}}>{p.msn}/{settings.msnThreshold}</td>
+                  <td style={{padding:'8px 10px',color:D.spotify,fontWeight:600}}>{p.spotify}/{settings.spotifyThreshold}</td>
+                  <td style={{padding:'8px 10px',textAlign:'center'}}>{p.snakeEscape}</td>
+                  <td style={{padding:'8px 10px',textAlign:'center'}}>{p.fallback}</td>
+                  <td style={{padding:'8px 10px'}}>
+                    {large>0&&<span style={{color:D.text,background:TIER_BG.Large,borderRadius:10,padding:'1px 7px',fontSize:11,fontWeight:700,marginRight:3}}>L:{large}</span>}
+                    {mid>0&&<span style={{color:D.text,background:TIER_BG.Mid,borderRadius:10,padding:'1px 7px',fontSize:11,fontWeight:700,marginRight:3}}>M:{mid}</span>}
+                    {small>0&&<span style={{color:D.text,background:TIER_BG.Small,borderRadius:10,padding:'1px 7px',fontSize:11,fontWeight:700}}>S:{small}</span>}
+                  </td>
+                  <td style={{padding:'8px 10px',fontSize:12,color:D.dim,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.lastMove||'—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROLL REQUEST TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function RollRequestTab({ players, state, onSubmit }) {
+  const [form, setForm] = useState({playerId:'',platform:'Facebook',signings:1,names:'',date:new Date().toLocaleDateString('en-GB'),notes:'',ref:''});
+  const [submitted, setSubmitted] = useState(false);
+  const [calcRolls, setCalcRolls] = useState(0);
+
+  const active = players.filter(p=>p.active);
+
+  useEffect(()=>{
+    const t = form.platform==='Facebook'?state.settings.facebookThreshold:form.platform==='MSN'?state.settings.msnThreshold:state.settings.spotifyThreshold;
+    const player = players.find(p=>p.id===form.playerId);
+    if (!player) { setCalcRolls(0); return; }
+    const progress = form.platform==='Facebook'?player.fb:form.platform==='MSN'?player.msn:player.spotify;
+    const total = progress + parseInt(form.signings||0);
+    setCalcRolls(Math.floor(total/t));
+  },[form.platform,form.signings,form.playerId,state.settings,players]);
+
+  function handleSubmit() {
+    if (!form.playerId||!form.names.trim()) return;
+    // Check for duplicate references
+    const prevNames = state.rollRequests.flatMap(r=>r.names.split(',').map(n=>n.trim().toLowerCase()));
+    const newNames = form.names.split(',').map(n=>n.trim().toLowerCase());
+    const dupes = newNames.filter(n=>prevNames.includes(n));
+
+    onSubmit({
+      id:uid(), ts:ts(), submittedAtMs:Date.now(), playerId:form.playerId,
+      playerName:players.find(p=>p.id===form.playerId)?.name||'',
+      platform:form.platform, signings:parseInt(form.signings)||1,
+      names:form.names, date:form.date, notes:form.notes, ref:form.ref,
+      calcRolls, status:'pending', managerNotes:'', dupeWarning:dupes.length>0?`⚠️ Possible duplicate signings: ${dupes.join(', ')}`:'',
+    });
+    setSubmitted(true);
+    setForm({playerId:'',platform:'Facebook',signings:1,names:'',date:new Date().toLocaleDateString('en-GB'),notes:'',ref:''});
+    setTimeout(()=>setSubmitted(false),3000);
+  }
+
+  return (
+    <div style={{maxWidth:560}}>
+      <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,textTransform:'uppercase',marginBottom:4}}>🎲 Request a Roll</div>
+      <p style={{fontSize:14,color:D.muted,marginBottom:20}}>Submit your signing evidence to earn a dice roll. {state.settings.managerApprovalRequired?'Manager approval required.':'Auto-approved if threshold met.'}</p>
+
+      {submitted&&<div style={{background:'#0a1f0a',border:`1px solid #16a34a44`,borderRadius:8,padding:12,marginBottom:16,fontWeight:600,color:TIER_COLOR.Small}}>✅ Roll request submitted!</div>}
+
+      <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:20,display:'grid',gap:14}}>
+        <div>
+          <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Player</label>
+          <select value={form.playerId} onChange={e=>setForm(p=>({...p,playerId:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}>
+            <option value=''>Select player...</option>
+            {active.map(p=><option key={p.id} value={p.id}>{p.puck} {p.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Platform</label>
+          <div style={{display:'flex',gap:8}}>
+            {['Facebook','MSN','Spotify','Manual/Other'].map(pl=>(
+              <button key={pl} onClick={()=>setForm(p=>({...p,platform:pl}))} style={{flex:1,padding:'8px 4px',border:`2px solid ${form.platform===pl?D.orange:D.border}`,borderRadius:8,background:form.platform===pl?D.orange:'transparent',color:form.platform===pl?'#fff':D.muted,cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif"}}>{pl}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div>
+            <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>No. of signings</label>
+            <input type="number" min={1} value={form.signings} onChange={e=>setForm(p=>({...p,signings:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+          </div>
+          <div>
+            <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Date</label>
+            <input value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+          </div>
+        </div>
+        <div>
+          <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Signing names / channels *</label>
+          <input value={form.names} onChange={e=>setForm(p=>({...p,names:e.target.value}))} placeholder="Channel A, Channel B, Channel C" style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+        </div>
+        <div>
+          <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Evidence / Reference (optional)</label>
+          <input value={form.ref} onChange={e=>setForm(p=>({...p,ref:e.target.value}))} placeholder="CRM link, Slack message, spreadsheet row..." style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+        </div>
+        <div>
+          <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Notes</label>
+          <textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14,resize:'vertical'}}/>
+        </div>
+
+        {form.playerId && form.platform!=='Manual/Other' && (
+          <div style={{background:calcRolls>0?'#0a1f0a':'#1a1000',border:`1px solid ${calcRolls>0?'#16a34a44':'#d9770644'}`,borderRadius:8,padding:12}}>
+            <div style={{color:calcRolls>0?TIER_COLOR.Small:TIER_COLOR.Mid,fontWeight:700,fontSize:14}}>
+              {calcRolls>0 ? `✅ Qualifies for ${calcRolls} roll${calcRolls>1?'s':''}!` : `⏳ Not enough for a roll yet (threshold: ${form.platform==='Facebook'?state.settings.facebookThreshold:form.platform==='MSN'?state.settings.msnThreshold:state.settings.spotifyThreshold})`}
+            </div>
+          </div>
+        )}
+
+        <button onClick={handleSubmit} disabled={!form.playerId||!form.names.trim()} style={{color:D.text,background:D.orange,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,cursor:'pointer',opacity:!form.playerId||!form.names.trim()?0.4:1}}>
+          Submit Roll Request
+        </button>
+      </div>
+
+      {/* Player progress */}
+      <div style={{marginTop:20}}>
+        <div style={{color:D.muted,fontSize:12,fontWeight:700,marginBottom:10,textTransform:'uppercase',letterSpacing:'0.07em'}}>Progress towards next roll:</div>
+        <div style={{display:'grid',gap:8}}>
+          {active.map(p=>(
+            <div key={p.id} style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:10,padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{color:D.text,fontWeight:600,fontSize:14}}>{p.puck} {p.name}</span>
+              <div style={{display:'flex',gap:10,fontSize:13}}>
+                <span style={{color:D.fb,fontWeight:600}}>FB {p.fb}/{state.settings.facebookThreshold}</span>
+                <span style={{color:D.msn,fontWeight:600}}>MSN {p.msn}/{state.settings.msnThreshold}</span>
+                <span style={{color:D.spotify,fontWeight:600}}>SP {p.spotify}/{state.settings.spotifyThreshold}</span>
+                <span style={{color:D.text,background:'#dbeafe',borderRadius:10,padding:'1px 7px',fontWeight:700}}>{p.rolls} roll{p.rolls!==1?'s':''}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MANAGER PANEL
+// ═══════════════════════════════════════════════════════════════════════════════
+function ManagerPanel({ state, onUpdate }) {
+  const [sub, setSub] = useState('requests');
+  const [editRules, setEditRules] = useState(false);
+  const [rulesText, setRulesText] = useState(state.rules);
+  const [auditFilter, setAuditFilter] = useState({player:'',type:'',search:''});
+  const [editSettings, setEditSettings] = useState({...state.settings});
+  const [playerEdit, setPlayerEdit] = useState(null);
+
+  function addLog(action, details, playerId='') {
+    const entry = {id:uid(),ts:ts(),action,details,playerId};
+    onUpdate(s=>({...s,auditLog:[entry,...s.auditLog]}));
+  }
+
+  function approveRequest(rid) {
+    onUpdate(s=>{
+      const req = s.rollRequests.find(r=>r.id===rid);
+      if (!req) return s;
+      const players = s.players.map(p=>{
+        if (p.id!==req.playerId) return p;
+        const addRolls = req.calcRolls||0;
+        // Update progress
+        let {fb,msn,spotify} = p;
+        if (req.platform==='Facebook') {
+          const total = fb + req.signings;
+          fb = total % s.settings.facebookThreshold;
+        } else if (req.platform==='MSN') {
+          const total = msn + req.signings;
+          msn = total % s.settings.msnThreshold;
+        } else if (req.platform==='Spotify') {
+          const total = spotify + req.signings;
+          spotify = total % s.settings.spotifyThreshold;
+        }
+        return {...p, rolls:p.rolls+addRolls, fb, msn, spotify};
+      });
+      return {
+        ...s, players,
+        rollRequests: s.rollRequests.map(r=>r.id===rid?{...r,status:'approved'}:r),
+        auditLog: [{id:uid(),ts:ts(),action:'Roll request approved',details:`${req.playerName} — ${req.platform} — ${req.calcRolls} roll(s) granted`,playerId:req.playerId},...s.auditLog]
+      };
+    });
+  }
+
+  function rejectRequest(rid, reason) {
+    onUpdate(s=>({
+      ...s,
+      rollRequests:s.rollRequests.map(r=>r.id===rid?{...r,status:'rejected',managerNotes:reason}:r),
+      auditLog:[{id:uid(),ts:ts(),action:'Roll request rejected',details:`Request ${rid} — reason: ${reason}`},...s.auditLog]
+    }));
+  }
+
+  function manualGrant(pid,type,n=1) {
+    onUpdate(s=>{
+      const player = s.players.find(p=>p.id===pid);
+      const players = s.players.map(p=>{
+        if (p.id!==pid) return p;
+        if (type==='rolls') return {...p,rolls:Math.max(0,p.rolls+n)};
+        if (type==='fallback') return {...p,fallback:Math.max(0,p.fallback+n)};
+        if (type==='snakeEscape') return {...p,snakeEscape:Math.max(0,p.snakeEscape+n)};
+        return p;
+      });
+      return {
+        ...s, players,
+        auditLog:[{id:uid(),ts:ts(),action:`Manager ${n>0?'granted':'removed'} ${type}`,details:`${player?.name} — ${Math.abs(n)} ${type}`,playerId:pid},...s.auditLog]
+      };
+    });
+  }
+
+  function movePlayer(pid, sq) {
+    onUpdate(s=>{
+      const player = s.players.find(p=>p.id===pid);
+      const players = s.players.map(p=>p.id===pid?{...p,pos:parseInt(sq)||0,lastMove:`Manager moved to ${sq}`}:p);
+      return {
+        ...s, players,
+        auditLog:[{id:uid(),ts:ts(),action:'Manager manual move',details:`${player?.name} moved to square ${sq}`,playerId:pid},...s.auditLog]
+      };
+    });
+  }
+
+  function resetPlayer(pid) {
+    if (!window.confirm('Reset this player to Start?')) return;
+    onUpdate(s=>{
+      const player = s.players.find(p=>p.id===pid);
+      const players = s.players.map(p=>p.id===pid?{...p,pos:0,lastMove:'Reset by manager'}:p);
+      return {
+        ...s, players,
+        auditLog:[{id:uid(),ts:ts(),action:'Player reset',details:`${player?.name} reset to Start`,playerId:pid},...s.auditLog]
+      };
+    });
+  }
+
+  function removePlayer(pid) {
+    if (!window.confirm('Remove this player from the game?')) return;
+    onUpdate(s=>{
+      const player = s.players.find(p=>p.id===pid);
+      return {
+        ...s,
+        players:s.players.map(p=>p.id===pid?{...p,active:false}:p),
+        auditLog:[{id:uid(),ts:ts(),action:'Player removed',details:`${player?.name} removed`,playerId:pid},...s.auditLog]
+      };
+    });
+  }
+
+  function addPlayer(name, puck) {
+    const id = `p-${uid()}`;
+    onUpdate(s=>({
+      ...s,
+      players:[...s.players,{id,name,puck:puck||'🦊',pos:0,rolls:0,fb:0,msn:0,spotify:0,fallback:s.settings.startingFallbackTokens,snakeEscape:0,prizes:[],active:true}],
+      auditLog:[{id:uid(),ts:ts(),action:'Player added',details:`${name} joined the game`},...s.auditLog]
+    }));
+  }
+
+  function resetGame() {
+    if (!window.confirm('RESET ENTIRE GAME? This cannot be undone.')) return;
+    const fresh = makeInitialState();
+    fresh.auditLog = [{id:uid(),ts:ts(),action:'Game reset',details:'Full game reset by manager'}];
+    onUpdate(()=>fresh);
+  }
+
+  function saveSettings() {
+    onUpdate(s=>({
+      ...s, settings:editSettings,
+      auditLog:[{id:uid(),ts:ts(),action:'Settings updated',details:JSON.stringify(editSettings)},...s.auditLog]
+    }));
+  }
+
+  function exportState() {
+    const json = JSON.stringify(state,null,2);
+    const blob = new Blob([json],{type:'application/json'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`snl-backup-${Date.now()}.json`; a.click();
+  }
+
+  function importState(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (window.confirm('Import this game state? Current state will be overwritten.')) {
+          onUpdate(()=>({...data,auditLog:[{id:uid(),ts:ts(),action:'State imported',details:'Game state imported from file'},...(data.auditLog||[])]}));
+        }
+      } catch { alert('Invalid backup file.'); }
+    };
+    reader.readAsText(file);
+  }
+
+  function markPrize(id, field, val) {
+    onUpdate(s=>({
+      ...s,
+      prizes:s.prizes.map(p=>p.id===id?{...p,[field]:val}:p),
+      auditLog:[{id:uid(),ts:ts(),action:'Prize updated',details:`Prize ${id} — ${field}: ${val}`},...s.auditLog]
+    }));
+  }
+
+  const subBtns = [
+    {k:'requests',l:'Roll Requests',badge:state.rollRequests.filter(r=>r.status==='pending').length},
+    {k:'players',l:'Players'},
+    {k:'prizes',l:'Prizes'},
+    {k:'settings',l:'Settings'},
+    {k:'fallback',l:'Fallback'},
+    {k:'logs',l:'Audit Log'},
+    {k:'rules',l:'Rules'},
+  ];
+
+  const filteredLog = state.auditLog.filter(e=>{
+    if (auditFilter.player && e.playerId!==auditFilter.player) return false;
+    if (auditFilter.type && !e.action.toLowerCase().includes(auditFilter.type.toLowerCase())) return false;
+    if (auditFilter.search && !JSON.stringify(e).toLowerCase().includes(auditFilter.search.toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:20}}>
+        {subBtns.map(({k,l,badge})=>(
+          <button key={k} onClick={()=>setSub(k)} style={{padding:'8px 14px',border:`1px solid ${sub===k?D.orange:D.border}`,borderRadius:8,background:sub===k?D.orange+'22':'transparent',color:sub===k?D.orange:'#888',cursor:'pointer',fontWeight:600,fontFamily:"'DM Sans',sans-serif",fontSize:13,display:'flex',alignItems:'center',gap:6}}>
+            {l}
+            {badge>0&&<span style={{color:D.text,background:'#ef4444',borderRadius:10,padding:'1px 7px',fontSize:11,fontWeight:700}}>{badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* ── ROLL REQUESTS ── */}
+      {sub==='requests'&&(()=>{
+        const pending = state.rollRequests.filter(r=>r.status==='pending')
+          .sort((a,b)=>(a.submittedAtMs||0)-(b.submittedAtMs||0)); // oldest first = queue order
+        const resolved = state.rollRequests.filter(r=>r.status!=='pending')
+          .sort((a,b)=>(b.submittedAtMs||0)-(a.submittedAtMs||0)); // newest first
+
+        return (
+          <div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,color:D.text,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:4}}>Roll Requests</div>
+            <div style={{fontSize:13,color:D.dim,marginBottom:16}}>Pending requests are queued oldest-first — process top to bottom for fair first-come, first-served handling.</div>
+
+            {pending.length===0 && resolved.length===0 && <div style={{color:D.dim}}>No requests yet.</div>}
+
+            {pending.length>0&&(
+              <div style={{marginBottom:24}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                  <span style={{background:'#1a1000',color:TIER_COLOR.Mid,border:'1px solid #d9770644',borderRadius:10,padding:'2px 10px',fontSize:12,fontWeight:700}}>⏳ PENDING</span>
+                  <span style={{fontSize:13,color:D.muted,fontWeight:600}}>{pending.length} waiting</span>
+                </div>
+                <div style={{display:'grid',gap:10}}>
+                  {pending.map((r,i)=>(
+                    <RollRequestCard key={r.id} r={r} queuePos={i+1} onApprove={approveRequest} onReject={rejectRequest} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {resolved.length>0&&(
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                  <span style={{background:'#1a1a1a',color:D.dim,border:`1px solid ${D.border}`,borderRadius:10,padding:'2px 10px',fontSize:12,fontWeight:700}}>RESOLVED</span>
+                  <span style={{fontSize:13,color:D.dim,fontWeight:600}}>{resolved.length}</span>
+                </div>
+                <div style={{display:'grid',gap:10,opacity:0.75}}>
+                  {resolved.map(r=>(
+                    <RollRequestCard key={r.id} r={r} onApprove={approveRequest} onReject={rejectRequest} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── PLAYERS ── */}
+      {sub==='players'&&(
+        <div>
+          <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:12}}>Players</div>
+          <div style={{display:'grid',gap:10,marginBottom:20}}>
+            {state.players.map(p=>(
+              <PlayerEditCard key={p.id} p={p} onUpdate={onUpdate} onMove={movePlayer} onReset={resetPlayer} onGrant={manualGrant} onRemove={removePlayer} />
+            ))}
+          </div>
+          {/* Add player */}
+          <div style={{background:'#0a1a0a',border:`1px solid #16a34a44`,borderRadius:10,padding:16}}>
+            <div style={{fontWeight:700,color:D.text,marginBottom:8}}>Add Player</div>
+            <AddPlayerForm onAdd={addPlayer} />
+          </div>
+          <div style={{marginTop:16,display:'flex',gap:10,flexWrap:'wrap'}}>
+            <button onClick={resetGame} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #ef444444',borderRadius:8,padding:'10px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>🔄 Reset Entire Game</button>
+            <button onClick={exportState} style={{background:D.card,color:D.muted,border:`1px solid ${D.border}`,borderRadius:8,padding:'10px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>📥 Export Backup</button>
+            <label style={{background:D.card,color:D.muted,border:`1px solid ${D.border}`,borderRadius:8,padding:'10px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,display:'inline-block'}}>
+              📤 Import Backup
+              <input type="file" accept=".json" onChange={importState} style={{display:'none'}}/>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* ── PRIZES ── */}
+      {sub==='prizes'&&(
+        <div>
+          <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:12}}>Prize Map (Manager View)</div>
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+              <thead>
+                <tr style={{background:D.card}}>
+                  {['Sq','Tier','Prize','Claimed By','Date','Given Out','Notes','Actions'].map(h=>(
+                    <th key={h} style={{color:D.muted,padding:'7px 10px',textAlign:'left',fontWeight:700,borderBottom:`1px solid ${D.border}`,whiteSpace:'nowrap',fontSize:12,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {state.prizes.map((p,i)=>(
+                  <tr key={p.id} style={{background:i%2===0?D.card:'#080808',borderBottom:`1px solid ${D.border}`}}>
+                    <td style={{padding:'7px 10px',fontWeight:700,color:D.text}}>{p.sq}</td>
+                    <td style={{padding:'7px 10px'}}><span style={{color:D.text,background:TIER_BG[p.tier],borderRadius:8,padding:'2px 8px',fontWeight:700,fontSize:12}}>{p.tier}</span></td>
+                    <td style={{padding:'7px 10px',maxWidth:200}}>{p.desc}{p.mechanic&&<span style={{marginLeft:6,fontSize:10,background:'#e0e7ff',color:'#4338ca',borderRadius:8,padding:'1px 6px'}}>mechanic</span>}</td>
+                    <td style={{padding:'7px 10px',color:p.claimed?'#15803d':'#6b7280'}}>{p.claimed?p.claimedBy:'—'}</td>
+                    <td style={{padding:'7px 10px',fontSize:11,color:D.dim}}>{p.claimedDate||'—'}</td>
+                    <td style={{padding:'7px 10px'}}>
+                      <button onClick={()=>markPrize(p.id,'givenOut',!p.givenOut)} style={{background:p.givenOut?'#0a1f0a':'#1a1a1a',border:`1px solid ${p.givenOut?'#16a34a44':D.border}`,borderRadius:6,padding:'3px 8px',cursor:'pointer',fontSize:12,fontWeight:600,color:p.givenOut?TIER_COLOR.Small:D.dim}}>
+                        {p.givenOut?'✅ Yes':'No'}
+                      </button>
+                    </td>
+                    <td style={{padding:'7px 10px',fontSize:12,color:D.dim,maxWidth:100}}>{p.notes||'—'}</td>
+                    <td style={{padding:'7px 10px'}}>
+                      <div style={{display:'flex',gap:4}}>
+                        {p.claimed&&<button onClick={()=>markPrize(p.id,'claimed',false)} style={{color:'#f87171',background:'#1f0a0a',border:'1px solid #ef444433',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11,fontWeight:700}}>Unclaim</button>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── SETTINGS ── */}
+      {sub==='settings'&&(
+        <div style={{maxWidth:480}}>
+          <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:16}}>Game Settings</div>
+          <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:20,display:'grid',gap:14}}>
+            {[['facebookThreshold','Facebook signings per roll'],['msnThreshold','MSN signings per roll'],['spotifyThreshold','Spotify signings per roll']].map(([k,l])=>(
+              <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <label style={{color:D.text,fontWeight:600,fontSize:14}}>{l}</label>
+                <input type="number" min={1} value={editSettings[k]} onChange={e=>setEditSettings(s=>({...s,[k]:parseInt(e.target.value)||1}))} style={{width:70,padding:'6px 10px',border:`1px solid ${D.border}`,borderRadius:6,fontSize:14,textAlign:'center'}}/>
+              </div>
+            ))}
+            {[['managerApprovalRequired','Manager approval required'],['partialProgressCarryover','Partial progress carries over'],['manualRollCreditsAllowed','Manual roll credits allowed'],['allowOvershootFinish','Allow overshoot finish (reach 100 without exact roll)'],['fallbackEnabled','Fallback tokens enabled'],['pickAnyLargeNeedsApproval','Large prizes need approval when picked'],['swapChainReactions','Swap triggers snakes/ladders on new square']].map(([k,l])=>(
+              <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:8,borderTop:`1px solid ${D.border}`}}>
+                <label style={{color:D.text,fontWeight:600,fontSize:14,flex:1,paddingRight:12}}>{l}</label>
+                <button onClick={()=>setEditSettings(s=>({...s,[k]:!s[k]}))} style={{color:D.text,background:editSettings[k]?D.orange:'#1a1a1a',border:`1px solid ${editSettings[k]?D.orange:D.border}`,borderRadius:20,padding:'6px 16px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,minWidth:60}}>
+                  {editSettings[k]?'ON':'OFF'}
+                </button>
+              </div>
+            ))}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <label style={{color:D.text,fontWeight:600,fontSize:14}}>Starting fallback tokens</label>
+              <input type="number" min={0} value={editSettings.startingFallbackTokens} onChange={e=>setEditSettings(s=>({...s,startingFallbackTokens:parseInt(e.target.value)||0}))} style={{width:70,padding:'6px 10px',border:`1px solid ${D.border}`,borderRadius:6,fontSize:14,textAlign:'center'}}/>
+            </div>
+            <button onClick={saveSettings} style={{color:D.text,background:D.orange,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,cursor:'pointer'}}>Save Settings</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── FALLBACK ── */}
+      {sub==='fallback'&&(
+        <div>
+          <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:12}}>Fallback Token Requests</div>
+          {state.fallbackRequests.length===0&&<div style={{color:D.dim}}>No fallback requests yet.</div>}
+          <div style={{display:'grid',gap:8}}>
+            {state.fallbackRequests.map(r=>(
+              <div key={r.id} style={{background:D.card,border:`1px solid ${r.status==='pending'?'#d9770644':r.status==='approved'?'#16a34a44':'#ef444444'}`,borderRadius:10,padding:14}}>
+                <div style={{fontWeight:700,color:D.text}}>{r.playerName} — landed on sq.{r.square}</div>
+                <div style={{fontSize:13,color:D.dim,marginTop:4}}>Wants: <strong>{r.choice}</strong> | {r.ts}</div>
+                {r.status==='pending'&&(
+                  <div style={{display:'flex',gap:8,marginTop:8}}>
+                    <button onClick={()=>onUpdate(s=>({...s,fallbackRequests:s.fallbackRequests.map(x=>x.id===r.id?{...x,status:'approved'}:x),players:s.players.map(p=>p.id===r.playerId?{...p,fallback:Math.max(0,p.fallback-1)}:p),auditLog:[{id:uid(),ts:ts(),action:'Fallback approved',details:`${r.playerName} — ${r.choice} on sq.${r.square}`},...s.auditLog]}))} style={{color:D.text,background:'#16a34a',border:'none',borderRadius:6,padding:'6px 14px',cursor:'pointer',fontWeight:700,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>✅ Approve</button>
+                    <button onClick={()=>onUpdate(s=>({...s,fallbackRequests:s.fallbackRequests.map(x=>x.id===r.id?{...x,status:'rejected'}:x)}))} style={{color:D.text,background:'#ef4444',border:'none',borderRadius:6,padding:'6px 14px',cursor:'pointer',fontWeight:700,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>❌ Reject</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── AUDIT LOG ── */}
+      {sub==='logs'&&(
+        <div>
+          <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:12}}>Audit Log</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}}>
+            <input value={auditFilter.search} onChange={e=>setAuditFilter(f=>({...f,search:e.target.value}))} placeholder="Search..." style={{padding:'7px 12px',border:`1px solid ${D.border}`,borderRadius:8,fontSize:13,flex:1,minWidth:140}}/>
+            <select value={auditFilter.player} onChange={e=>setAuditFilter(f=>({...f,player:e.target.value}))} style={{padding:'7px 12px',border:`1px solid ${D.border}`,borderRadius:8,fontSize:13}}>
+              <option value=''>All players</option>
+              {state.players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <button onClick={()=>{const json=JSON.stringify(filteredLog,null,2);const blob=new Blob([json],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='audit-log.json';a.click();}} style={{color:D.text,background:D.card,border:`1px solid ${D.border}`,borderRadius:8,padding:'7px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700}}>Export</button>
+            <button onClick={()=>{if(window.confirm('Clear all logs?'))onUpdate(s=>({...s,auditLog:[{id:uid(),ts:ts(),action:'Logs cleared',details:'All previous logs cleared by manager'}]}));}} style={{color:D.text,background:'#1f0a0a',border:'1px solid #ef444433',borderRadius:8,padding:'7px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700}}>Clear</button>
+          </div>
+          <div style={{maxHeight:400,overflowY:'auto',display:'grid',gap:4}}>
+            {filteredLog.slice(0,200).map(e=>(
+              <div key={e.id} style={{background:D.sub,borderRadius:6,padding:'7px 12px',display:'flex',gap:12,alignItems:'flex-start',borderLeft:`3px solid ${D.border}`}}>
+                <div style={{fontSize:11,color:D.dim,whiteSpace:'nowrap',minWidth:130}}>{e.ts}</div>
+                <div>
+                  <span style={{color:D.text,fontWeight:700,fontSize:12}}>{e.action}</span>
+                  {e.details&&<span style={{fontSize:12,color:D.dim,marginLeft:6}}>— {e.details}</span>}
+                </div>
+              </div>
+            ))}
+            {filteredLog.length===0&&<div style={{color:D.dim,textAlign:'center',padding:20}}>No log entries.</div>}
+          </div>
+        </div>
+      )}
+
+      {/* ── RULES ── */}
+      {sub==='rules'&&(
+        <div style={{maxWidth:560}}>
+          <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:12}}>Rules</div>
+          {editRules?(
+            <>
+              <textarea value={rulesText} onChange={e=>setRulesText(e.target.value)} rows={16} style={{width:'100%',padding:12,border:`1px solid ${D.border}`,borderRadius:8,fontSize:13,fontFamily:'monospace',resize:'vertical'}}/>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button onClick={()=>{onUpdate(s=>({...s,rules:rulesText}));setEditRules(false);}} style={{color:D.text,background:'#16a34a',border:'none',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>Save</button>
+                <button onClick={()=>setEditRules(false)} style={{background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+              </div>
+            </>
+          ):(
+            <>
+              <div style={{background:D.sub,border:`1px solid ${D.border}`,borderRadius:10,padding:16,fontFamily:'monospace',fontSize:13,whiteSpace:'pre-wrap',lineHeight:1.6,color:'#ccc'}}>{state.rules}</div>
+              <button onClick={()=>setEditRules(true)} style={{color:D.text,marginTop:10,background:D.orange,border:'none',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>Edit Rules</button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RollRequestCard({ r, queuePos, onApprove, onReject }) {
+  const [note, setNote] = useState('');
+  const statusBg = r.status==='pending' ? '#1a1000' : r.status==='approved' ? '#0a1f0a' : '#1f0a0a';
+  const statusColor = r.status==='pending' ? TIER_COLOR.Mid : r.status==='approved' ? TIER_COLOR.Small : '#f87171';
+  const borderColor = r.status==='pending' ? '#d9770644' : r.status==='approved' ? '#16a34a44' : '#ef444444';
+
+  return (
+    <div style={{background:D.card,border:`1px solid ${borderColor}`,borderRadius:10,padding:16,position:'relative'}}>
+      {queuePos&&(
+        <div style={{position:'absolute',top:-10,left:14,background:D.orange,color:'#fff',borderRadius:12,padding:'2px 10px',fontSize:11,fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:'0.04em'}}>
+          #{queuePos} IN QUEUE
+        </div>
+      )}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8,marginTop:queuePos?6:0}}>
+        <div>
+          <span style={{fontWeight:700,color:D.text,fontSize:15}}>{r.playerName}</span>
+          <span style={{margin:'0 8px',color:D.dim}}>·</span>
+          <span style={{fontWeight:600,color:r.platform==='Facebook'?D.fb:r.platform==='MSN'?D.msn:D.spotify}}>{r.platform}</span>
+          <span style={{margin:'0 8px',color:D.dim}}>·</span>
+          <span style={{color:D.muted}}>{r.signings} signing{r.signings!==1?'s':''}</span>
+        </div>
+        <span style={{background:statusBg,color:statusColor,borderRadius:10,padding:'2px 10px',fontSize:12,fontWeight:700}}>{r.status.toUpperCase()}</span>
+      </div>
+
+      {/* Submission timestamp — prominent for first-come-first-served processing */}
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,padding:'6px 10px',background:D.sub,borderRadius:6,border:`1px solid ${D.border}`}}>
+        <span style={{fontSize:13,fontWeight:700,color:D.text}}>🕐 {r.ts}</span>
+        {r.submittedAtMs&&<span style={{fontSize:12,color:r.status==='pending'?TIER_COLOR.Mid:D.dim,fontWeight:600}}>· {timeAgo(r.submittedAtMs)}</span>}
+      </div>
+
+      <div style={{fontSize:13,color:'#ccc',marginBottom:4}}><strong>Signings:</strong> {r.names}</div>
+      {r.ref&&<div style={{fontSize:13,color:D.dim,marginBottom:4}}><strong>Ref:</strong> {r.ref}</div>}
+      {r.notes&&<div style={{fontSize:13,color:D.dim,marginBottom:4}}><strong>Notes:</strong> {r.notes}</div>}
+      {r.dupeWarning&&<div style={{fontSize:13,color:'#f87171',marginBottom:4,fontWeight:600}}>{r.dupeWarning}</div>}
+      <div style={{fontSize:13,color:D.muted,marginBottom:8}}><strong>Calculated rolls:</strong> {r.calcRolls}</div>
+      {r.status==='pending'&&(
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+          <button onClick={()=>onApprove(r.id)} style={{background:'#16a34a',color:'#fff',border:'none',borderRadius:6,padding:'6px 14px',cursor:'pointer',fontWeight:700,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>✅ Approve</button>
+          <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Rejection reason..." style={{flex:1,minWidth:120,padding:'6px 10px',border:`1px solid ${D.border}`,borderRadius:6,fontSize:13}}/>
+          <button onClick={()=>{if(!note.trim())return; onReject(r.id,note);}} style={{background:'#ef4444',color:'#fff',border:'none',borderRadius:6,padding:'6px 14px',cursor:'pointer',fontWeight:700,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>❌ Reject</button>
+        </div>
+      )}
+      {r.managerNotes&&<div style={{marginTop:6,fontSize:12,color:D.dim}}>Manager note: {r.managerNotes}</div>}
+    </div>
+  );
+}
+
+function PlayerEditCard({ p, onUpdate, onMove, onReset, onGrant, onRemove }) {
+  const [moveVal, setMoveVal] = useState('');
+  const [newName, setNewName] = useState(p.name);
+  const [newPuck, setNewPuck] = useState(p.puck);
+
+  if (!p.active) return (
+    <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:10,padding:12,opacity:0.5,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <span style={{color:D.text}}>{p.puck} {p.name} (removed)</span>
+      <button onClick={()=>onUpdate(s=>({...s,players:s.players.map(x=>x.id===p.id?{...x,active:true}:x)}))} style={{background:'#1a1a1a',border:`1px solid ${D.border}`,color:D.muted,borderRadius:6,padding:'4px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12}}>Re-add</button>
+    </div>
+  );
+
+  return (
+    <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:16}}>
+      <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
+        <span style={{fontSize:28}}>{p.puck}</span>
+        <div>
+          <div style={{fontWeight:700,color:D.text,fontSize:15}}>{p.name}</div>
+          <div style={{fontSize:13,color:D.dim}}>Sq:{p.pos||'Start'} · Rolls:{p.rolls} · Fallback:{p.fallback} · SnakeEsc:{p.snakeEscape}</div>
+        </div>
+      </div>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+        <input value={newName} onChange={e=>setNewName(e.target.value)} style={{padding:'6px 10px',border:`1px solid ${D.border}`,borderRadius:6,fontSize:13,width:120}}/>
+        <select value={newPuck} onChange={e=>setNewPuck(e.target.value)} style={{padding:'6px 8px',border:`1px solid ${D.border}`,borderRadius:6,fontSize:16}}>
+          {PUCKS.map(pk=><option key={pk} value={pk}>{pk}</option>)}
+        </select>
+        <button onClick={()=>onUpdate(s=>({...s,players:s.players.map(x=>x.id===p.id?{...x,name:newName,puck:newPuck}:x),auditLog:[{id:uid(),ts:ts(),action:'Player renamed/repuck',details:`${p.name} → ${newName}, ${p.puck} → ${newPuck}`},...s.auditLog]}))} style={{background:D.orange,color:'#fff',border:'none',borderRadius:6,padding:'6px 12px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Update</button>
+        <div style={{display:'flex',gap:4,alignItems:'center'}}>
+          <input value={moveVal} onChange={e=>setMoveVal(e.target.value)} placeholder="Move to sq..." type="number" min={0} max={100} style={{padding:'6px 8px',border:`1px solid ${D.border}`,borderRadius:6,fontSize:13,width:90}}/>
+          <button onClick={()=>{if(moveVal)onMove(p.id,moveVal);setMoveVal('');}} style={{background:'#d97706',color:'#fff',border:'none',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Move</button>
+        </div>
+        <button onClick={()=>onReset(p.id)} style={{background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Reset</button>
+        <button onClick={()=>onGrant(p.id,'rolls',1)} style={{background:D.fb+'22',color:'#93c5fd',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+Roll</button>
+        <button onClick={()=>onGrant(p.id,'rolls',-1)} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #ef444433',borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>-Roll</button>
+        <button onClick={()=>onGrant(p.id,'fallback',1)} style={{background:D.fb+'22',color:'#93c5fd',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+FB</button>
+        <button onClick={()=>onGrant(p.id,'snakeEscape',1)} style={{background:'#0a1f0a',color:TIER_COLOR.Small,border:'1px solid #16a34a44',borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+🛡️</button>
+        <button onClick={()=>onRemove(p.id)} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #ef444444',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Remove</button>
+      </div>
+    </div>
+  );
+}
+
+function AddPlayerForm({ onAdd }) {
+  const [name,setName]=useState('');
+  const [puck,setPuck]=useState('🦊');
+  return (
+    <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+      <input value={name} onChange={e=>setName(e.target.value)} placeholder="Player name" style={{padding:'8px 12px',border:'1px solid #16a34a44',borderRadius:8,fontSize:14,flex:1,minWidth:120}}/>
+      <select value={puck} onChange={e=>setPuck(e.target.value)} style={{padding:'8px 10px',border:'1px solid #16a34a44',borderRadius:8,fontSize:18}}>
+        {PUCKS.map(p=><option key={p} value={p}>{p}</option>)}
+      </select>
+      <button onClick={()=>{if(name.trim()){onAdd(name.trim(),puck);setName('');}}} disabled={!name.trim()} style={{color:D.text,background:'#16a34a',border:'none',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,opacity:name.trim()?1:0.4}}>Add</button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SnakesLaddersGame({ user }) {
+  const isManager = user.role === "manager";
+  const GAME_LS_KEY = "snakesladders:state";
+  const [state, setStateRaw] = useState(() => LS.get(GAME_LS_KEY) || makeInitialState());
+  const [tab, setTab] = useState('board');
+  const [rollResult, setRollResult] = useState(null);
+  const [pendingMechanic, setPendingMechanic] = useState(null);
+  const [pendingSwap, setPendingSwap] = useState(null);
+  const [animGhost, setAnimGhost] = useState(null);
+  const animTimeouts = useRef([]);
+
+  function clearAnimTimeouts() {
+    animTimeouts.current.forEach(clearTimeout);
+    animTimeouts.current = [];
+  }
+  function schedule(fn, delay) {
+    const id = setTimeout(fn, delay);
+    animTimeouts.current.push(id);
+    return id;
+  }
+  useEffect(() => () => clearAnimTimeouts(), []);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [rolling, setRolling] = useState(false);
+  const [fallbackModal, setFallbackModal] = useState(null);
+
+  function setState(updater) {
+    setStateRaw(prev => {
+      const next = typeof updater==='function' ? updater(prev) : updater;
+      LS.set(GAME_LS_KEY, next); // syncs to Supabase in the background — whole team sees the same board
+      return next;
+    });
+  }
+
+  function addActivity(msg) {
+    setState(s=>({...s, activity:[{id:uid(),ts:ts(),msg},...s.activity].slice(0,20)}));
+  }
+
+  function doRoll(playerId) {
+    const player = state.players.find(p=>p.id===playerId);
+    if (!player || player.rolls<=0) return;
+
+    clearAnimTimeouts();
+    setRolling(true);
+
+    const dice = Math.floor(Math.random()*6)+1;
+    const startPos = player.pos||0;
+    let newPos = startPos + dice;
+
+    // Overshoot with no exact-finish allowance — no movement, no animation needed
+    if (newPos>100 && !state.settings.allowOvershootFinish) {
+      schedule(()=>{
+        setState(s=>({
+          ...s,
+          players:s.players.map(p=>p.id===playerId?{...p,rolls:p.rolls-1}:p),
+          auditLog:[{id:uid(),ts:ts(),action:'Dice roll (overshoot)',details:`${player.name} rolled ${dice} from ${startPos||'Start'} — overshoot, no move`,playerId},...s.auditLog]
+        }));
+        setRollResult({playerName:player.name,puck:player.puck,diceVal:dice,startPos,moved:false});
+        setRolling(false);
+      }, 500);
+      return;
+    }
+    if (newPos>100) newPos = 100;
+
+    const landedOn = newPos;
+    let finalPos = newPos;
+    let snakeOrLadder = null;
+    if (SNAKES[newPos]) { snakeOrLadder = {type:'snake',from:newPos,to:SNAKES[newPos]}; finalPos = SNAKES[newPos]; }
+    else if (LADDERS[newPos]) { snakeOrLadder = {type:'ladder',from:newPos,to:LADDERS[newPos]}; finalPos = LADDERS[newPos]; }
+
+    // ── Phase 1: hop step-by-step from startPos to landedOn ──
+    const hopSteps = [];
+    for (let sq=startPos+1; sq<=landedOn; sq++) hopSteps.push(sq);
+    const HOP_MS = 170;
+
+    setAnimGhost({playerId, puck:player.puck, sq:startPos, x:null, y:null, phase:'hop'});
+
+    let i = 0;
+    function hopNext() {
+      if (i < hopSteps.length) {
+        const sq = hopSteps[i];
+        setAnimGhost(g => g ? {...g, sq, x:null, y:null, phase:'hop'} : g);
+        i++;
+        schedule(hopNext, HOP_MS);
+      } else if (snakeOrLadder) {
+        // Pause on the snake head / ladder bottom briefly before sliding
+        schedule(startSlide, 300);
+      } else {
+        schedule(finishRoll, 250);
+      }
+    }
+
+    function startSlide() {
+      const path = snakeOrLadder.type==='snake'
+        ? sampleSnakePath(snakeOrLadder.from, snakeOrLadder.to, BOARD_CELL_SIZE, 26)
+        : sampleLadderPath(snakeOrLadder.from, snakeOrLadder.to, BOARD_CELL_SIZE, 16);
+      const TICK_MS = snakeOrLadder.type==='snake' ? 26 : 34;
+      let j = 0;
+      function slideNext() {
+        if (j <= path.length-1) {
+          const pt = path[j];
+          setAnimGhost(g => g ? {
+            ...g, phase:'slide', x:pt.x, y:pt.y,
+            highlightFrom:snakeOrLadder.from, highlightTo:snakeOrLadder.to, highlightType:snakeOrLadder.type
+          } : g);
+          j++;
+          schedule(slideNext, TICK_MS);
+        } else {
+          schedule(finishRoll, 220);
+        }
+      }
+      slideNext();
+    }
+
+    function finishRoll() {
+      setState(s=>{
+        const p = s.players.find(pp=>pp.id===playerId);
+        if (!p) return s;
+        const rollId = uid();
+
+        const prize = s.prizes.find(pr=>pr.sq===finalPos);
+        let prizeResult = {type:'blank'};
+        let newPrizes = s.prizes;
+        let newPlayers = s.players;
+
+        if (prize) {
+          if (prize.claimed) {
+            prizeResult = {type:'already_claimed',claimedBy:prize.claimedBy};
+          } else {
+            prizeResult = {type:'won',prize};
+            newPrizes = s.prizes.map(pr=>pr.sq===finalPos?{...pr,claimed:true,claimedBy:p.name,claimedDate:ts(),rollId}:pr);
+          }
+        }
+
+        let pendingMech = null;
+        if (prizeResult.type==='won' && prize) {
+          if (prize.mechanic==='extraRoll') {
+            newPlayers = newPlayers.map(pp=>pp.id===playerId?{...pp,rolls:(pp.rolls-1)+1}:pp);
+          } else if (prize.mechanic==='snakeEscape') {
+            newPlayers = newPlayers.map(pp=>pp.id===playerId?{...pp,snakeEscape:pp.snakeEscape+1}:pp);
+          } else if (prize.mechanic==='pickSmall'||prize.mechanic==='pickAny') {
+            pendingMech = {type:prize.mechanic,playerName:p.name,playerId,square:finalPos,largeNeedsApproval:s.settings.pickAnyLargeNeedsApproval};
+          } else if (prize.mechanic==='swap') {
+            pendingMech = {type:'swap',playerId,playerName:p.name,square:finalPos};
+          }
+        }
+
+        const canEscape = snakeOrLadder?.type==='snake' && p.snakeEscape>0;
+
+        newPlayers = newPlayers.map(pp=>{
+          if (pp.id!==playerId) return pp;
+          const base = {...pp, pos:finalPos, rolls:pp.rolls-1, lastMove:`Rolled ${dice}: ${startPos||'Start'}→${finalPos}${snakeOrLadder?` (${snakeOrLadder.type})`:''}`};
+          if (prizeResult.type==='won' && prize) {
+            return {...base, prizes:[...pp.prizes,{id:prize.id,tier:prize.tier,desc:prize.desc,sq:prize.sq,rollId,ts:ts()}]};
+          }
+          return base;
+        });
+
+        const winner = finalPos===100 ? p.name : s.winner;
+
+        const newLog = [
+          {id:uid(),ts:ts(),action:'Dice roll',details:`${p.name} rolled ${dice}: ${startPos||'Start'}→${finalPos}`,playerId},
+          snakeOrLadder&&{id:uid(),ts:ts(),action:`${snakeOrLadder.type==='snake'?'Snake':'Ladder'} triggered`,details:`${p.name}: ${snakeOrLadder.from}→${snakeOrLadder.to}`,playerId},
+          prizeResult.type==='won'&&{id:uid(),ts:ts(),action:'Prize won',details:`${p.name} won ${prize.tier} prize on sq.${finalPos}: ${prize.desc}`,playerId},
+        ].filter(Boolean);
+
+        const prizeTag = prizeResult.type==='won' ? ` — 🎁 ${prizeResult.prize.tier} prize!` : '';
+        const actMsg = snakeOrLadder
+          ? `${p.puck} ${p.name} rolled ${dice}, hit a ${snakeOrLadder.type} (${snakeOrLadder.from}→${snakeOrLadder.to}), landed on ${finalPos}${prizeTag}`
+          : `${p.puck} ${p.name} rolled ${dice} and moved from ${startPos||'Start'} to ${finalPos}${prizeTag}`;
+
+        if (pendingMech) setPendingMechanic(pendingMech);
+        if (pendingMech?.type==='swap') setPendingSwap(pendingMech);
+
+        const result = {playerName:p.name,puck:p.puck,diceVal:dice,startPos,landedOn,snakeOrLadder,finalPos,prizeResult,moved:true,rollId,canEscape,playerId};
+        setRollResult(result);
+
+        return {
+          ...s, players:newPlayers, prizes:newPrizes, winner,
+          undoSnapshot:JSON.parse(JSON.stringify(s)),
+          auditLog:[...newLog,...s.auditLog],
+          activity:[{id:uid(),ts:ts(),msg:actMsg},...s.activity].slice(0,20)
+        };
+      });
+      setAnimGhost(null);
+      setRolling(false);
+    }
+
+    // Brief pause before the first hop so the dice roll feels deliberate
+    schedule(hopNext, 300);
+  }
+
+  function handleSnakeEscape() {
+    if (!rollResult?.canEscape) return;
+    const {playerId,landedOn,rollId} = rollResult;
+    setState(s=>{
+      const player = s.players.find(p=>p.id===playerId);
+      return {
+        ...s,
+        players:s.players.map(p=>p.id===playerId?{...p,pos:landedOn,snakeEscape:p.snakeEscape-1,lastMove:`Used snake escape on sq.${landedOn}`}:p),
+        auditLog:[{id:uid(),ts:ts(),action:'Snake escape token used',details:`${player?.name} stayed on sq.${landedOn}`,playerId},...s.auditLog],
+        activity:[{id:uid(),ts:ts(),msg:`🛡️ ${player?.name} used a snake escape token and stayed on sq.${landedOn}!`},...s.activity].slice(0,20)
+      };
+    });
+    setRollResult(null);
+  }
+
+  function handlePickPrize(prizeId) {
+    if (!pendingMechanic) return;
+    const {playerId,playerName,square} = pendingMechanic;
+    setState(s=>{
+      const prize = s.prizes.find(p=>p.id===prizeId);
+      return {
+        ...s,
+        prizes:s.prizes.map(p=>p.id===prizeId?{...p,claimed:true,claimedBy:playerName,claimedDate:ts()}:p),
+        players:s.players.map(p=>p.id===playerId?{...p,prizes:[...p.prizes,{id:prize.id,tier:prize.tier,desc:prize.desc,sq:prize.sq,ts:ts()}]}:p),
+        auditLog:[{id:uid(),ts:ts(),action:'Pick-a-prize claimed',details:`${playerName} on sq.${square} picked: ${prize.desc} (sq.${prize.sq})`,playerId},...s.auditLog]
+      };
+    });
+    setPendingMechanic(null);
+  }
+
+  function handleSwap(targetId) {
+    if (!pendingSwap) return;
+    const {playerId} = pendingSwap;
+    setState(s=>{
+      const p1=s.players.find(p=>p.id===playerId), p2=s.players.find(p=>p.id===targetId);
+      const p1pos=p1.pos, p2pos=p2.pos;
+      return {
+        ...s,
+        players:s.players.map(p=>{
+          if (p.id===playerId) return {...p,pos:p2pos,lastMove:`Swapped with ${p2.name}`};
+          if (p.id===targetId) return {...p,pos:p1pos,lastMove:`Swapped with ${p1.name}`};
+          return p;
+        }),
+        auditLog:[{id:uid(),ts:ts(),action:'Position swap',details:`${p1.name} (${p1pos}↔${p2pos}) swapped with ${p2.name}`,playerId},...s.auditLog],
+        activity:[{id:uid(),ts:ts(),msg:`🔄 ${p1.name} and ${p2.name} swapped positions!`},...s.activity].slice(0,20)
+      };
+    });
+    setPendingSwap(null);
+  }
+
+  function handleFallback(square, playerId) {
+    const player = state.players.find(p=>p.id===playerId);
+    if (!player||player.fallback<=0) return;
+    setFallbackModal({playerId,playerName:player.name,square});
+  }
+
+  function submitFallback(choice) {
+    if (!fallbackModal) return;
+    const {playerId,playerName,square} = fallbackModal;
+    setState(s=>({
+      ...s,
+      fallbackRequests:[{id:uid(),ts:ts(),playerId,playerName,square,choice,status:'pending'},...s.fallbackRequests],
+      auditLog:[{id:uid(),ts:ts(),action:'Fallback token used',details:`${playerName} on sq.${square} — wants: ${choice}`,playerId},...s.auditLog]
+    }));
+    setFallbackModal(null);
+    setRollResult(null);
+  }
+
+  function undo() {
+    if (!state.undoSnapshot) return;
+    if (!window.confirm('Undo last roll?')) return;
+    const snap = state.undoSnapshot;
+    setState({...snap, undoSnapshot:null, auditLog:[{id:uid(),ts:ts(),action:'Roll undone',details:'Manager undid last roll'},...snap.auditLog]});
+    setRollResult(null);
+  }
+
+  const activePlayers = state.players.filter(p=>p.active);
+  const TABS = [
+    {k:'board',l:'🎲 Board'},{k:'roll',l:'📝 Roll Request'},{k:'scores',l:'📊 Scoreboard'},{k:'rules',l:'📖 Rules'},
+    ...(isManager ? [{k:'manager',l:'⚙️ Manager'}] : []),
+  ];
+
+  return (
+    <div className="fi" style={{fontFamily:"'DM Sans',sans-serif",color:D.text}}>
+      <style>{`
+        .snl-btn{border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;border-radius:8px;transition:all 0.15s;font-size:13px;}
+        .snl-btn-p{background:#ff6700;color:#fff;padding:10px 20px;}
+        .snl-btn-p:hover:not(:disabled){background:#e55d00;transform:translateY(-1px);}
+        .snl-btn-p:disabled{opacity:0.4;cursor:not-allowed;}
+        .snl-btn-g{background:transparent;color:#bbb;border:1px solid #2a2a2a;padding:8px 16px;}
+        .snl-btn-g:hover{border-color:#444;color:#fff;}
+        .snl-card{background:#0d0d0d;border:1px solid #1a1a1a;border-radius:12px;}
+      `}</style>
+
+      {/* Compact header — winner banner + undo only, no duplicate branding (already inside Incentives tab) */}
+      {(state.winner || (state.undoSnapshot && isManager)) && (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:10}}>
+          {state.winner ? (
+            <div style={{background:'#7c3aed22',border:'2px solid #7c3aed',borderRadius:10,padding:'8px 16px',color:'#a78bfa',fontWeight:800,fontSize:14}}>
+              🏆 {state.winner} WINS!
+            </div>
+          ) : <div />}
+          {state.undoSnapshot && isManager && (
+            <button onClick={undo} style={{color:D.text,background:'transparent',border:`1px solid ${D.orange}`,borderRadius:8,padding:'8px 14px',cursor:'pointer',fontWeight:700,fontSize:13}}>↩ Undo Last Roll</button>
+          )}
+        </div>
+      )}
+
+      {/* Sub-tabs (compact pill style matching dashboard conventions) */}
+      <div style={{display:'flex',gap:3,background:"#0a0a0a",border:`1px solid ${D.border}`,borderRadius:8,padding:3,marginBottom:18,width:'fit-content',overflowX:'auto'}}>
+        {TABS.map(({k,l})=>(
+          <button key={k} onClick={()=>setTab(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",background:tab===k?D.orange:"transparent",color:tab===k?"#fff":"#888",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',transition:"all 0.15s"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      <div>
+
+        {/* BOARD TAB */}
+        {tab==='board'&&(
+          <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'flex-start'}}>
+            {/* Board */}
+            <div style={{flex:'0 0 auto'}}>
+              <Board players={state.players} managerView={isManager} prizes={state.prizes} animGhost={animGhost}/>
+              <div style={{marginTop:10,display:'flex',gap:8,flexWrap:'wrap',justifyContent:'center'}}>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#0a1a0a',border:'1px solid #16a34a66',display:'inline-block',borderRadius:3}}></span>Ladder bottom</div>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#0d200d',border:'1px solid #16a34a44',display:'inline-block',borderRadius:3}}></span>Ladder top</div>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#1a0808',border:'1px solid #ef444466',display:'inline-block',borderRadius:3}}></span>Snake head</div>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#200d0d',border:'1px solid #ef444444',display:'inline-block',borderRadius:3}}></span>Snake tail</div>
+              </div>
+            </div>
+
+            {/* Right panel */}
+            <div style={{flex:1,minWidth:280,display:'grid',gap:14}}>
+              {/* Roll dice */}
+              <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:18}}>
+                <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:12}}>🎲 Roll Dice</div>
+                <div style={{marginBottom:12}}>
+                  <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Select player</label>
+                  <select value={selectedPlayer||''} onChange={e=>setSelectedPlayer(e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}>
+                    <option value=''>Choose player...</option>
+                    {activePlayers.map(p=>(
+                      <option key={p.id} value={p.id}>{p.puck} {p.name} — {p.rolls} roll{p.rolls!==1?'s':''} ({p.pos||'Start'})</option>
+                    ))}
+                  </select>
+                </div>
+                {selectedPlayer&&(()=>{
+                  const p = activePlayers.find(x=>x.id===selectedPlayer);
+                  if (!p) return null;
+                  return (
+                    <div>
+                      {p.rolls>0?(
+                        <button onClick={()=>doRoll(selectedPlayer)} disabled={rolling} style={{color:D.text,width:'100%',background:rolling?'#333':D.orange,border:'none',borderRadius:10,padding:'14px 20px',fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',cursor:rolling?'wait':'pointer',transition:'all 0.2s'}}>
+                          {rolling?'🎲 Rolling...':'🎲 Roll Dice!'}
+                        </button>
+                      ):(
+                        <div style={{background:'#1a1000',border:`1px solid ${TIER_BORDER.Mid}`,borderRadius:8,padding:12,textAlign:'center'}}>
+                          <div style={{color:TIER_COLOR.Mid,fontWeight:700,marginBottom:4}}>No roll credits available</div>
+                          <div style={{fontSize:13,color:'#bbb'}}>Submit a roll request in the Roll Request tab to earn credits.</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Player cards */}
+              <div style={{display:'grid',gap:8}}>
+                {activePlayers.map(p=>(
+                  <div key={p.id} style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:10,padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <span style={{fontSize:24}}>{p.puck}</span>
+                      <div>
+                        <div style={{color:D.text,fontWeight:700,fontSize:14}}>{p.name}</div>
+                        <div style={{fontSize:12,color:D.dim}}>Sq: <strong>{p.pos||'Start'}</strong>{p.lastMove&&` · ${p.lastMove.slice(0,28)}...`}</div>
+                      </div>
+                    </div>
+                    <div style={{display:'flex',gap:6,flexWrap:'wrap',justifyContent:'flex-end'}}>
+                      <span style={{color:D.text,background:p.rolls>0?'#dbeafe':'#f3f4f6',borderRadius:10,padding:'2px 8px',fontSize:12,fontWeight:700}}>{p.rolls}🎲</span>
+                      {p.fallback>0&&<span style={{color:D.text,background:'#dbeafe',borderRadius:10,padding:'2px 8px',fontSize:12,fontWeight:700}}>{p.fallback}🎰</span>}
+                      {p.snakeEscape>0&&<span style={{color:D.text,background:'#dcfce7',borderRadius:10,padding:'2px 8px',fontSize:12,fontWeight:700}}>{p.snakeEscape}🛡️</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Recent activity */}
+              <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:16}}>
+                <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:10}}>📢 Recent Activity</div>
+                {state.activity.length===0&&<div style={{fontSize:13,color:D.dim}}>No activity yet.</div>}
+                <div style={{display:'grid',gap:5,maxHeight:240,overflowY:'auto'}}>
+                  {state.activity.map(a=>(
+                    <div key={a.id} style={{fontSize:12,color:'#ccc',padding:'5px 0',borderBottom:`1px solid ${D.border}`}}>
+                      <span style={{color:D.dim,marginRight:6}}>{a.ts.split(',')[1]?.trim()}</span>{a.msg}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ROLL REQUEST TAB */}
+        {tab==='roll'&&(
+          <RollRequestTab
+            players={activePlayers}
+            state={state}
+            onSubmit={req=>setState(s=>({
+              ...s,
+              rollRequests:[req,...s.rollRequests],
+              auditLog:[{id:uid(),ts:ts(),action:'Roll request submitted',details:`${req.playerName} — ${req.platform} — ${req.signings} signing(s) — calc:${req.calcRolls} roll(s)`,playerId:req.playerId},...s.auditLog],
+              // Auto-approve if manager approval off and rolls calculated
+              ...((!s.settings.managerApprovalRequired && req.calcRolls>0) ? {
+                rollRequests:[{...req,status:'approved'},...s.rollRequests],
+                players:s.players.map(p=>{
+                  if (p.id!==req.playerId) return p;
+                  let {fb,msn,spotify}=p;
+                  if (req.platform==='Facebook'){const t=fb+req.signings;fb=t%s.settings.facebookThreshold;}
+                  else if (req.platform==='MSN'){const t=msn+req.signings;msn=t%s.settings.msnThreshold;}
+                  else if (req.platform==='Spotify'){const t=spotify+req.signings;spotify=t%s.settings.spotifyThreshold;}
+                  return {...p,rolls:p.rolls+req.calcRolls,fb,msn,spotify};
+                })
+              } : {rollRequests:[req,...s.rollRequests]})
+            }))}
+          />
+        )}
+
+        {/* SCOREBOARD TAB */}
+        {tab==='scores'&&<Scoreboard players={activePlayers} settings={state.settings}/>}
+
+        {/* RULES TAB */}
+        {tab==='rules'&&(
+          <div style={{maxWidth:600}}>
+            <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,textTransform:'uppercase',marginBottom:16}}>📖 Rules</div>
+            <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:24,whiteSpace:'pre-wrap',fontSize:14,lineHeight:1.7,color:'#ddd'}}>{state.rules}</div>
+          </div>
+        )}
+
+        {/* MANAGER TAB — gated by the dashboard's own login (user.role), no separate passcode needed */}
+        {tab==='manager'&&isManager&&(
+          <div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,textTransform:'uppercase',color:D.text,marginBottom:16}}>Manager Panel</div>
+            <ManagerPanel state={state} onUpdate={setState}/>
+          </div>
+        )}
+
+      </div>
+
+      {/* Modals */}
+      {rollResult&&(
+        <ResultModal
+          result={rollResult}
+          prizes={state.prizes}
+          settings={state.settings}
+          onClose={()=>setRollResult(null)}
+          onSnakeEscape={rollResult.canEscape?handleSnakeEscape:null}
+          onUseFallback={()=>{handleFallback(rollResult.finalPos,rollResult.playerId);setRollResult(null);}}
+        />
+      )}
+
+      {pendingMechanic&&pendingMechanic.type!=='swap'&&(
+        <PickPrizeModal
+          mechanic={pendingMechanic}
+          prizes={state.prizes}
+          onPick={handlePickPrize}
+          onClose={()=>setPendingMechanic(null)}
+        />
+      )}
+
+      {pendingSwap&&(
+        <SwapModal
+          currentPlayer={state.players.find(p=>p.id===pendingSwap.playerId)}
+          players={activePlayers}
+          onSwap={handleSwap}
+          onClose={()=>setPendingSwap(null)}
+        />
+      )}
+
+      {fallbackModal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+          <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:16,padding:28,maxWidth:400,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.8)'}}>
+            <div style={{fontSize:18,fontWeight:800,marginBottom:4}}>🎰 Use Fallback Token</div>
+            <div style={{fontSize:14,color:D.dim,marginBottom:16}}>Choose a fallback reward. Manager will need to approve.</div>
+            <div style={{display:'grid',gap:7}}>
+              {state.settings.fallbackPool.map(opt=>(
+                <button key={opt} onClick={()=>submitFallback(opt)} style={{background:D.card,border:`1px solid #1a1a1a`,borderRadius:8,padding:'10px 14px',cursor:'pointer',textAlign:'left',fontSize:14,fontWeight:600,color:D.text}}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>setFallbackModal(null)} style={{marginTop:12,background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Incentives({ user, allUsers }) {
   const [incentive, setIncentive] = useState(getIncentive());
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(incentive||{title:"",description:"",metric:"total",goal:"",deadline:"",reward:""});
+  const [incTab, setIncTab] = useState("game");
   const isManager = user.role==="manager";
   const MEDALS=["🥇","🥈","🥉"];
 
@@ -2235,12 +3921,23 @@ function Incentives({ user, allUsers }) {
 
   const sorted = incentive?[...allUsers].sort((a,b)=>progress(b)-progress(a)):[];
 
+  const IT = t => ({padding:"7px 14px",borderRadius:6,border:"none",background:incTab===t?B.orange:"transparent",color:incTab===t?"#fff":"var(--text-muted)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"all 0.15s"});
+
   return (
     <div className="fi">
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:22}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18,flexWrap:"wrap",gap:12}}>
         <div><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:38,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>🔥 Incentives</div><p style={{color:"#e5e5e5",fontSize:14}}>Live competition.</p></div>
-        {isManager&&!editing&&<button className="btn btn-g btn-sm" onClick={()=>setEditing(true)}>Set Incentive</button>}
+        {isManager&&incTab==="simple"&&!editing&&<button className="btn btn-g btn-sm" onClick={()=>setEditing(true)}>Set Incentive</button>}
       </div>
+
+      <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:"1px solid var(--border)",borderRadius:8,padding:3,marginBottom:20,width:"fit-content"}}>
+        <button style={IT("game")} onClick={()=>setIncTab("game")}>🐍 Snakes & Ladders</button>
+        <button style={IT("simple")} onClick={()=>setIncTab("simple")}>Simple Incentive</button>
+      </div>
+
+      {incTab==="game"&&<SnakesLaddersGame user={user} />}
+
+      {incTab==="simple"&&<>
       {editing&&(
         <div className="card fi" style={{padding:20,marginBottom:20,borderColor:B.orange+"44"}}>
           <div style={{fontSize:11,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Set Incentive</div>
@@ -2288,6 +3985,7 @@ function Incentives({ user, allUsers }) {
             );
           })}
         </div>
+      </>}
       </>}
     </div>
   );
