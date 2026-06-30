@@ -53,8 +53,8 @@ const ACCENT_COLORS = ["#ff6700","#00d4ff","#ff2d78","#7c3aed","#16a34a","#f59e0
 const BADGE_EMOJIS = ["🏅","🥇","🔥","⚡","💎","🎯","🚀","👑","💪","🌟"];
 const TITLE_OPTIONS = [
   "The Grinder","The Hard Closer","The Come-From-Behind",
-  "The Sheet Spreader","The Click Bait","The Screamer",
-  "The Pipeline Filler","The One Who Begs For Signings","I Love Feet",
+  "The Wet Signature","The Hard Push","The Long Hauler",
+  "The Deep Pipeline","The Hot Lead","The Inside Sale",
 ];
 
 // ── STORAGE ───────────────────────────────────────────────────────────────────
@@ -89,6 +89,34 @@ const LS = {
 // ── DATA HELPERS ──────────────────────────────────────────────────────────────
 const getUser = e => LS.get("user:"+e.toLowerCase());
 const saveUser = u => LS.set("user:"+u.email.toLowerCase(), u);
+
+// ── PASSWORD HASHING ──────────────────────────────────────────────────────────
+// SHA-256 via the browser's built-in Web Crypto API — no extra dependency needed.
+// Passwords are never stored in plaintext; only the hash is saved.
+async function hashPassword(pw) {
+  const enc = new TextEncoder().encode(pw);
+  const digest = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+// Checks a plaintext password against a user record. Supports a transparent
+// migration path: if an older account still has a plaintext `password` field
+// (from before hashing was added), it's checked directly and then silently
+// upgraded to a hash on successful login so nothing is ever re-stored in plaintext.
+async function verifyPassword(user, plaintextPw) {
+  if (user.passwordHash) {
+    const hash = await hashPassword(plaintextPw);
+    return hash === user.passwordHash;
+  }
+  if (user.password) {
+    if (user.password === plaintextPw) {
+      const { password, ...rest } = user;
+      saveUser({ ...rest, passwordHash: await hashPassword(plaintextPw) });
+      return true;
+    }
+    return false;
+  }
+  return false;
+}
 const getAllUsers = () => LS.keys("user:").map(k=>LS.get(k)).filter(Boolean);
 const getSignings = e => LS.get("signings:"+e.toLowerCase()) || [];
 const saveSignings = (e,s) => LS.set("signings:"+e.toLowerCase(), s);
@@ -380,9 +408,9 @@ export default function App() {
     // This ensures invite codes and user accounts are available before the rep tries to use them
     const savedMode = localStorage.getItem("wvos:pref:lightmode");
     if (savedMode === "1") setLightMode(true);
-    syncFromSupabase().finally(() => {
+    syncFromSupabase().finally(async () => {
       if (!getUser("frazer@wildvision.io")) {
-        saveUser({email:"frazer@wildvision.io",password:"WildVision123",role:"manager",displayName:"Frazer",nickname:"Frazer",title:"Head of Sales",bio:"",accentColor:"#ff6700",photo:null,setupComplete:true,createdAt:Date.now()});
+        saveUser({email:"frazer@wildvision.io",passwordHash:await hashPassword("WildVision123"),role:"manager",displayName:"Frazer",nickname:"Frazer",title:"Head of Sales",bio:"",accentColor:"#ff6700",photo:null,setupComplete:true,createdAt:Date.now()});
       }
       const saved = sessionStorage.getItem("wv_dash_user");
       if (saved) { try { const u=JSON.parse(saved); setUser(u); setView(u.setupComplete?"dashboard":"setup"); } catch {} }
@@ -394,14 +422,16 @@ export default function App() {
   function refreshUser() { if(!user)return; const u=getUser(user.email); if(u){setUser(u);sessionStorage.setItem("wv_dash_user",JSON.stringify(u));} }
   function switchUser(email) { const u=getUser(email); if(u){setUser(u);setView("dashboard");} }
 
-  function doLogin(email, password) {
+  async function doLogin(email, password) {
     const u = getUser(email.toLowerCase());
     if (!u) return "No account found for that email.";
-    if (u.password !== password) return "Incorrect password.";
-    sessionStorage.setItem("wv_dash_user", JSON.stringify(u));
-    setUser(u);
+    const ok = await verifyPassword(u, password);
+    if (!ok) return "Incorrect password.";
+    const fresh = getUser(email.toLowerCase()); // re-fetch in case verifyPassword just migrated the hash
+    sessionStorage.setItem("wv_dash_user", JSON.stringify(fresh));
+    setUser(fresh);
     setAllUsers(getAllUsers().filter(x=>x.setupComplete)); // populate immediately on login
-    setView(u.setupComplete ? "dashboard" : "setup");
+    setView(fresh.setupComplete ? "dashboard" : "setup");
     return null;
   }
 
@@ -511,21 +541,21 @@ function LoginScreen({ doLogin }) {
   const [invCode, setInvCode] = useState("");
   const [err, setErr] = useState("");
 
-  function tryLogin(e) {
+  async function tryLogin(e) {
     e.preventDefault(); setErr("");
     if (!email.trim()||!pw){setErr("Enter your email and password.");return;}
-    const r = doLogin(email.trim().toLowerCase(), pw);
+    const r = await doLogin(email.trim().toLowerCase(), pw);
     if (r) setErr(r);
   }
 
-  function trySignUp(e) {
+  async function trySignUp(e) {
     e.preventDefault(); setErr("");
     if (!email.trim()||!pw){setErr("Email and password are required.");return;}
     if (pw.length<6){setErr("Password must be at least 6 characters.");return;}
     if (pw!==pw2){setErr("Passwords don't match.");return;}
     if (getUser(email.trim().toLowerCase())){setErr("Account already exists. Sign in instead.");return;}
     const u={
-      email:email.trim().toLowerCase(), password:pw,
+      email:email.trim().toLowerCase(), passwordHash:await hashPassword(pw),
       role:"rep",
       displayName:email.trim().split("@")[0],
       nickname:email.trim().split("@")[0],
@@ -533,21 +563,22 @@ function LoginScreen({ doLogin }) {
       setupComplete:false, fromInvite:false, createdAt:Date.now(),
     };
     saveUser(u);
-    const r = doLogin(u.email, pw);
+    const r = await doLogin(u.email, pw);
     if (r) setErr(r);
   }
 
-  function tryInvite(e) {
+  async function tryInvite(e) {
     e.preventDefault(); setErr("");
     if (!invCode.trim()){setErr("Enter your invite code.");return;}
     const inv = LS.get("invite:"+invCode.trim().toUpperCase());
     if (!inv){setErr("Invalid invite code. Check with your manager.");return;}
     if (inv.used){setErr("This invite has already been used.");return;}
     if (getUser(inv.email)){setErr("Account already exists for that email. Sign in instead.");return;}
-    const u={email:inv.email,password:"changeme123",role:inv.role||"rep",displayName:inv.email.split("@")[0],nickname:inv.email.split("@")[0],title:"",bio:"",accentColor:B.orange,photo:null,setupComplete:false,fromInvite:true,createdAt:Date.now()};
+    const tempPw = "changeme123";
+    const u={email:inv.email,passwordHash:await hashPassword(tempPw),role:inv.role||"rep",displayName:inv.email.split("@")[0],nickname:inv.email.split("@")[0],title:"",bio:"",accentColor:B.orange,photo:null,setupComplete:false,fromInvite:true,createdAt:Date.now()};
     saveUser(u);
     LS.set("invite:"+invCode.trim().toUpperCase(),{...inv,used:true});
-    const r = doLogin(inv.email,"changeme123");
+    const r = await doLogin(inv.email,tempPw);
     if (r) setErr(r);
   }
 
@@ -615,13 +646,13 @@ function SetupScreen({ user, refreshUser, setView }) {
   const [err, setErr] = useState("");
   const fileRef = useRef();
 
-  function finish() {
+  async function finish() {
     if (needsPassword) {
       if (form.pw.length<6){setErr("Password must be at least 6 characters.");return;}
       if (form.pw!==form.pw2){setErr("Passwords don't match.");return;}
     }
     const updated={...user,displayName:form.displayName.trim(),nickname:form.displayName.trim(),title:form.title,bio:form.bio,accentColor:form.accentColor,photo:form.photo,setupComplete:true,updatedAt:Date.now()};
-    if (needsPassword) updated.password = form.pw;
+    if (needsPassword) updated.passwordHash = await hashPassword(form.pw);
     saveUser(updated); refreshUser(); setView("dashboard");
   }
 
@@ -809,6 +840,60 @@ function Avatar({ user, size=38 }) {
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
+// ── MEETING RECAP CARD (collapsed by default — expandable) ──────────────────
+function MeetingRecapCard({ user }) {
+  const recap = getMeetingRecap();
+  const [expanded, setExpanded] = useState(false);
+  if (!recap) return null;
+
+  const myTasks = (recap.tasks||[]).filter(t=>!t.assignee||t.assignee===user.nickname||t.assignee===user.displayName||t.assignee==="All");
+
+  return (
+    <div style={{background:"#0a0d12",border:"1px solid #3b82f644",borderRadius:12,padding:expanded?"16px 20px":"10px 16px",marginBottom:14,transition:"padding 0.15s"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setExpanded(e=>!e)}>
+        <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+          <span style={{fontSize:16,flexShrink:0}}>📋</span>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#60a5fa",letterSpacing:"0.04em",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
+            {!expanded&&(
+              <div style={{fontSize:12,color:"var(--text-dim3)",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {recap.date&&`${recap.date} · `}{myTasks.length>0?`${myTasks.length} task${myTasks.length!==1?"s":""} for you`:"No tasks assigned"}
+              </div>
+            )}
+            {expanded&&recap.date&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>{recap.date}</div>}
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+          {expanded&&recap.link&&<a href={recap.link} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:12,color:"#3b82f6",textDecoration:"none",fontWeight:600}}>View recording →</a>}
+          <span style={{fontSize:12,color:"#60a5fa",fontWeight:600,whiteSpace:"nowrap"}}>{expanded?"Show less ▲":"Show more ▼"}</span>
+        </div>
+      </div>
+
+      {expanded&&(
+        <div style={{marginTop:10}}>
+          {recap.summary&&<div style={{fontSize:15,color:"var(--text-3)",lineHeight:1.6,marginBottom:myTasks.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary}</div>}
+          {myTasks.length>0&&(
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:"#60a5fa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your Tasks</div>
+              <div style={{display:"grid",gap:5}}>
+                {myTasks.map((t,i)=>(
+                  <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"7px 10px",background:"var(--bg-inner)",borderRadius:7,border:"1px solid #1e2a3a"}}>
+                    <span style={{color:"#3b82f6",flexShrink:0,marginTop:1}}>◦</span>
+                    <div>
+                      <div style={{fontSize:15,color:"var(--text-2)"}}>{t.task}</div>
+                      {t.assignee&&t.assignee!=="All"&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>→ {t.assignee}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Dashboard({ user, allUsers, announcement }) {
   const targets = getTargets();
   const badges = getBadges().filter(b=>b.recipientEmail===user.email);
@@ -880,42 +965,8 @@ function Dashboard({ user, allUsers, announcement }) {
         </div>
       )}
 
-      {/* Weekly meeting recap */}
-      {(() => {
-        const recap = getMeetingRecap();
-        if (!recap) return null;
-        return (
-          <div style={{background:"#0a0d12",border:"1px solid #3b82f644",borderRadius:12,padding:"16px 20px",marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:16}}>📋</span>
-                <div>
-                  <div style={{fontSize:13,fontWeight:700,color:"#60a5fa",letterSpacing:"0.04em",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
-                  {recap.date&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>{recap.date}</div>}
-                </div>
-              </div>
-              {recap.link&&<a href={recap.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:"#3b82f6",textDecoration:"none",fontWeight:600}}>View recording →</a>}
-            </div>
-            {recap.summary&&<div style={{fontSize:15,color:"var(--text-3)",lineHeight:1.6,marginBottom:recap.tasks?.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary}</div>}
-            {recap.tasks?.length>0&&(
-              <div>
-                <div style={{fontSize:11,fontWeight:600,color:"#60a5fa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your Tasks</div>
-                <div style={{display:"grid",gap:5}}>
-                  {recap.tasks.filter(t=>!t.assignee||t.assignee===user.nickname||t.assignee===user.displayName||t.assignee==="All").map((t,i)=>(
-                    <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"7px 10px",background:"var(--bg-inner)",borderRadius:7,border:"1px solid #1e2a3a"}}>
-                      <span style={{color:"#3b82f6",flexShrink:0,marginTop:1}}>◦</span>
-                      <div>
-                        <div style={{fontSize:15,color:"var(--text-2)"}}>{t.task}</div>
-                        {t.assignee&&t.assignee!=="All"&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>→ {t.assignee}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* Weekly meeting recap — collapsed by default, expandable */}
+      <MeetingRecapCard user={user} />
 
       {/* Pending approval notice */}
       {pendingCount>0&&(
@@ -3999,12 +4050,12 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
   const fileRef = useRef();
   const c = form.accentColor;
 
-  function save() {
+  async function save() {
     if (form.pw&&form.pw.length<6){setErr("Password must be at least 6 characters.");return;}
     if (form.pw&&form.pw!==form.pw2){setErr("Passwords don't match.");return;}
     setErr("");
     const updated={...user,displayName:form.displayName.trim(),nickname:form.displayName.trim(),title:form.title,bio:form.bio,accentColor:form.accentColor,photo:form.photo};
-    if (form.pw) updated.password=form.pw;
+    if (form.pw) updated.passwordHash = await hashPassword(form.pw);
     saveUser(updated); refreshUser(); setSaved(true); setTimeout(()=>setSaved(false),2000);
     setForm(p=>({...p,pw:"",pw2:""}));
   }
