@@ -419,7 +419,15 @@ export default function App() {
   }, []);
 
   function refreshAllUsers() { setAllUsers(getAllUsers().filter(u=>u.setupComplete)); }
-  function refreshUser() { if(!user)return; const u=getUser(user.email); if(u){setUser(u);sessionStorage.setItem("wv_dash_user",JSON.stringify(u));} }
+  function refreshUser() {
+    if(!user)return;
+    const u=getUser(user.email);
+    if(u){
+      setUser(u);
+      sessionStorage.setItem("wv_dash_user",JSON.stringify(u));
+      setAllUsers(getAllUsers().filter(x=>x.setupComplete)); // keep leaderboard/allUsers in sync with any profile changes (nickname, photo, etc.)
+    }
+  }
   function switchUser(email) { const u=getUser(email); if(u){setUser(u);setView("dashboard");} }
 
   async function doLogin(email, password) {
@@ -682,7 +690,14 @@ function SetupScreen({ user, refreshUser, setView }) {
               <div><label>Your Name</label><input placeholder="First and last name" value={form.displayName} onChange={e=>setForm(p=>({...p,displayName:e.target.value}))} /></div>
               <div>
                 <label>Profile Photo (optional)</label>
-                <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const r=new FileReader();r.onload=ev=>setForm(p=>({...p,photo:ev.target.result}));r.readAsDataURL(e.target.files[0]);}} />
+                <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{
+                  const file = e.target.files?.[0];
+                  if (!file) return; // guard: some mobile browsers fire onChange on cancel or re-select
+                  const r=new FileReader();
+                  r.onerror=()=>{}; // swallow read errors silently — user just keeps their existing photo
+                  r.onload=ev=>setForm(p=>({...p,photo:ev.target.result}));
+                  r.readAsDataURL(file);
+                }} />
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
                   <div onClick={()=>fileRef.current?.click()} style={{width:50,height:50,borderRadius:"50%",background:c+"22",border:`2px solid ${c}44`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",cursor:"pointer"}}>
                     {form.photo?<img src={form.photo} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:c}}>{initials(form.displayName||"?")}</span>}
@@ -4064,7 +4079,14 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
     <div className="fi" style={{maxWidth:480}}>
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:38,fontWeight:700,textTransform:"uppercase",marginBottom:22}}>My Profile</div>
       <div style={{background:`linear-gradient(135deg,${c}18,#0d0d0d)`,border:`1px solid ${c}44`,borderRadius:14,padding:20,marginBottom:22,display:"flex",alignItems:"center",gap:14}}>
-        <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const r=new FileReader();r.onload=ev=>setForm(p=>({...p,photo:ev.target.result}));r.readAsDataURL(e.target.files[0]);}} />
+        <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const r=new FileReader();
+          r.onerror=()=>{};
+          r.onload=ev=>setForm(p=>({...p,photo:ev.target.result}));
+          r.readAsDataURL(file);
+        }} />
         <div onClick={()=>fileRef.current?.click()} style={{cursor:"pointer",position:"relative"}}>
           <Avatar user={{...user,...form}} size={56} />
           <div style={{position:"absolute",bottom:0,right:0,width:17,height:17,background:c,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9}}>✏️</div>
