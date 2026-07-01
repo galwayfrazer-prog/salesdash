@@ -779,12 +779,12 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
     {id:"dashboard",icon:"⚡",label:"Dashboard"},
-    {id:"stats",icon:"📊",label:"My Stats"},
-    {id:"signings",icon:"✍️",label:"Log Signing"},
     {id:"leaderboard",icon:"🏆",label:"Leaderboard"},
-    {id:"calculator",icon:"💰",label:"Comm. Calc"},
+    {id:"stats",icon:"📊",label:"My Stats"},
     {id:"targets",icon:"🎯",label:"Targets"},
+    {id:"signings",icon:"✍️",label:"Log Signing"},
     {id:"incentive",icon:"🔥",label:"Incentives"},
+    {id:"calculator",icon:"💰",label:"Comm. Calc"},
     {id:"profile",icon:"👤",label:"My Profile"},
     ...(user.role==="manager"?[{id:"admin",icon:"⚙️",label:"Manager",badge:pendingCount}]:[]),
   ];
