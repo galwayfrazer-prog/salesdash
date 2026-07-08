@@ -1885,47 +1885,53 @@ function Leaderboard({ user, allUsers }) {
             const mom=calcMomentum(u.email);
 
             return (
-              <div key={u.email} className="card" style={{padding:16,borderColor:isMe?c+"66":B.border,background:isMe?c+"08":B.card,position:"relative",overflow:"hidden"}}>
-                {/* Background bar */}
+              <div key={u.email} className="card" style={{padding:"12px 16px",borderColor:isMe?c+"66":B.border,background:isMe?c+"08":B.card,position:"relative",overflow:"hidden"}}>
+                {/* Background progress bar */}
                 <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${Math.max(3,Math.round((s/max)*100))}%`,background:c+"0a",transition:"width 0.8s ease"}} />
+
                 <div style={{position:"relative",display:"flex",alignItems:"center",gap:12}}>
+
                   {/* Rank */}
                   <div style={{width:30,textAlign:"center",flexShrink:0}}>
-                    {i<3?<span style={{fontSize:23}}>{MEDALS[i]}</span>:<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:23,fontWeight:700,color:B.dim}}>#{i+1}</span>}
+                    {i<3?<span style={{fontSize:22}}>{MEDALS[i]}</span>:<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,color:B.dim}}>#{i+1}</span>}
                   </div>
+
                   {/* Avatar */}
                   <Avatar user={u} size={40} />
-                  {/* Info */}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3,flexWrap:"wrap"}}>
-                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:23,fontWeight:700}}>{u.nickname||u.displayName}</span>
+
+                  {/* Identity */}
+                  <div style={{width:200,flexShrink:0,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2,flexWrap:"wrap"}}>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.nickname||u.displayName}</span>
                       {isMe&&<span className="tag" style={{background:c+"22",color:c,fontSize:9}}>YOU</span>}
-                      {streaks.hotWeek&&<span style={{fontSize:14,background:"#f59e0b18",color:"#f59e0b",border:"1px solid #f59e0b33",borderRadius:10,padding:"1px 6px",fontWeight:600}}>🔥 {streaks.thisWeekCount} this wk</span>}
-                      {streaks.weeklyStreak>=2&&<span style={{fontSize:14,background:"#16a34a18",color:"#16a34a",border:"1px solid #16a34a33",borderRadius:10,padding:"1px 6px",fontWeight:600}}>🔁 {streaks.weeklyStreak}wk</span>}
                     </div>
-                    {u.title&&<div style={{fontSize:15,color:c,fontWeight:600,marginBottom:2}}>{u.title}</div>}
-                    {u.bio&&<div style={{fontSize:13,color:"var(--text-muted)",marginBottom:4,fontStyle:"italic"}}>{u.bio}</div>}
-                    {/* Platform pills */}
-                    <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                      {pData.map(({p,n,col})=>(
-                        <span key={p} style={{fontSize:14,background:col+"18",color:col,border:`1px solid ${col}33`,borderRadius:8,padding:"1px 7px",fontWeight:600}}>
-                          {({Facebook:"FB",MSN:"MSN",Spotify:"SP"}[p]||p.slice(0,2))} {n}
-                        </span>
-                      ))}
-                      {avgSp!=null&&<span style={{fontSize:14,background:avgSp>=spTarget?"#16a34a18":"#ef444418",color:avgSp>=spTarget?"#16a34a":"#ef4444",border:`1px solid ${avgSp>=spTarget?"#16a34a":"#ef4444"}33`,borderRadius:8,padding:"1px 7px",fontWeight:600}}>
-                        ⊘ {fmtPct(avgSp)}
-                      </span>}
+                    {u.title&&<div style={{fontSize:13,color:c,fontWeight:600,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.title}</div>}
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+                      {streaks.hotWeek&&<span style={{fontSize:11,background:"#f59e0b18",color:"#f59e0b",border:"1px solid #f59e0b33",borderRadius:8,padding:"1px 6px",fontWeight:600}}>🔥 {streaks.thisWeekCount} this wk</span>}
+                      {streaks.weeklyStreak>=2&&<span style={{fontSize:11,background:"#16a34a18",color:"#16a34a",border:"1px solid #16a34a33",borderRadius:8,padding:"1px 6px",fontWeight:600}}>🔁 {streaks.weeklyStreak}wk</span>}
+                      {avgSp!=null&&<span style={{fontSize:11,background:avgSp>=spTarget?"#16a34a18":"#ef444418",color:avgSp>=spTarget?"#16a34a":"#ef4444",border:`1px solid ${avgSp>=spTarget?"#16a34a":"#ef4444"}33`,borderRadius:8,padding:"1px 6px",fontWeight:600}}>⊘ {fmtPct(avgSp)}</span>}
                     </div>
                   </div>
-                  {/* Score + rank change + perf score + momentum */}
-                  <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
+
+                  {/* ── Platform cells ── */}
+                  <div style={{flex:1,display:"flex",gap:8,alignItems:"stretch",minWidth:0}}>
+                    {pData.map(({p,n,col})=>(
+                      <div key={p} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 8px",background:col+"12",border:`1px solid ${col}44`,borderRadius:10,minWidth:0}}>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:n>0?col:"#444",lineHeight:1}}>{n}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:n>0?col:"#555",letterSpacing:"0.06em",marginTop:3,textTransform:"uppercase"}}>{({Facebook:"FB",MSN:"MSN",Spotify:"SP"})[p]||p.slice(0,2)}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Score + rank change + perf + momentum */}
+                  <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
                     <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
                       <div style={{textAlign:"right"}}>
-                        <AnimatedNumber value={s} color={c} size={28} />
-                        <div style={{fontSize:13,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>signings</div>
-                        {rankChange!==0&&<div style={{fontSize:12,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1}}>{rankChange>0?"↑":"↓"}{Math.abs(rankChange)} this wk</div>}
+                        <AnimatedNumber value={s} color={c} size={26} />
+                        <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>signings</div>
+                        {rankChange!==0&&<div style={{fontSize:11,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1}}>{rankChange>0?"↑":"↓"}{Math.abs(rankChange)} this wk</div>}
                       </div>
-                      <div style={{textAlign:"center",padding:"6px 10px",background:perfScoreColor(perf.score)+"18",border:`1px solid ${perfScoreColor(perf.score)}44`,borderRadius:8,minWidth:52}}>
+                      <div style={{textAlign:"center",padding:"6px 10px",background:perfScoreColor(perf.score)+"18",border:`1px solid ${perfScoreColor(perf.score)}44`,borderRadius:8,minWidth:50}}>
                         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:perfScoreColor(perf.score),lineHeight:1}}>{perf.score}</div>
                         <div style={{fontSize:9,color:"var(--text-dim2)",textTransform:"uppercase",letterSpacing:"0.04em"}}>score</div>
                       </div>
@@ -1934,6 +1940,7 @@ function Leaderboard({ user, allUsers }) {
                       {mom.trend==="up"?"↑":mom.trend==="down"?"↓":"→"} {mom.pct>0?mom.pct+"%":"Steady"}
                     </div>
                   </div>
+
                 </div>
               </div>
             );
