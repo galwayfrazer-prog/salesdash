@@ -4171,6 +4171,18 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   const daysLeft = daysLeftInQuarter();
   const now = new Date();
   const q = Math.floor(now.getMonth()/3);
+  const [resetPw, setResetPw] = useState(null); // { email, tempPw }
+
+  function doResetPassword(u) {
+    if (!window.confirm(`Reset password for ${u.nickname||u.displayName}? They'll get a temporary password to log in with.`)) return;
+    const tempPw = "WV-" + Math.random().toString(36).slice(2,6).toUpperCase() + "-" + Math.random().toString(36).slice(2,6).toUpperCase();
+    const record = getUser(u.email);
+    if (!record) return;
+    // Remove the hash, write plaintext temp — verifyPassword() migrates to hash on next login
+    const { passwordHash, password, ...rest } = record;
+    saveUser({ ...rest, password: tempPw });
+    setResetPw({ email: u.email, name: u.nickname||u.displayName, tempPw });
+  }
 
   function refreshPending() { setPending(getAllPendingSignings()); }
 
@@ -4783,6 +4795,17 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {tab==="team"&&(
         <div className="card" style={{padding:18}}>
           <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Team ({allUsers.length})</div>
+
+          {/* Temp password display — shown after a reset */}
+          {resetPw&&(
+            <div style={{marginBottom:14,padding:"12px 16px",background:"#1a1000",border:"1px solid #d9770644",borderRadius:8}}>
+              <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginBottom:6}}>🔑 Temporary password for {resetPw.name}</div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:18,fontWeight:700,color:B.orange,letterSpacing:"0.12em",marginBottom:6}}>{resetPw.tempPw}</div>
+              <div style={{fontSize:12,color:"var(--text-2)"}}>Share this with them directly. They'll be prompted to set a new password after logging in via My Profile.</div>
+              <button onClick={()=>setResetPw(null)} style={{marginTop:8,background:"transparent",border:"none",color:"var(--text-dim)",fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",padding:0}}>Dismiss</button>
+            </div>
+          )}
+
           {allUsers.length===0?<div style={{color:"var(--text-2)",fontSize:14}}>No team members yet.</div>:<div style={{display:"grid",gap:7}}>
             {allUsers.map(u=>(
               <div key={u.email} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8}}>
@@ -4791,7 +4814,10 @@ function Admin({ user, allUsers, refreshAllUsers }) {
                   <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{u.nickname||u.displayName}</div>
                   <div style={{fontSize:12,color:"var(--text-dim)"}}>{u.email} · {u.role}</div>
                 </div>
-                {u.title&&<span style={{fontSize:12,color:u.accentColor||B.orange,fontWeight:600,marginRight:8}}>{u.title}</span>}
+                {u.title&&<span style={{fontSize:12,color:u.accentColor||B.orange,fontWeight:600,marginRight:4}}>{u.title}</span>}
+                <button onClick={()=>doResetPassword(u)} style={{background:"transparent",border:"1px solid #1a2a3a",color:"#60a5fa",padding:"4px 10px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>
+                  Reset PW
+                </button>
                 {u.email!=="frazer@wildvision.io"&&(
                   <button onClick={()=>{
                     if(!window.confirm(`Delete account for ${u.nickname||u.displayName}? This cannot be undone.`))return;
