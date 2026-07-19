@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import HitList from "./HitList.jsx";
+import { fetchZohoData } from "./zohoApi.js";
+import { filterDealsForPeriod } from "./salesPeriod.js";
 
 // ── SUPABASE ───────────────────────────────────────────────────────────────────
 // Set these in Vercel environment variables as VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
@@ -89,6 +92,13 @@ const LS = {
 // ── DATA HELPERS ──────────────────────────────────────────────────────────────
 const getUser = e => LS.get("user:"+e.toLowerCase());
 const saveUser = u => LS.set("user:"+u.email.toLowerCase(), u);
+const nameFromEmail = email => String(email||"")
+  .trim()
+  .split("@")[0]
+  .split(/[._-]+/)
+  .filter(Boolean)
+  .map(part=>part.charAt(0).toUpperCase()+part.slice(1).toLowerCase())
+  .join(" ");
 
 // ── PASSWORD HASHING ──────────────────────────────────────────────────────────
 // SHA-256 via the browser's built-in Web Crypto API — no extra dependency needed.
@@ -97,6 +107,20 @@ async function hashPassword(pw) {
   const enc = new TextEncoder().encode(pw);
   const digest = await crypto.subtle.digest("SHA-256", enc);
   return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+function secureReadableCode(prefix="WV", groups=2, groupLength=4) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(groups * groupLength);
+  crypto.getRandomValues(bytes);
+  const parts = [];
+  for (let group=0; group<groups; group+=1) {
+    let value = "";
+    for (let index=0; index<groupLength; index+=1) {
+      value += alphabet[bytes[group*groupLength+index] % alphabet.length];
+    }
+    parts.push(value);
+  }
+  return [prefix, ...parts].join("-");
 }
 // Checks a plaintext password against a user record. Supports a transparent
 // migration path: if an older account still has a plaintext `password` field
@@ -370,24 +394,6 @@ function avgSplitForPlatform(email, platform, since) {
   return deals.reduce((acc,d)=>acc+wvPct(d.split),0)/deals.length;
 }
 
-// ── EMAIL (Resend) ────────────────────────────────────────────────────────────
-async function sendSigningNotification(rep, signing) {
-  const key = typeof process!=="undefined"&&process.env?.RESEND_API_KEY ? process.env.RESEND_API_KEY : null;
-  if (!key) return;
-  try {
-    await fetch("https://api.resend.com/emails", {
-      method:"POST",
-      headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},
-      body: JSON.stringify({
-        from:"Wild Vision Sales OS <hello@wildvision.io>",
-        to:["frazer@wildvision.io"],
-        subject:`New Signing Pending Approval — ${rep.nickname||rep.displayName} · ${signing.dealName}`,
-        text:`${rep.nickname||rep.displayName} has logged a new signing for approval.\n\nDeal: ${signing.dealName}\nPlatform: ${signing.platform}\nSplit: ${signing.split||"N/A"}\nContract Date: ${signing.contractDate}\n\nLog in to the Sales OS to review and approve.`,
-      })
-    });
-  } catch(e){ console.error("Email failed:",e); }
-}
-
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
@@ -408,11 +414,7 @@ export default function App() {
     // This ensures invite codes and user accounts are available before the rep tries to use them
     const savedMode = localStorage.getItem("wvos:pref:lightmode");
     if (savedMode === "1") setLightMode(true);
-    syncFromSupabase().finally(async () => {
-      if (!getUser("frazer@wildvision.io")) {
-        // Default manager account — password must be set manually in Supabase kv_store
-      // to avoid hardcoding credentials in source code. See README for setup instructions.
-      }
+    syncFromSupabase().finally(() => {
       const saved = sessionStorage.getItem("wv_dash_user");
       if (saved) { try { const u=JSON.parse(saved); setUser(u); setView(u.setupComplete?"dashboard":"setup"); } catch {} }
       setSyncing(false);
@@ -429,8 +431,6 @@ export default function App() {
       setAllUsers(getAllUsers().filter(x=>x.setupComplete)); // keep leaderboard/allUsers in sync with any profile changes (nickname, photo, etc.)
     }
   }
-  function switchUser(email) { const u=getUser(email); if(u){setUser(u);setView("dashboard");} }
-
   async function doLogin(email, password) {
     const u = getUser(email.toLowerCase());
     if (!u) return "No account found for that email.";
@@ -448,6 +448,18 @@ export default function App() {
     sessionStorage.removeItem("wv_dash_user");
     setUser(null);
     setView("login");
+  }
+
+  async function completeRequiredPassword(password) {
+    if (!user) return;
+    const current = getUser(user.email);
+    if (!current) throw new Error("Account could not be loaded.");
+    const { password: _legacyPassword, mustChangePassword: _mustChange, ...rest } = current;
+    const updated = { ...rest, passwordHash:await hashPassword(password) };
+    saveUser(updated);
+    sessionStorage.setItem("wv_dash_user",JSON.stringify(updated));
+    setUser(updated);
+    setView(updated.setupComplete?"dashboard":"setup");
   }
 
   useEffect(() => { if(user) refreshAllUsers(); }, [user?.email]);
@@ -532,9 +544,10 @@ export default function App() {
         </div>
       )}
       {!syncing && view==="login" && <LoginScreen doLogin={doLogin} />}
-      {!syncing && view==="setup" && user && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
-      {!syncing && user && user.setupComplete && view!=="login" && view!=="setup" && (
-        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} switchUser={switchUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />
+      {!syncing && user?.mustChangePassword && view!=="login" && <RequiredPasswordChange user={user} onSave={completeRequiredPassword} doLogout={doLogout} />}
+      {!syncing && view==="setup" && user && !user.mustChangePassword && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
+      {!syncing && user && !user.mustChangePassword && user.setupComplete && view!=="login" && view!=="setup" && (
+        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />
       )}
     </div>
   );
@@ -542,6 +555,45 @@ export default function App() {
 
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
+function RequiredPasswordChange({ user, onSave, doLogout }) {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    if (password.length<8) { setError("Use at least 8 characters."); return; }
+    if (password!==confirmation) { setError("Passwords don't match."); return; }
+    setSaving(true);
+    try { await onSave(password); }
+    catch (saveError) { setError(saveError.message||"Password could not be changed."); setSaving(false); }
+  }
+
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <form onSubmit={submit} className="card" style={{width:"100%",maxWidth:390,padding:24}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:22}}>
+          <img src={WV_LOGO} alt="" style={{width:30,height:30}} />
+          <div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:700,textTransform:"uppercase"}}>Choose a new password</div>
+            <div style={{fontSize:12,color:"var(--text-dim)"}}>{user.email}</div>
+          </div>
+        </div>
+        <p style={{fontSize:13,color:"var(--text-muted)",marginBottom:16}}>Your temporary password worked. Replace it before continuing.</p>
+        <div style={{display:"grid",gap:12}}>
+          <div><label>New password</label><input type="password" autoComplete="new-password" value={password} onChange={event=>setPassword(event.target.value)} /></div>
+          <div><label>Confirm password</label><input type="password" autoComplete="new-password" value={confirmation} onChange={event=>setConfirmation(event.target.value)} /></div>
+        </div>
+        {error&&<div style={{color:"#ef4444",fontSize:13,marginTop:12}}>{error}</div>}
+        <button type="submit" className="btn btn-p" disabled={saving} style={{width:"100%",justifyContent:"center",marginTop:16}}>{saving?"Saving...":"Save and continue"}</button>
+        <button type="button" onClick={doLogout} style={{width:"100%",marginTop:10,background:"none",border:"none",color:"var(--text-dim)",cursor:"pointer"}}>Sign out</button>
+      </form>
+    </div>
+  );
+}
+
 function LoginScreen({ doLogin }) {
   const [tab, setTab] = useState("signin");
   const [email, setEmail] = useState("");
@@ -566,8 +618,8 @@ function LoginScreen({ doLogin }) {
     const u={
       email:email.trim().toLowerCase(), passwordHash:await hashPassword(pw),
       role:"rep",
-      displayName:email.trim().split("@")[0],
-      nickname:email.trim().split("@")[0],
+      displayName:nameFromEmail(email),
+      nickname:nameFromEmail(email),
       title:"", bio:"", accentColor:B.orange, photo:null,
       setupComplete:false, fromInvite:false, createdAt:Date.now(),
     };
@@ -579,15 +631,16 @@ function LoginScreen({ doLogin }) {
   async function tryInvite(e) {
     e.preventDefault(); setErr("");
     if (!invCode.trim()){setErr("Enter your invite code.");return;}
+    if (!pw||pw.length<8){setErr("Choose a password with at least 8 characters.");return;}
+    if (pw!==pw2){setErr("Passwords don't match.");return;}
     const inv = LS.get("invite:"+invCode.trim().toUpperCase());
     if (!inv){setErr("Invalid invite code. Check with your manager.");return;}
     if (inv.used){setErr("This invite has already been used.");return;}
     if (getUser(inv.email)){setErr("Account already exists for that email. Sign in instead.");return;}
-    const tempPw = "changeme123";
-    const u={email:inv.email,passwordHash:await hashPassword(tempPw),role:inv.role||"rep",displayName:inv.email.split("@")[0],nickname:inv.email.split("@")[0],title:"",bio:"",accentColor:B.orange,photo:null,setupComplete:false,fromInvite:true,createdAt:Date.now()};
+    const u={email:inv.email,passwordHash:await hashPassword(pw),role:inv.role||"rep",displayName:nameFromEmail(inv.email),nickname:nameFromEmail(inv.email),title:"",bio:"",accentColor:B.orange,photo:null,setupComplete:false,fromInvite:false,createdAt:Date.now()};
     saveUser(u);
     LS.set("invite:"+invCode.trim().toUpperCase(),{...inv,used:true});
-    const r = await doLogin(inv.email,tempPw);
+    const r = await doLogin(inv.email,pw);
     if (r) setErr(r);
   }
 
@@ -637,6 +690,10 @@ function LoginScreen({ doLogin }) {
             <div style={{marginBottom:16}}>
               <label>Invite Code</label>
               <input placeholder="WV-XXXX-XXXX" value={invCode} onChange={e=>setInvCode(e.target.value.toUpperCase())} style={{fontFamily:"'Space Mono',monospace",letterSpacing:"0.1em"}} />
+            </div>
+            <div style={{display:"grid",gap:12,marginBottom:16}}>
+              <div><label>Choose Password</label><input type="password" placeholder="Min 8 characters" value={pw} onChange={e=>setPw(e.target.value)} /></div>
+              <div><label>Confirm Password</label><input type="password" value={pw2} onChange={e=>setPw2(e.target.value)} /></div>
             </div>
             <button type="submit" className="btn btn-p" style={{width:"100%",justifyContent:"center"}}>Activate →</button>
           </form>
@@ -775,7 +832,7 @@ function SetupScreen({ user, refreshUser, setView }) {
 }
 
 // ── SHELL ─────────────────────────────────────────────────────────────────────
-function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, switchUser, lightMode, toggleLightMode }) {
+function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, lightMode, toggleLightMode }) {
   const [open, setOpen] = useState(true);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
@@ -783,6 +840,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
     {id:"leaderboard",icon:"🏆",label:"Leaderboard"},
     {id:"stats",icon:"📊",label:"My Stats"},
     {id:"targets",icon:"🎯",label:"Targets"},
+    {id:"hit-list",icon:"📋",label:"Hit List Report"},
     {id:"signings",icon:"✍️",label:"Log Signing"},
     {id:"incentive",icon:"🔥",label:"Incentives"},
     {id:"calculator",icon:"💰",label:"Comm. Calc"},
@@ -817,21 +875,11 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
           </div>}
           </div>
         </div>
-        {/* Dev user switcher — manager only */}
-        {open&&user.email==="frazer@wildvision.io"&&(
-          <div style={{padding:"8px 10px",borderTop:`1px solid ${B.border}`,background:"#0a0500"}}>
-            <div style={{fontSize:9,color:"#d97706",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Dev: Switch User</div>
-            <select onChange={e=>switchUser(e.target.value)} value={user.email} style={{fontSize:11,padding:"4px 6px",background:"#1a0e00",border:"1px solid #d9770644",color:"#d97706",borderRadius:4,width:"100%"}}>
-              <option value="frazer@wildvision.io">Frazer (Manager)</option>
-              <option value="rep1@wildvision.io">Flash (Rep)</option>
-              <option value="rep2@wildvision.io">Hunter (Rep)</option>
-            </select>
-          </div>
-        )}
         <button onClick={()=>setOpen(o=>!o)} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",padding:"10px",fontSize:13,borderTop:`1px solid ${B.border}`}}>{open?"◀":"▶"}</button>
       </div>
       <div style={{flex:1,overflow:"auto",padding:26}}>
         {view==="dashboard"&&<Dashboard user={user} allUsers={allUsers} announcement={getAnnouncement()} />}
+        {view==="hit-list"&&<HitList />}
         {view==="stats"&&<RepStats user={user} allUsers={allUsers} />}
         {view==="signings"&&<LogSigning user={user} refreshUser={refreshUser} />}
         {view==="leaderboard"&&<Leaderboard user={user} allUsers={allUsers} />}
@@ -1181,14 +1229,11 @@ function computeStats(deals) {
   const closedTotal = salesClosed.length + lost.length;
   const closeRate = closedTotal > 0 ? Math.round((salesClosed.length / closedTotal) * 100) : null;
 
-  const contractOrBeyond = deals.filter(d => {
-    const ORDER = ["CM's to Approve","Meeting With Creator","Interested","Conversations on Pause","Reviewing Terms","Contract sent for Signature","Ready to Submit to Platform","Awaiting Platform Approval","Ready to go Live","Live"];
-    return ORDER.indexOf(d.Stage) >= 4;
-  });
-  const contractClosed = contractOrBeyond.filter(d => SALES_CLOSED_STAGES.includes(d.Stage));
-  const contractLost = contractOrBeyond.filter(d => d.Stage === "Lost");
-  const contractTotal = contractClosed.length + contractLost.length;
-  const contractRate = contractTotal > 0 ? Math.round((contractClosed.length / contractTotal) * 100) : null;
+  // A current Deal snapshot cannot tell whether a Lost Deal previously reached
+  // contract stage. Keep this metric unavailable instead of showing a false 100%.
+  const contractClosed = [];
+  const contractTotal = 0;
+  const contractRate = null;
 
   const cycleDeals = salesClosed.filter(d => d.Created_Time && d.Closing_Date);
   const avgCycle = cycleDeals.length > 0
@@ -1230,69 +1275,50 @@ function buildQuarterHistory(deals) {
     .map(([key, val]) => ({ ...val, ...computeStats(val.deals) }));
 }
 
-function getDemoDeals() {
-  const now = Date.now(), iso = days => new Date(now-days*864e5).toISOString(), d = days => iso(days).split("T")[0];
-  return [
-    // This quarter
-    {Deal_Name:"Creator A",Stage:"Ready to Submit to Platform",Associated_Platform:{name:"Facebook"},WV_Percentage:60,Created_Time:iso(45),Closing_Date:d(10)},
-    {Deal_Name:"Creator B",Stage:"Awaiting Platform Approval",Associated_Platform:{name:"Microsoft Start"},WV_Percentage:55,Created_Time:iso(38),Closing_Date:d(8)},
-    {Deal_Name:"Creator C",Stage:"Ready to Submit to Platform",Associated_Platform:{name:"Spotify"},WV_Percentage:50,Created_Time:iso(30),Closing_Date:d(5)},
-    {Deal_Name:"Creator D",Stage:"Live",Associated_Platform:{name:"Facebook"},WV_Percentage:65,Created_Time:iso(70),Closing_Date:d(15)},
-    {Deal_Name:"Creator E",Stage:"Live",Associated_Platform:{name:"Microsoft Start"},WV_Percentage:55,Created_Time:iso(50),Closing_Date:d(25)},
-    {Deal_Name:"Creator F",Stage:"Lost",Associated_Platform:{name:"Facebook"},WV_Percentage:0,Created_Time:iso(55),Closing_Date:d(15)},
-    {Deal_Name:"Creator G",Stage:"Lost",Associated_Platform:{name:"Microsoft Start"},WV_Percentage:0,Created_Time:iso(40),Closing_Date:d(12)},
-    // Last quarter (offset ~100 days)
-    {Deal_Name:"Old Deal A",Stage:"Ready to Submit to Platform",Associated_Platform:{name:"Facebook"},WV_Percentage:60,Created_Time:iso(130),Closing_Date:d(95)},
-    {Deal_Name:"Old Deal B",Stage:"Live",Associated_Platform:{name:"Microsoft Start"},WV_Percentage:55,Created_Time:iso(120),Closing_Date:d(100)},
-    {Deal_Name:"Old Deal C",Stage:"Lost",Associated_Platform:{name:"Spotify"},WV_Percentage:0,Created_Time:iso(115),Closing_Date:d(105)},
-    {Deal_Name:"Old Deal D",Stage:"Awaiting Platform Approval",Associated_Platform:{name:"Facebook"},WV_Percentage:60,Created_Time:iso(140),Closing_Date:d(108)},
-  ];
-}
-
 function RepStats({ user, allUsers }) {
   const [zohoDeals, setZohoDeals] = useState([]);
+  const [teamZohoDeals, setTeamZohoDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stale, setStale] = useState(false);
+  const [generatedAt, setGeneratedAt] = useState("");
   const [period, setPeriod] = useState("quarter");
   const [activeTab, setActiveTab] = useState("overview"); // overview | history
   const c = user.accentColor || B.orange;
   const isManager = user.role === "manager";
   const q = Math.floor(new Date().getMonth()/3);
 
-  useEffect(() => { loadDeals(); }, [user.email]);
+  useEffect(() => {
+    loadDeals();
+    const timer = setInterval(loadDeals, 10*60*1000);
+    return () => clearInterval(timer);
+  }, [user.email, user.role]);
 
   async function loadDeals() {
     setLoading(true); setError(null);
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:8000,
-          system:`You are a data assistant. Fetch Zoho CRM deals. Return ONLY a raw JSON array, no markdown, no explanation. Each object: Deal_Name, Stage, Associated_Platform (name string), WV_Percentage, Closing_Date, Created_Time.`,
-          messages:[{role:"user",content:`Fetch all deals from Zoho CRM where Owner email is "${user.email}". All stages including Lost and Live. Return only JSON array.`}],
-          mcp_servers:[{type:"url",url:"https://claude-zohocrm.zohomcp.eu/mcp/message",name:"zoho-crm"}]
-        })
-      });
-      if (!resp.ok) throw new Error("API "+resp.status);
-      const data = await resp.json();
-      const text = data.content?.find(b=>b.type==="text")?.text?.trim()||"";
-      const s=text.indexOf("["), e=text.lastIndexOf("]");
-      if (s===-1) throw new Error("no_data");
-      setZohoDeals(JSON.parse(text.slice(s,e+1)));
+      const data = await fetchZohoData("zoho-sales-deals", isManager
+        ? { scope:"team" }
+        : { ownerEmail:user.email });
+      const allDeals = Array.isArray(data.deals) ? data.deals : [];
+      const email = user.email.toLowerCase();
+      setTeamZohoDeals(isManager ? allDeals : []);
+      setZohoDeals(isManager
+        ? allDeals.filter(deal=>deal.Owner?.email===email)
+        : allDeals);
+      setStale(data.stale===true);
+      setGeneratedAt(data.generatedAt||"");
     } catch(err) {
-      setZohoDeals(getDemoDeals()); setError("demo");
+      setZohoDeals([]);
+      setTeamZohoDeals([]);
+      setError(err.message||"Zoho sales data could not be loaded.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   function filterByPeriod(deals) {
-    if (period==="all") return deals;
-    const qStart = quarterStart();
-    return deals.filter(d => {
-      const t = d.Closing_Date ? new Date(d.Closing_Date).getTime() : new Date(d.Created_Time).getTime();
-      return t >= qStart;
-    });
+    return filterDealsForPeriod(deals, period);
   }
 
   const periodDeals = filterByPeriod(zohoDeals);
@@ -1316,9 +1342,11 @@ function RepStats({ user, allUsers }) {
           <button onClick={loadDeals} disabled={loading} style={{background:"var(--border)",border:`1px solid ${c}44`,color:c,padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:loading?"not-allowed":"pointer",fontFamily:"'DM Sans',sans-serif"}}>{loading?"...":"↻"}</button>
         </div>
       </div>
-      <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Stats up to handoff — once it reaches Ready to Submit or Awaiting Platform Approval, it's out of your hands.</p>
-      <p style={{color:"var(--text-dim2)",fontSize:13,marginBottom:20}}>Live from Zoho CRM.</p>
+      <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Provisional sales stats from each Deal's current stage and Zoho Closing Date.</p>
+      <p style={{color:"var(--text-dim2)",fontSize:13,marginBottom:20}}>Read-only data from Zoho CRM{generatedAt?` · updated ${new Date(generatedAt).toLocaleString()}`:""}.</p>
 
+      {error&&<div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#ef4444"}}><strong>Could not load Zoho stats.</strong> {error} No demo numbers are being shown.</div>}
+      {!error&&stale&&<div role="status" style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#d97706"}}>Showing the last saved Zoho snapshot because the newest refresh failed.</div>}
 
       {loading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
 
@@ -1336,8 +1364,8 @@ function RepStats({ user, allUsers }) {
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
               {label:"Close Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} closed · ${stats.lost.length} lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#16a34a":stats.closeRate>=40?"#d97706":"#ef4444"):"#aaa"},
-              {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:`${stats.contractClosed.length} of ${stats.contractTotal} from contract`,col:stats.contractRate!==null?(stats.contractRate>=70?"#16a34a":"#d97706"):"#aaa"},
-              {label:"Avg Cycle",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"pitch to handoff",col:c},
+              {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:stats.contractRate!==null?`${stats.contractClosed.length} of ${stats.contractTotal} from contract`:"needs Zoho stage history",col:stats.contractRate!==null?(stats.contractRate>=70?"#16a34a":"#d97706"):"#aaa"},
+              {label:"Avg Cycle",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"created to Zoho close date",col:c},
               {label:"Deals Live",val:stats.live.length,sub:`Q${q+1} · ${liveAll.length} all time`,col:"#16a34a"},
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
@@ -1369,7 +1397,7 @@ function RepStats({ user, allUsers }) {
           {/* Cycle speed */}
           <div className="card" style={{padding:20,marginBottom:14}}>
             <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Sales Cycle Speed</div>
-            <div style={{fontSize:15,color:"var(--text-dim)",marginBottom:14}}>Days from deal created to reaching Ready to Submit / Awaiting Platform Approval.</div>
+            <div style={{fontSize:15,color:"var(--text-dim)",marginBottom:14}}>Days from Deal creation to the current Zoho Closing Date. Confirm this date rule before using it for official coaching.</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
               {stats.platCycles.map(p=>{
                 const pc=PLATFORM_COLOR[p.platform];
@@ -1492,45 +1520,20 @@ function RepStats({ user, allUsers }) {
         </>}
 
         {/* ── TEAM STATS (manager only) ── */}
-        {activeTab==="team"&&isManager&&<TeamStatsView allUsers={allUsers} c={c} q={q} />}
+        {activeTab==="team"&&isManager&&<TeamStatsView allUsers={allUsers} deals={filterByPeriod(teamZohoDeals)} c={c} />}
       </>}
     </div>
   );
 }
 
 // ── TEAM STATS VIEW ───────────────────────────────────────────────────────────
-function TeamStatsView({ allUsers, c, q }) {
-  const [teamDeals, setTeamDeals] = useState({});
-  const [loading, setLoading] = useState(true);
+function TeamStatsView({ allUsers, deals, c }) {
   const [sortBy, setSortBy] = useState("closeRate"); // closeRate | cycle | closed
 
-  useEffect(() => { loadTeamDeals(); }, []);
-
-  async function loadTeamDeals() {
-    setLoading(true);
-    // In Bolt this fetches per rep from Zoho. In artifact, uses demo data.
-    const demo = {};
-    allUsers.forEach(u => {
-      const now = Date.now(), iso = d => new Date(now-d*864e5).toISOString(), ds = d => iso(d).split("T")[0];
-      // Vary demo data per user to make comparison meaningful
-      const seed = u.email.charCodeAt(0) % 5;
-      demo[u.email] = [
-        {Deal_Name:"Deal 1",Stage:"Ready to Submit to Platform",Associated_Platform:{name:"Facebook"},WV_Percentage:60,Created_Time:iso(40+seed*5),Closing_Date:ds(10+seed)},
-        {Deal_Name:"Deal 2",Stage:"Awaiting Platform Approval",Associated_Platform:{name:"Microsoft Start"},WV_Percentage:55,Created_Time:iso(35+seed*3),Closing_Date:ds(8+seed)},
-        {Deal_Name:"Deal 3",Stage:"Live",Associated_Platform:{name:"Spotify"},WV_Percentage:50,Created_Time:iso(60+seed*4),Closing_Date:ds(20+seed*2)},
-        ...(seed>2?[{Deal_Name:"Deal 4",Stage:"Lost",Associated_Platform:{name:"Facebook"},WV_Percentage:0,Created_Time:iso(50+seed*2),Closing_Date:ds(15+seed)}]:[]),
-      ];
-    });
-    setTeamDeals(demo);
-    setLoading(false);
-  }
-
-  if (loading) return <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading team data...</div></div>;
-
   const repStats = allUsers.map(u => {
-    const deals = teamDeals[u.email] || [];
-    const s = computeStats(deals);
-    return { u, ...s, dealCount: deals.length };
+    const repDeals = deals.filter(deal=>deal.Owner?.email===u.email.toLowerCase());
+    const s = computeStats(repDeals);
+    return { u, ...s, dealCount: repDeals.length };
   });
 
   const sorted = [...repStats].sort((a,b) => {
@@ -1658,7 +1661,6 @@ function LogSigning({ user, refreshUser }) {
     };
     const existing = getSignings(user.email);
     saveSignings(user.email, [...existing, signing]);
-    sendSigningNotification(user, signing);
     setSubmitted(true);
     setForm({dealName:"",platform:"Facebook",split:"60/40",contractDate:"",notes:""});
   }
@@ -4173,14 +4175,14 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   const q = Math.floor(now.getMonth()/3);
   const [resetPw, setResetPw] = useState(null); // { email, tempPw }
 
-  function doResetPassword(u) {
+  async function doResetPassword(u) {
     if (!window.confirm(`Reset password for ${u.nickname||u.displayName}? They'll get a temporary password to log in with.`)) return;
-    const tempPw = "WV-" + Math.random().toString(36).slice(2,6).toUpperCase() + "-" + Math.random().toString(36).slice(2,6).toUpperCase();
+    const tempPw = secureReadableCode("WV", 3, 4);
     const record = getUser(u.email);
     if (!record) return;
-    // Remove the hash, write plaintext temp — verifyPassword() migrates to hash on next login
+    // Store only a hash. The temporary password is displayed once to the manager.
     const { passwordHash, password, ...rest } = record;
-    saveUser({ ...rest, password: tempPw });
+    saveUser({ ...rest, passwordHash:await hashPassword(tempPw), mustChangePassword:true });
     setResetPw({ email: u.email, name: u.nickname||u.displayName, tempPw });
   }
 
@@ -4204,7 +4206,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   }
   function genInvite() {
     if (!email.trim()) return;
-    const c="WV-"+Math.random().toString(36).slice(2,6).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
+    const c=secureReadableCode("WV",2,4);
     LS.set("invite:"+c,{email:email.trim().toLowerCase(),role,used:false,createdAt:Date.now(),createdBy:user.email});
     setCode(c);
   }

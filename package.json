@@ -4,7 +4,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm run test:hit-list && npm run test:hit-list-cache && npm run test:deal-facts && npm run test:sales-period && npm run test:local-security && npm run test:zoho-request && npm run test:security",
+    "test:hit-list": "node server/zohoHitList.test.mjs",
+    "test:hit-list-cache": "node server/localHitListCache.test.mjs",
+    "test:deal-facts": "node server/dealFacts.test.mjs",
+    "test:sales-period": "node server/salesPeriod.test.mjs",
+    "test:local-security": "node server/localSecurity.test.mjs",
+    "test:zoho-request": "node server/fetchJson.test.mjs",
+    "test:security": "node server/securityRegression.test.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
