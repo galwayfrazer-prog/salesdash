@@ -1,10 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+import { supabase, supabaseAnonKey, supabaseUrl } from "./supabaseClient.js";
 
 export async function fetchZohoData(functionName, searchParams = {}) {
   const query = new URLSearchParams(searchParams);
@@ -24,6 +18,10 @@ export async function fetchZohoData(functionName, searchParams = {}) {
     throw new Error("The secure Supabase connection is not configured.");
   }
 
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new Error("Secure Supabase sign-in is required before hosted Zoho data can be shown.");
+  }
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   if (!accessToken) {

@@ -7,10 +7,11 @@ The local test does not change the hosted Supabase project or Vercel app.
 ```powershell
 npm.cmd install
 npm.cmd run test
+npm.cmd run test:auth-db
 npm.cmd run dev
 ```
 
-The local SQLite test needs Node 22.5 or newer. Node may show an experimental SQLite warning; the hosted Supabase version does not use Node SQLite.
+The local SQLite test needs Node 22.5 or newer. The Auth database test also needs Docker and `npx supabase start`. Node may show an experimental SQLite warning; the hosted Supabase version does not use Node SQLite.
 
 Open the local URL printed by Vite, sign in to the test dashboard, and open **Hit List Report** or **My Stats**.
 
@@ -30,13 +31,13 @@ Do these steps only after the local page is approved:
    npx supabase link --project-ref jiprcwsdcqdjtkzddiku
    ```
 
-3. Apply `supabase/migrations/202607170001_zoho_hit_list_cache.sql`.
+3. Apply migrations `202607170001` and `202607170002`. The second migration adds the Auth-only Preview reader without disabling the old live login.
 4. Add the Zoho, service-role, and `HIT_LIST_SYNC_SECRET` values through Supabase Edge Function Secrets. Keep them outside the repo and never use a `VITE_` prefix.
 5. Deploy `sync-zoho-hit-list`.
 6. Invoke it manually once and verify a completed sync plus expected row counts.
 7. Store the function URL and the separate sync secret in Supabase Vault.
 8. Schedule the function with `*/10 * * * *`.
-9. Enable email confirmation, invite approved staff through Supabase Auth, and add those lowercase emails to `sales_os_members` with the correct `rep` or `manager` role. The first verified login binds the allowlist row to that Auth user ID.
+9. Follow `docs/sales-os-auth-migration.md`: invite the eight approved staff server-side and pre-bind each returned Auth user ID to its lowercase email and approved `rep` or `manager` role. A browser request is never allowed to bind or change membership.
 10. Deploy `get-zoho-hit-list` and `get-zoho-sales-deals`.
 11. Confirm unauthenticated and non-member requests are rejected before connecting the live React page.
 12. Only then enable the hosted readers in Sales OS and merge the GitHub pull request.
@@ -58,7 +59,7 @@ The official references are:
 
 - Zoho scope is Deals read-only.
 - No Deal, stage, note, email, message, or creator is changed.
-- The new migration does not change `kv_store` or existing dashboard records.
+- The cache migration does not change `kv_store` or existing dashboard records. The separate cutover SQL locks and scrubs `kv_store` only after all eight Auth accounts are ready.
 - A rep can receive only Deals whose Zoho Owner email matches their signed-in email.
 - Only an approved manager can request Team Stats.
 - No GitHub push, Vercel deployment, Supabase migration, or Cron job happens during the local test.

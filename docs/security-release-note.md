@@ -4,9 +4,9 @@ I removed the hardcoded manager login and the unsafe browser-side email and AI r
 
 Before this is merged into the live site, we still need to rotate the previously exposed Zoho and Supabase credentials, move the existing eight Sales OS accounts to Supabase Auth, add their roles to `sales_os_members`, and replace the public `kv_store` policy. One legacy user record currently contains a plaintext password, so the live database policy must not be left as it is. The account/RLS cutover has to be coordinated so nobody is locked out.
 
-The current hosted login does not yet create a Supabase Auth session, so the new production CRM readers deliberately reject it. This is a release blocker, not a hidden fallback. The local version works for testing, but the branch must stay as a draft until the account migration is complete.
+The feature branch now creates a real Supabase Auth session and derives each role from an exact active Auth membership. The current live `main` site still uses the old login, so the branch must stay a draft until all eight accounts and the coordinated database cutover are complete.
 
-The final security review also found three medium issues in the old login: browser session data can be trusted during a forced password change, a password reset does not close an already-open session, and a deleted Auth user could leave a same-email role available for rebinding. The Supabase Auth migration must bind access to the user's verified Auth ID and revoke old sessions before this is merged.
+The feature branch removes the three old-login paths found in the final review: browser data no longer chooses identity or role, password changes revoke other refresh sessions, and deleting an Auth user cascades its membership so a later same-email account gets no role. Local database tests now exercise these boundaries. They are not protections for the live site until the Auth/RLS cutover is completed.
 
 ## Release route
 

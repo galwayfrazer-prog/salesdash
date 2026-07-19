@@ -1,38 +1,96 @@
 import { useState, useEffect, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
 import HitList from "./HitList.jsx";
 import { fetchZohoData } from "./zohoApi.js";
 import { filterDealsForPeriod } from "./salesPeriod.js";
+import { supabase } from "./supabaseClient.js";
+import {
+  makeLocalTestUser,
+  mergeAuthenticatedUser,
+  normalizeEmail,
+  profileForRemoteStorage,
+  sanitizeLegacyProfile,
+} from "./authModel.js";
 
 // ── SUPABASE ───────────────────────────────────────────────────────────────────
-// Set these in Vercel environment variables as VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || null;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || null;
-const sb = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
-// Pull all rows from Supabase into localStorage on app start
-async function syncFromSupabase() {
-  if (!sb) return;
-  try {
-    const { data } = await sb.from("kv_store").select("key,value");
-    if (data) {
-      data.forEach(({ key, value }) => {
-        localStorage.setItem("wvos:" + key, value);
-      });
+function clearDashboardCache() {
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith("wvos:") && !key.startsWith("wvos:pref:")) {
+      localStorage.removeItem(key);
     }
-  } catch(e) { console.warn("Supabase sync failed:", e); }
+  }
 }
 
-// Write a key to Supabase (fire and forget — localStorage already updated)
+// Pull dashboard data only after Supabase Auth has verified the user.
+async function syncFromSupabase() {
+  if (!supabase) return [];
+  const [kvResult, memberResult] = await Promise.all([
+    supabase.rpc("sales_os_dashboard_snapshot"),
+    supabase.from("sales_os_members").select("email,user_id,role,display_name,active").eq("active", true),
+  ]);
+  if (kvResult.error) throw new Error("Dashboard data could not be loaded.");
+  if (memberResult.error) throw new Error("Team membership could not be loaded.");
+
+  clearDashboardCache();
+
+  const members = memberResult.data || [];
+  const membersByEmail = new Map(members.map((member) => [normalizeEmail(member.email), member]));
+  for (const { key, value } of kvResult.data || []) {
+    if (key.startsWith("invite:")) continue;
+    if (!key.startsWith("user:")) {
+      localStorage.setItem("wvos:" + key, value);
+      continue;
+    }
+    try {
+      const email = normalizeEmail(key.slice(5));
+      const member = membersByEmail.get(email);
+      if (!member) continue;
+      const profile = sanitizeLegacyProfile(JSON.parse(value));
+      localStorage.setItem("wvos:" + key, JSON.stringify({
+        ...profile,
+        email,
+        role: member.role,
+        displayName: profile.displayName || member.display_name || nameFromEmail(email),
+      }));
+    } catch {
+      throw new Error("A stored team profile is invalid.");
+    }
+  }
+
+  for (const member of members) {
+    const email = normalizeEmail(member.email);
+    const storageKey = "wvos:user:" + email;
+    if (localStorage.getItem(storageKey)) continue;
+    localStorage.setItem(storageKey, JSON.stringify({
+      email,
+      role: member.role,
+      displayName: member.display_name || nameFromEmail(email),
+      nickname: member.display_name || nameFromEmail(email),
+      setupComplete: true,
+    }));
+  }
+  return members;
+}
+
+// Write non-auth dashboard data. RLS remains the enforcement boundary.
 function sbSet(key, value) {
-  if (!sb) return;
-  sb.from("kv_store").upsert({ key, value }).then();
+  if (!supabase || key.startsWith("invite:")) return;
+  let remoteValue = value;
+  if (key.startsWith("user:")) {
+    try { remoteValue = JSON.stringify(profileForRemoteStorage(JSON.parse(value))); }
+    catch { return; }
+  }
+  supabase.from("kv_store").upsert({ key, value: remoteValue }).then(({ error }) => {
+    if (error) console.warn("Dashboard save was rejected.");
+  });
 }
 
 // Delete a key from Supabase
 function sbDel(key) {
-  if (!sb) return;
-  sb.from("kv_store").delete().eq("key", key).then();
+  if (!supabase || key.startsWith("invite:") || key.startsWith("user:")) return;
+  supabase.from("kv_store").delete().eq("key", key).then(({ error }) => {
+    if (error) console.warn("Dashboard delete was rejected.");
+  });
 }
 
 // ── BRAND ─────────────────────────────────────────────────────────────────────
@@ -100,47 +158,6 @@ const nameFromEmail = email => String(email||"")
   .map(part=>part.charAt(0).toUpperCase()+part.slice(1).toLowerCase())
   .join(" ");
 
-// ── PASSWORD HASHING ──────────────────────────────────────────────────────────
-// SHA-256 via the browser's built-in Web Crypto API — no extra dependency needed.
-// Passwords are never stored in plaintext; only the hash is saved.
-async function hashPassword(pw) {
-  const enc = new TextEncoder().encode(pw);
-  const digest = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-function secureReadableCode(prefix="WV", groups=2, groupLength=4) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(groups * groupLength);
-  crypto.getRandomValues(bytes);
-  const parts = [];
-  for (let group=0; group<groups; group+=1) {
-    let value = "";
-    for (let index=0; index<groupLength; index+=1) {
-      value += alphabet[bytes[group*groupLength+index] % alphabet.length];
-    }
-    parts.push(value);
-  }
-  return [prefix, ...parts].join("-");
-}
-// Checks a plaintext password against a user record. Supports a transparent
-// migration path: if an older account still has a plaintext `password` field
-// (from before hashing was added), it's checked directly and then silently
-// upgraded to a hash on successful login so nothing is ever re-stored in plaintext.
-async function verifyPassword(user, plaintextPw) {
-  if (user.passwordHash) {
-    const hash = await hashPassword(plaintextPw);
-    return hash === user.passwordHash;
-  }
-  if (user.password) {
-    if (user.password === plaintextPw) {
-      const { password, ...rest } = user;
-      saveUser({ ...rest, passwordHash: await hashPassword(plaintextPw) });
-      return true;
-    }
-    return false;
-  }
-  return false;
-}
 const getAllUsers = () => LS.keys("user:").map(k=>LS.get(k)).filter(Boolean);
 const getSignings = e => LS.get("signings:"+e.toLowerCase()) || [];
 const saveSignings = (e,s) => LS.set("signings:"+e.toLowerCase(), s);
@@ -401,6 +418,9 @@ export default function App() {
   const [allUsers, setAllUsers] = useState([]);
   const [syncing, setSyncing] = useState(true);
   const [lightMode, setLightMode] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const authUserIdRef = useRef(null);
+  const localAuthMode = import.meta.env.DEV && !supabase;
 
   // Persist light mode preference to localStorage
   function toggleLightMode() {
@@ -409,57 +429,190 @@ export default function App() {
     localStorage.setItem("wvos:pref:lightmode", next ? "1" : "0");
   }
 
-  useEffect(() => {
-    // Pull latest data from Supabase into localStorage first, THEN render login screen
-    // This ensures invite codes and user accounts are available before the rep tries to use them
-    const savedMode = localStorage.getItem("wvos:pref:lightmode");
-    if (savedMode === "1") setLightMode(true);
-    syncFromSupabase().finally(() => {
-      const saved = sessionStorage.getItem("wv_dash_user");
-      if (saved) { try { const u=JSON.parse(saved); setUser(u); setView(u.setupComplete?"dashboard":"setup"); } catch {} }
-      setSyncing(false);
-    });
-  }, []);
-
   function refreshAllUsers() { setAllUsers(getAllUsers().filter(u=>u.setupComplete)); }
   function refreshUser() {
     if(!user)return;
-    const u=getUser(user.email);
-    if(u){
+    const storedProfile=getUser(user.email);
+    if(storedProfile){
+      const profile=sanitizeLegacyProfile(storedProfile);
+      const u={...profile,email:user.email,role:user.role,authUserId:user.authUserId,localTestOnly:user.localTestOnly,needsPasswordSetup:false};
       setUser(u);
-      sessionStorage.setItem("wv_dash_user",JSON.stringify(u));
       setAllUsers(getAllUsers().filter(x=>x.setupComplete)); // keep leaderboard/allUsers in sync with any profile changes (nickname, photo, etc.)
     }
   }
+
+  async function hydrateHostedUser(authUser, forcePasswordSetup=false) {
+    const { data: membership, error: memberError } = await supabase
+      .from("sales_os_members")
+      .select("email,user_id,role,display_name,active")
+      .eq("user_id", authUser.id)
+      .eq("active", true)
+      .maybeSingle();
+    if (memberError) throw new Error("Team membership could not be checked.");
+    if (!membership) throw new Error("This account has not been approved for Sales OS.");
+
+    await syncFromSupabase();
+    const hydrated = mergeAuthenticatedUser(authUser, membership, getUser(membership.email));
+    if (forcePasswordSetup) hydrated.needsPasswordSetup = true;
+    setUser(hydrated);
+    authUserIdRef.current = hydrated.authUserId;
+    setAllUsers(getAllUsers().filter(item=>item.setupComplete));
+    setAuthError("");
+    setView(hydrated.needsPasswordSetup ? "password" : hydrated.setupComplete ? "dashboard" : "setup");
+    return hydrated;
+  }
+
+  useEffect(() => {
+    const savedMode = localStorage.getItem("wvos:pref:lightmode");
+    if (savedMode === "1") setLightMode(true);
+    if (localAuthMode) { setSyncing(false); return undefined; }
+    if (!supabase) {
+      setAuthError("Sales OS login is not configured yet.");
+      setSyncing(false);
+      return undefined;
+    }
+
+    let active = true;
+    const passwordLink = /(?:^|[&#?])type=(?:recovery|invite)(?:&|$)/.test(window.location.hash + window.location.search);
+    supabase.auth.getUser()
+      .then(async ({ data, error }) => {
+        if (!active) return;
+        if (error || !data.user) {
+          clearDashboardCache();
+          authUserIdRef.current = null;
+          setUser(null);
+          setAllUsers([]);
+          setView("login");
+          return;
+        }
+        try { await hydrateHostedUser(data.user, passwordLink); }
+        catch (loadError) {
+          clearDashboardCache();
+          setAuthError(loadError.message);
+          setView("login");
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        clearDashboardCache();
+        setAuthError("Sales OS login could not be checked. Please try again.");
+        setView("login");
+      })
+      .finally(() => { if (active) setSyncing(false); });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        clearDashboardCache();
+        authUserIdRef.current = null;
+        setUser(null);
+        setAllUsers([]);
+        setView("login");
+      }
+      if (event === "SIGNED_IN" && session?.user?.id !== authUserIdRef.current) {
+        queueMicrotask(async () => {
+          try {
+            const { data, error } = await supabase.auth.getUser();
+            if (error || !data.user) throw new Error("Invalid session");
+            if (data.user.id !== authUserIdRef.current) await hydrateHostedUser(data.user);
+          } catch {
+            clearDashboardCache();
+            authUserIdRef.current = null;
+            setUser(null);
+            setAllUsers([]);
+            setAuthError("The signed-in account could not be verified. Please sign in again.");
+            setView("login");
+          }
+        });
+      }
+      if (event === "PASSWORD_RECOVERY") {
+        queueMicrotask(async () => {
+          try {
+            const { data, error } = await supabase.auth.getUser();
+            if (error || !data.user) throw new Error("Invalid recovery session");
+            await hydrateHostedUser(data.user, true);
+          } catch {
+            clearDashboardCache();
+            setAuthError("The password link could not be opened safely. Please request a new one.");
+            setView("login");
+          }
+        });
+      }
+    });
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
   async function doLogin(email, password) {
-    const u = getUser(email.toLowerCase());
-    if (!u) return "No account found for that email.";
-    const ok = await verifyPassword(u, password);
-    if (!ok) return "Incorrect password.";
-    const fresh = getUser(email.toLowerCase()); // re-fetch in case verifyPassword just migrated the hash
-    sessionStorage.setItem("wv_dash_user", JSON.stringify(fresh));
-    setUser(fresh);
-    setAllUsers(getAllUsers().filter(x=>x.setupComplete)); // populate immediately on login
-    setView(fresh.setupComplete ? "dashboard" : "setup");
+    const normalizedEmail = normalizeEmail(email);
+    if (localAuthMode) {
+      const localUser = makeLocalTestUser(
+        normalizedEmail,
+        import.meta.env.VITE_LOCAL_USER_ROLE || "manager",
+        getUser(normalizedEmail),
+      );
+      localStorage.setItem("wvos:user:" + normalizedEmail, JSON.stringify(localUser));
+      setUser(localUser);
+      setAllUsers(getAllUsers().filter(item=>item.setupComplete));
+      setView(localUser.setupComplete ? "dashboard" : "setup");
+      return null;
+    }
+    if (!supabase) return "Sales OS login is not configured yet.";
+    let data;
+    let error;
+    try {
+      ({ data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password }));
+    } catch {
+      return "Sales OS could not connect. Please try again.";
+    }
+    if (error || !data.user) return "Email or password is incorrect.";
+    try { await hydrateHostedUser(data.user); }
+    catch (loadError) {
+      await supabase.auth.signOut({ scope: "local" });
+      return loadError.message;
+    }
     return null;
   }
 
-  function doLogout() {
-    sessionStorage.removeItem("wv_dash_user");
+  async function doLogout() {
+    if (supabase) await supabase.auth.signOut({ scope: "local" });
+    clearDashboardCache();
+    authUserIdRef.current = null;
     setUser(null);
+    setAllUsers([]);
     setView("login");
   }
 
   async function completeRequiredPassword(password) {
     if (!user) return;
-    const current = getUser(user.email);
-    if (!current) throw new Error("Account could not be loaded.");
-    const { password: _legacyPassword, mustChangePassword: _mustChange, ...rest } = current;
-    const updated = { ...rest, passwordHash:await hashPassword(password) };
-    saveUser(updated);
-    sessionStorage.setItem("wv_dash_user",JSON.stringify(updated));
-    setUser(updated);
-    setView(updated.setupComplete?"dashboard":"setup");
+    if (!supabase) {
+      const updated={...user,needsPasswordSetup:false};
+      setUser(updated);
+      setView(updated.setupComplete?"dashboard":"setup");
+      return;
+    }
+    const { data, error } = await supabase.auth.updateUser({
+      password,
+      data: { needs_password_setup: false },
+    });
+    if (error || !data.user) throw new Error("Password could not be changed.");
+    await supabase.auth.signOut({ scope: "others" });
+    await hydrateHostedUser(data.user);
+  }
+
+  async function changeOwnPassword(password) {
+    if (!supabase) return;
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error("Password could not be changed.");
+    await supabase.auth.signOut({ scope: "others" });
+  }
+
+  async function requestPasswordReset(email) {
+    if (!supabase) throw new Error("Password recovery is only available on the hosted test site.");
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), { redirectTo });
+    if (error) throw new Error("The recovery email could not be sent.");
   }
 
   useEffect(() => { if(user) refreshAllUsers(); }, [user?.email]);
@@ -543,11 +696,11 @@ export default function App() {
           <div style={{fontSize:13,color:"var(--text-dim3)",letterSpacing:"0.06em",textTransform:"uppercase"}}>Loading...</div>
         </div>
       )}
-      {!syncing && view==="login" && <LoginScreen doLogin={doLogin} />}
-      {!syncing && user?.mustChangePassword && view!=="login" && <RequiredPasswordChange user={user} onSave={completeRequiredPassword} doLogout={doLogout} />}
-      {!syncing && view==="setup" && user && !user.mustChangePassword && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
-      {!syncing && user && !user.mustChangePassword && user.setupComplete && view!=="login" && view!=="setup" && (
-        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />
+      {!syncing && view==="login" && <LoginScreen doLogin={doLogin} requestPasswordReset={requestPasswordReset} localMode={localAuthMode} configError={authError} />}
+      {!syncing && user?.needsPasswordSetup && view!=="login" && <RequiredPasswordChange user={user} onSave={completeRequiredPassword} doLogout={doLogout} />}
+      {!syncing && view==="setup" && user && !user.needsPasswordSetup && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
+      {!syncing && user && !user.needsPasswordSetup && user.setupComplete && view!=="login" && view!=="setup" && (
+        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} changeOwnPassword={changeOwnPassword} lightMode={lightMode} toggleLightMode={toggleLightMode} />
       )}
     </div>
   );
@@ -581,7 +734,7 @@ function RequiredPasswordChange({ user, onSave, doLogout }) {
             <div style={{fontSize:12,color:"var(--text-dim)"}}>{user.email}</div>
           </div>
         </div>
-        <p style={{fontSize:13,color:"var(--text-muted)",marginBottom:16}}>Your temporary password worked. Replace it before continuing.</p>
+        <p style={{fontSize:13,color:"var(--text-muted)",marginBottom:16}}>Set a private password before continuing to Sales OS.</p>
         <div style={{display:"grid",gap:12}}>
           <div><label>New password</label><input type="password" autoComplete="new-password" value={password} onChange={event=>setPassword(event.target.value)} /></div>
           <div><label>Confirm password</label><input type="password" autoComplete="new-password" value={confirmation} onChange={event=>setConfirmation(event.target.value)} /></div>
@@ -594,57 +747,35 @@ function RequiredPasswordChange({ user, onSave, doLogout }) {
   );
 }
 
-function LoginScreen({ doLogin }) {
-  const [tab, setTab] = useState("signin");
+function LoginScreen({ doLogin, requestPasswordReset, localMode, configError }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
-  const [pw2, setPw2] = useState("");
-  const [invCode, setInvCode] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [recoverySent, setRecoverySent] = useState(false);
 
   async function tryLogin(e) {
     e.preventDefault(); setErr("");
-    if (!email.trim()||!pw){setErr("Enter your email and password.");return;}
-    const r = await doLogin(email.trim().toLowerCase(), pw);
-    if (r) setErr(r);
+    if (!email.trim()||(!localMode&&!pw)){setErr(localMode?"Enter the email to use for the local test.":"Enter your email and password.");return;}
+    setBusy(true);
+    try {
+      const r = await doLogin(email, pw);
+      if (r) setErr(r);
+    } catch {
+      setErr("Sales OS could not connect. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function trySignUp(e) {
-    e.preventDefault(); setErr("");
-    if (!email.trim()||!pw){setErr("Email and password are required.");return;}
-    if (pw.length<6){setErr("Password must be at least 6 characters.");return;}
-    if (pw!==pw2){setErr("Passwords don't match.");return;}
-    if (getUser(email.trim().toLowerCase())){setErr("Account already exists. Sign in instead.");return;}
-    const u={
-      email:email.trim().toLowerCase(), passwordHash:await hashPassword(pw),
-      role:"rep",
-      displayName:nameFromEmail(email),
-      nickname:nameFromEmail(email),
-      title:"", bio:"", accentColor:B.orange, photo:null,
-      setupComplete:false, fromInvite:false, createdAt:Date.now(),
-    };
-    saveUser(u);
-    const r = await doLogin(u.email, pw);
-    if (r) setErr(r);
+  async function sendRecovery() {
+    setErr(""); setRecoverySent(false);
+    if (!email.trim()) { setErr("Enter your email first."); return; }
+    setBusy(true);
+    try { await requestPasswordReset(email); setRecoverySent(true); }
+    catch (error) { setErr(error.message); }
+    finally { setBusy(false); }
   }
-
-  async function tryInvite(e) {
-    e.preventDefault(); setErr("");
-    if (!invCode.trim()){setErr("Enter your invite code.");return;}
-    if (!pw||pw.length<8){setErr("Choose a password with at least 8 characters.");return;}
-    if (pw!==pw2){setErr("Passwords don't match.");return;}
-    const inv = LS.get("invite:"+invCode.trim().toUpperCase());
-    if (!inv){setErr("Invalid invite code. Check with your manager.");return;}
-    if (inv.used){setErr("This invite has already been used.");return;}
-    if (getUser(inv.email)){setErr("Account already exists for that email. Sign in instead.");return;}
-    const u={email:inv.email,passwordHash:await hashPassword(pw),role:inv.role||"rep",displayName:nameFromEmail(inv.email),nickname:nameFromEmail(inv.email),title:"",bio:"",accentColor:B.orange,photo:null,setupComplete:false,fromInvite:false,createdAt:Date.now()};
-    saveUser(u);
-    LS.set("invite:"+invCode.trim().toUpperCase(),{...inv,used:true});
-    const r = await doLogin(inv.email,pw);
-    if (r) setErr(r);
-  }
-
-  const T = t => ({flex:1,padding:"7px",border:"none",background:tab===t?"#1a1a1a":"transparent",color:tab===t?"#fff":B.muted,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",borderRadius:6,transition:"all 0.15s"});
 
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
@@ -656,48 +787,19 @@ function LoginScreen({ doLogin }) {
             <div style={{fontSize:12,color:"var(--text-muted)",letterSpacing:"0.1em",textTransform:"uppercase"}}>Sales OS</div>
           </div>
         </div>
-        <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22}}>
-          <button style={T("signin")} onClick={()=>{setTab("signin");setErr("");}}>Sign In</button>
-          <button style={T("signup")} onClick={()=>{setTab("signup");setErr("");}}>Sign Up</button>
-          <button style={T("invite")} onClick={()=>{setTab("invite");setErr("");}}>Invite Code</button>
-        </div>
+        {localMode&&<div style={{fontSize:12,color:"#f59e0b",marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>Local test mode. No real account is being used.</div>}
+        {configError&&<div style={{color:"#f59e0b",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>{configError}</div>}
         {err&&<div style={{color:"#ef4444",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#ef444418",borderRadius:6,border:"1px solid #ef444433"}}>{err}</div>}
-        {tab==="signin"&&(
-          <form onSubmit={tryLogin} className="fi">
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:18}}>Welcome back.</div>
-            <div style={{display:"grid",gap:12,marginBottom:16}}>
-              <div><label>Email</label><input type="email" placeholder="you@wildvision.io" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-              <div><label>Password</label><input type="password" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} /></div>
-            </div>
-            <button type="submit" className="btn btn-p" style={{width:"100%",justifyContent:"center"}}>Sign In →</button>
-          </form>
-        )}
-        {tab==="signup"&&(
-          <form onSubmit={trySignUp} className="fi">
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:18}}>Create account.</div>
-            <div style={{display:"grid",gap:12,marginBottom:16}}>
-              <div><label>Email</label><input type="email" placeholder="you@wildvision.io" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-              <div><label>Password</label><input type="password" placeholder="Min 6 characters" value={pw} onChange={e=>setPw(e.target.value)} /></div>
-              <div><label>Confirm Password</label><input type="password" placeholder="Repeat password" value={pw2} onChange={e=>setPw2(e.target.value)} /></div>
-            </div>
-            <button type="submit" className="btn btn-p" style={{width:"100%",justifyContent:"center"}}>Create Account →</button>
-          </form>
-        )}
-        {tab==="invite"&&(
-          <form onSubmit={tryInvite} className="fi">
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>Join the team.</div>
-            <p style={{color:"#e5e5e5",fontSize:14,marginBottom:16}}>Enter the invite code from your manager.</p>
-            <div style={{marginBottom:16}}>
-              <label>Invite Code</label>
-              <input placeholder="WV-XXXX-XXXX" value={invCode} onChange={e=>setInvCode(e.target.value.toUpperCase())} style={{fontFamily:"'Space Mono',monospace",letterSpacing:"0.1em"}} />
-            </div>
-            <div style={{display:"grid",gap:12,marginBottom:16}}>
-              <div><label>Choose Password</label><input type="password" placeholder="Min 8 characters" value={pw} onChange={e=>setPw(e.target.value)} /></div>
-              <div><label>Confirm Password</label><input type="password" value={pw2} onChange={e=>setPw2(e.target.value)} /></div>
-            </div>
-            <button type="submit" className="btn btn-p" style={{width:"100%",justifyContent:"center"}}>Activate →</button>
-          </form>
-        )}
+        {recoverySent&&<div style={{color:"#4ade80",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#16a34a18",borderRadius:6,border:"1px solid #16a34a33"}}>If this is an approved account, a recovery email is on its way.</div>}
+        <form onSubmit={tryLogin} className="fi">
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:18}}>{localMode?"Open local test.":"Welcome back."}</div>
+          <div style={{display:"grid",gap:12,marginBottom:16}}>
+            <div><label>Email</label><input type="email" autoComplete="email" placeholder="you@wildvision.io" value={email} onChange={e=>setEmail(e.target.value)} /></div>
+            {!localMode&&<div><label>Password</label><input type="password" autoComplete="current-password" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} /></div>}
+          </div>
+          <button type="submit" className="btn btn-p" disabled={busy} style={{width:"100%",justifyContent:"center"}}>{busy?"Checking...":localMode?"Continue →":"Sign In →"}</button>
+          {!localMode&&<button type="button" onClick={sendRecovery} disabled={busy} style={{width:"100%",marginTop:12,background:"none",border:"none",color:"var(--text-dim)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>Forgot password?</button>}
+        </form>
       </div>
     </div>
   );
@@ -705,25 +807,19 @@ function LoginScreen({ doLogin }) {
 
 // ── SETUP ─────────────────────────────────────────────────────────────────────
 function SetupScreen({ user, refreshUser, setView }) {
-  const needsPassword = user.fromInvite === true;
-  const totalSteps = needsPassword ? 3 : 2;
+  const totalSteps = 2;
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({displayName:user.displayName||"",title:"",bio:"",accentColor:B.orange,photo:null,pw:"",pw2:""});
+  const [form, setForm] = useState({displayName:user.displayName||"",title:"",bio:"",accentColor:B.orange,photo:null});
   const [err, setErr] = useState("");
   const fileRef = useRef();
 
   async function finish() {
-    if (needsPassword) {
-      if (form.pw.length<6){setErr("Password must be at least 6 characters.");return;}
-      if (form.pw!==form.pw2){setErr("Passwords don't match.");return;}
-    }
     const updated={...user,displayName:form.displayName.trim(),nickname:form.displayName.trim(),title:form.title,bio:form.bio,accentColor:form.accentColor,photo:form.photo,setupComplete:true,updatedAt:Date.now()};
-    if (needsPassword) updated.passwordHash = await hashPassword(form.pw);
     saveUser(updated); refreshUser(); setView("dashboard");
   }
 
   const c = form.accentColor;
-  const stepLabels = needsPassword ? ["Profile","Personalise","Password"] : ["Profile","Personalise"];
+  const stepLabels = ["Profile","Personalise"];
 
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
@@ -808,16 +904,6 @@ function SetupScreen({ user, refreshUser, setView }) {
           </div>
         )}
 
-        {needsPassword&&step===2&&(
-          <div className="fi">
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,textTransform:"uppercase",marginBottom:18}}>Set your password.</div>
-            <div style={{display:"grid",gap:12}}>
-              <div><label>New Password</label><input type="password" placeholder="Min 6 characters" value={form.pw} onChange={e=>setForm(p=>({...p,pw:e.target.value}))} /></div>
-              <div><label>Confirm</label><input type="password" value={form.pw2} onChange={e=>setForm(p=>({...p,pw2:e.target.value}))} /></div>
-            </div>
-          </div>
-        )}
-
         {err&&<div style={{color:"#ef4444",fontSize:13,marginTop:12}}>{err}</div>}
         <div style={{display:"flex",gap:10,marginTop:22}}>
           {step>0&&<button className="btn btn-g" onClick={()=>{setStep(s=>s-1);setErr("");}}>← Back</button>}
@@ -832,7 +918,7 @@ function SetupScreen({ user, refreshUser, setView }) {
 }
 
 // ── SHELL ─────────────────────────────────────────────────────────────────────
-function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, lightMode, toggleLightMode }) {
+function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, changeOwnPassword, lightMode, toggleLightMode }) {
   const [open, setOpen] = useState(true);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
@@ -886,7 +972,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         {view==="calculator"&&<Calculator user={user} />}
         {view==="targets"&&<Targets user={user} allUsers={allUsers} />}
         {view==="incentive"&&<Incentives user={user} allUsers={allUsers} />}
-        {view==="profile"&&<Profile user={user} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
+        {view==="profile"&&<Profile user={user} refreshUser={refreshUser} changeOwnPassword={changeOwnPassword} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
         {view==="admin"&&user.role==="manager"&&<Admin user={user} allUsers={allUsers} refreshAllUsers={refreshAllUsers} />}
       </div>
     </div>
@@ -4067,7 +4153,7 @@ function Incentives({ user, allUsers }) {
 }
 
 // ── PROFILE ───────────────────────────────────────────────────────────────────
-function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
+function Profile({ user, refreshUser, changeOwnPassword, lightMode, toggleLightMode }) {
   const [form, setForm] = useState({displayName:user.displayName||"",title:user.title||"",bio:user.bio||"",accentColor:user.accentColor||B.orange,photo:user.photo||null,pw:"",pw2:""});
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState("");
@@ -4075,11 +4161,14 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
   const c = form.accentColor;
 
   async function save() {
-    if (form.pw&&form.pw.length<6){setErr("Password must be at least 6 characters.");return;}
+    if (form.pw&&form.pw.length<8){setErr("Password must be at least 8 characters.");return;}
     if (form.pw&&form.pw!==form.pw2){setErr("Passwords don't match.");return;}
     setErr("");
     const updated={...user,displayName:form.displayName.trim(),nickname:form.displayName.trim(),title:form.title,bio:form.bio,accentColor:form.accentColor,photo:form.photo};
-    if (form.pw) updated.passwordHash = await hashPassword(form.pw);
+    if (form.pw) {
+      try { await changeOwnPassword(form.pw); }
+      catch (error) { setErr(error.message); return; }
+    }
     saveUser(updated); refreshUser(); setSaved(true); setTimeout(()=>setSaved(false),2000);
     setForm(p=>({...p,pw:"",pw2:""}));
   }
@@ -4131,13 +4220,13 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
               {lightMode?"☀️ Light":"🌙 Dark"}
             </button>
           </div>
-          <div style={{borderTop:`1px solid ${B.border}`,paddingTop:14}}>
+          {!user.localTestOnly&&<div style={{borderTop:`1px solid ${B.border}`,paddingTop:14}}>
             <div style={{fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:10}}>Change Password (optional)</div>
             <div style={{display:"grid",gap:10}}>
               <div><label>New Password</label><input type="password" placeholder="Leave blank to keep current" value={form.pw} onChange={e=>setForm(p=>({...p,pw:e.target.value}))} /></div>
               <div><label>Confirm</label><input type="password" value={form.pw2} onChange={e=>setForm(p=>({...p,pw2:e.target.value}))} /></div>
             </div>
-          </div>
+          </div>}
         </div>
         {err&&<div style={{color:"#ef4444",fontSize:13,marginTop:10}}>{err}</div>}
         <button className="btn btn-p" onClick={save} style={{marginTop:14,width:"100%",justifyContent:"center"}}>{saved?"✓ Saved!":"Save Changes"}</button>
@@ -4149,9 +4238,6 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
 function Admin({ user, allUsers, refreshAllUsers }) {
   const [tab, setTab] = useState("summary");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("rep");
-  const [code, setCode] = useState("");
   const [bForm, setBForm] = useState({recipientEmail:"",name:"",emoji:"🏅",note:""});
   const [badgeSaved, setBadgeSaved] = useState(false);
   const [badges, setBadges] = useState(getBadges());
@@ -4173,18 +4259,6 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   const daysLeft = daysLeftInQuarter();
   const now = new Date();
   const q = Math.floor(now.getMonth()/3);
-  const [resetPw, setResetPw] = useState(null); // { email, tempPw }
-
-  async function doResetPassword(u) {
-    if (!window.confirm(`Reset password for ${u.nickname||u.displayName}? They'll get a temporary password to log in with.`)) return;
-    const tempPw = secureReadableCode("WV", 3, 4);
-    const record = getUser(u.email);
-    if (!record) return;
-    // Store only a hash. The temporary password is displayed once to the manager.
-    const { passwordHash, password, ...rest } = record;
-    saveUser({ ...rest, passwordHash:await hashPassword(tempPw), mustChangePassword:true });
-    setResetPw({ email: u.email, name: u.nickname||u.displayName, tempPw });
-  }
 
   function refreshPending() { setPending(getAllPendingSignings()); }
 
@@ -4203,12 +4277,6 @@ function Admin({ user, allUsers, refreshAllUsers }) {
     const all=getSignings(editSigning.submittedBy);
     saveSignings(editSigning.submittedBy,all.map(x=>x.id===editSigning.id?{...editSigning,status:"approved",approvedAt:Date.now(),approvedBy:user.email}:x));
     setEditSigning(null); refreshPending();
-  }
-  function genInvite() {
-    if (!email.trim()) return;
-    const c=secureReadableCode("WV",2,4);
-    LS.set("invite:"+c,{email:email.trim().toLowerCase(),role,used:false,createdAt:Date.now(),createdBy:user.email});
-    setCode(c);
   }
   function awardBadge() {
     if (!bForm.recipientEmail||!bForm.name) return;
@@ -4368,7 +4436,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
         </button>
         <button style={T("add")} onClick={()=>setTab("add")}>Add Deal</button>
         <button style={T("team")} onClick={()=>setTab("team")}>Team</button>
-        <button style={T("invite")} onClick={()=>setTab("invite")}>Invite</button>
+        <button style={T("invite")} onClick={()=>setTab("invite")}>Accounts</button>
         <button style={T("badges")} onClick={()=>setTab("badges")}>Badges</button>
       </div>
 
@@ -4798,16 +4866,6 @@ function Admin({ user, allUsers, refreshAllUsers }) {
         <div className="card" style={{padding:18}}>
           <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Team ({allUsers.length})</div>
 
-          {/* Temp password display — shown after a reset */}
-          {resetPw&&(
-            <div style={{marginBottom:14,padding:"12px 16px",background:"#1a1000",border:"1px solid #d9770644",borderRadius:8}}>
-              <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginBottom:6}}>🔑 Temporary password for {resetPw.name}</div>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:18,fontWeight:700,color:B.orange,letterSpacing:"0.12em",marginBottom:6}}>{resetPw.tempPw}</div>
-              <div style={{fontSize:12,color:"var(--text-2)"}}>Share this with them directly. They'll be prompted to set a new password after logging in via My Profile.</div>
-              <button onClick={()=>setResetPw(null)} style={{marginTop:8,background:"transparent",border:"none",color:"var(--text-dim)",fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",padding:0}}>Dismiss</button>
-            </div>
-          )}
-
           {allUsers.length===0?<div style={{color:"var(--text-2)",fontSize:14}}>No team members yet.</div>:<div style={{display:"grid",gap:7}}>
             {allUsers.map(u=>(
               <div key={u.email} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8}}>
@@ -4817,19 +4875,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
                   <div style={{fontSize:12,color:"var(--text-dim)"}}>{u.email} · {u.role}</div>
                 </div>
                 {u.title&&<span style={{fontSize:12,color:u.accentColor||B.orange,fontWeight:600,marginRight:4}}>{u.title}</span>}
-                <button onClick={()=>doResetPassword(u)} style={{background:"transparent",border:"1px solid #1a2a3a",color:"#60a5fa",padding:"4px 10px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>
-                  Reset PW
-                </button>
-                {u.email!=="frazer@wildvision.io"&&(
-                  <button onClick={()=>{
-                    if(!window.confirm(`Delete account for ${u.nickname||u.displayName}? This cannot be undone.`))return;
-                    LS.del("user:"+u.email.toLowerCase());
-                    LS.del("signings:"+u.email.toLowerCase());
-                    refreshAllUsers();
-                  }} style={{background:"transparent",border:"1px solid #3a1a1a",color:"#ef4444",padding:"4px 10px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>
-                    Delete
-                  </button>
-                )}
+                <span style={{fontSize:11,color:"var(--text-dim3)"}}>Supabase Auth</span>
               </div>
             ))}
           </div>}
@@ -4839,17 +4885,9 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {/* ── INVITE ── */}
       {tab==="invite"&&(
         <div className="card" style={{padding:20}}>
-          <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Invite Team Member</div>
-          <div style={{display:"grid",gap:12,marginBottom:12}}>
-            <div><label>Their Email</label><input type="email" placeholder="rep@wildvision.io" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-            <div><label>Role</label><select value={role} onChange={e=>setRole(e.target.value)}><option value="rep">Sales Rep</option><option value="manager">Manager</option></select></div>
-          </div>
-          <button className="btn btn-p btn-sm" onClick={genInvite} disabled={!email.trim()}>Generate Invite Code</button>
-          {code&&<div style={{marginTop:14,padding:"12px 16px",background:"var(--bg-inner)",border:`1px solid ${B.orange}44`,borderRadius:8}}>
-            <div style={{fontSize:11,color:"var(--text-2)",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Code for {email}</div>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:18,fontWeight:700,color:B.orange,letterSpacing:"0.1em"}}>{code}</div>
-            <div style={{fontSize:12,color:"#e5e5e5",marginTop:5}}>They use this on the "Invite Code" tab at login.</div>
-          </div>}
+          <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Secure account access</div>
+          <p style={{fontSize:14,color:"var(--text-2)",lineHeight:1.6}}>Accounts are invited through Supabase Auth. Sales OS no longer creates invite codes, temporary passwords, or browser-managed accounts.</p>
+          <p style={{fontSize:12,color:"var(--text-dim)",lineHeight:1.6,marginTop:8}}>During the migration, an administrator will send each approved team member an email link and bind their exact Auth user ID to their role.</p>
         </div>
       )}
 

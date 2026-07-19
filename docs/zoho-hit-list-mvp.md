@@ -109,16 +109,16 @@ CRM hygiene findings are separate from the Hit List MVP:
 
 ## Production release gate
 
-Do not expose live CRM rows through a public Vercel function until the app has real server-verifiable authentication. The dashboard's current browser/localStorage login cannot securely protect an API route.
+Do not expose live CRM rows through a public Vercel function until the prepared Supabase Auth branch and database rules are cut over together. The current live `main` site still uses the legacy browser login and cannot securely protect an API route.
 
 Before production:
 
-1. Add Supabase Auth or another server-verifiable login.
+1. Finish the prepared Supabase Auth migration for all eight approved users.
 2. Rotate the exposed Supabase service-role key before using the hosted cache.
 3. Apply the dedicated cache migration and deploy the sync Edge Function.
 4. Store all `ZOHO_*`, `SUPABASE_SERVICE_ROLE_KEY`, and `HIT_LIST_SYNC_SECRET` values as server-only secrets.
 5. Run one manual hosted sync and inspect its completed snapshot before enabling Cron.
-6. Connect the React login to Supabase Auth, then switch the page from the local endpoint to the protected cache reader.
+6. Deploy the prepared React Auth login and protected cache reader with the coordinated RLS cutover.
 7. Test a Vercel Preview deployment and confirm an unauthenticated request is rejected.
 8. Only then merge the feature branch into the production branch.
 

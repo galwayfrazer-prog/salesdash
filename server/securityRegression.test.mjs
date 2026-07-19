@@ -11,10 +11,70 @@ for (const forbidden of [
   /api\.resend\.com\/emails/i,
   /function\s+switchUser\b/,
   /password\s*:\s*["'][^"']{6,}["']/i,
+  /wv_dash_user/,
+  /sessionStorage/,
+  /passwordHash/,
+  /function\s+verifyPassword\b/,
+  /function\s+secureReadableCode\b/,
+  /auth\.admin/,
+  /LS\.set\(["']invite:/,
 ]) {
   assert.doesNotMatch(appSource, forbidden);
 }
-assert.match(appSource, /user\?\.mustChangePassword/);
+for (const required of [
+  /auth\.signInWithPassword/,
+  /auth\.getUser/,
+  /auth\.onAuthStateChange/,
+  /auth\.resetPasswordForEmail/,
+  /auth\.updateUser/,
+]) {
+  assert.match(appSource, required);
+}
+
+const sharedAuthSource = await readFile(
+  path.join(root, "supabase", "functions", "_shared", "salesOsAuth.mjs"),
+  "utf8",
+);
+assert.match(sharedAuthSource, /\.eq\("user_id", user\.id\)/);
+assert.doesNotMatch(sharedAuthSource, /\.update\(/);
+assert.doesNotMatch(sharedAuthSource, /\.eq\("email"/);
+
+const migrationSource = await readFile(
+  path.join(root, "supabase", "migrations", "202607170001_zoho_hit_list_cache.sql"),
+  "utf8",
+);
+assert.match(migrationSource, /user_id uuid not null unique references auth\.users\(id\) on delete cascade/i);
+
+const previewMigrationSource = await readFile(
+  path.join(root, "supabase", "migrations", "202607170002_sales_os_auth_preview.sql"),
+  "utf8",
+);
+assert.match(previewMigrationSource, /sales_os_dashboard_snapshot/i);
+assert.match(previewMigrationSource, /sales_os_safe_profile/i);
+assert.match(previewMigrationSource, /- 'passwordHash'/i);
+assert.doesNotMatch(previewMigrationSource, /delete from public\.kv_store/i);
+assert.doesNotMatch(previewMigrationSource, /revoke all on table public\.kv_store/i);
+
+const cutoverSource = await readFile(
+  path.join(root, "supabase", "cutover", "202607_sales_os_auth_lockdown.sql"),
+  "utf8",
+);
+assert.match(cutoverSource, /lock table public\.kv_store in share row exclusive mode/i);
+assert.match(cutoverSource, /from pg_policies/i);
+assert.match(cutoverSource, /revoke all on table public\.kv_store from public, anon, authenticated/i);
+assert.match(cutoverSource, /- 'passwordHash'/);
+assert.match(cutoverSource, /last_sign_in_at is null/i);
+assert.match(cutoverSource, /sales_os_dashboard_snapshot/i);
+assert.match(cutoverSource, /sales_os_safe_team_signings/i);
+assert.match(cutoverSource, /key in \('announcement:current', 'meeting:recap'\)/i);
+
+const authMigrationSource = await readFile(
+  path.join(root, "scripts", "migrate-sales-os-auth.mjs"),
+  "utf8",
+);
+assert.match(authMigrationSource, /SALES_OS_EXPECTED_MANAGERS/);
+assert.match(authMigrationSource, /SALES_OS_EXPECTED_REPS/);
+assert.match(authMigrationSource, /SALES_OS_APPROVED_EXISTING_AUTH_USER_IDS/);
 
 const envExample = await readFile(path.join(root, ".env.example"), "utf8");
 for (const line of envExample.split(/\r?\n/)) {

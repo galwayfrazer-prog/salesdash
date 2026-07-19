@@ -49,13 +49,20 @@ create table if not exists public.zoho_deal_facts (
 
 create table if not exists public.sales_os_members (
   email text primary key check (email = lower(email)),
-  user_id uuid unique references auth.users(id) on delete set null,
+  user_id uuid not null unique references auth.users(id) on delete cascade,
   role text not null check (role in ('rep', 'manager')),
   display_name text not null default '',
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Fail closed if this migration is ever applied after an older nullable version.
+alter table public.sales_os_members alter column user_id set not null;
+alter table public.sales_os_members drop constraint if exists sales_os_members_user_id_fkey;
+alter table public.sales_os_members
+  add constraint sales_os_members_user_id_fkey
+  foreign key (user_id) references auth.users(id) on delete cascade;
 
 create index if not exists zoho_hit_list_syncs_completed_idx
   on public.zoho_hit_list_syncs (completed_at desc)
@@ -83,6 +90,28 @@ alter table public.zoho_hit_list_rows enable row level security;
 alter table public.zoho_deal_facts enable row level security;
 alter table public.sales_os_members enable row level security;
 
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+create or replace function private.sales_os_is_active_member()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.sales_os_members
+    where user_id = (select auth.uid())
+      and active = true
+  );
+$$;
+
+revoke all on function private.sales_os_is_active_member() from public, anon;
+grant usage on schema private to authenticated;
+grant execute on function private.sales_os_is_active_member() to authenticated;
+
 revoke all on table public.zoho_hit_list_syncs from anon, authenticated;
 revoke all on table public.zoho_hit_list_rows from anon, authenticated;
 revoke all on table public.zoho_deal_facts from anon, authenticated;
@@ -92,6 +121,14 @@ grant select, insert, update, delete on table public.zoho_hit_list_syncs to serv
 grant select, insert, update, delete on table public.zoho_hit_list_rows to service_role;
 grant select, insert, update, delete on table public.zoho_deal_facts to service_role;
 grant select, insert, update, delete on table public.sales_os_members to service_role;
+grant select on table public.sales_os_members to authenticated;
+
+drop policy if exists "active members can read team membership" on public.sales_os_members;
+create policy "active members can read team membership"
+  on public.sales_os_members
+  for select
+  to authenticated
+  using (active = true and (select private.sales_os_is_active_member()));
 
 comment on table public.zoho_hit_list_syncs is
   'Server-written metadata for immutable Zoho Hit List snapshots.';

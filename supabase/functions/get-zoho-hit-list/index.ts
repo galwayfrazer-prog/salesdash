@@ -1,4 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  requireSalesOsMember,
+  SalesOsAuthError,
+} from "../_shared/salesOsAuth.mjs";
 
 function env(name: string) {
   return Deno.env.get(name)?.trim() || "";
@@ -58,37 +62,16 @@ Deno.serve(async (request) => {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  if (userError || !userData.user) {
-    return json(401, { error: "Invalid session" }, origin);
-  }
-  if (!userData.user.email_confirmed_at) {
-    return json(403, { error: "A verified email is required" }, origin);
-  }
-
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const memberEmail = userData.user.email?.trim().toLowerCase() || "";
-  if (!memberEmail) return json(403, { error: "Approved membership required" }, origin);
-  const { data: member, error: memberError } = await admin
-    .from("sales_os_members")
-    .select("email,user_id,role,active")
-    .eq("email", memberEmail)
-    .eq("active", true)
-    .maybeSingle();
-  if (memberError) return json(503, { error: "Membership could not be checked" }, origin);
-  if (!member) return json(403, { error: "Approved membership required" }, origin);
-  if (member.user_id && member.user_id !== userData.user.id) {
-    return json(403, { error: "Membership belongs to another account" }, origin);
-  }
-  if (!member.user_id) {
-    const { error: bindError } = await admin
-      .from("sales_os_members")
-      .update({ user_id: userData.user.id, updated_at: new Date().toISOString() })
-      .eq("email", memberEmail)
-      .is("user_id", null);
-    if (bindError) return json(503, { error: "Membership could not be linked" }, origin);
+  try {
+    await requireSalesOsMember({ userClient, admin });
+  } catch (error) {
+    if (error instanceof SalesOsAuthError) {
+      return json(error.status, { error: error.message }, origin);
+    }
+    return json(503, { error: "Membership could not be checked" }, origin);
   }
 
   const { data: sync, error: syncError } = await admin
