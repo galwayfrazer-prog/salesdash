@@ -52,9 +52,9 @@ const SPLIT_TARGETS = {Facebook:39.5, MSN:41.5};
 const ACCENT_COLORS = ["#ff6700","#00d4ff","#ff2d78","#7c3aed","#16a34a","#f59e0b","#06b6d4","#ec4899","#84cc16","#f97316"];
 const BADGE_EMOJIS = ["🏅","🥇","🔥","⚡","💎","🎯","🚀","👑","💪","🌟"];
 const TITLE_OPTIONS = [
-  "The Grinder","The Hard Closer","The Come-From-Behind",
-  "The Wet Signature","The Hard Push","The Long Hauler",
-  "The Deep Pipeline","The Hot Lead","The Inside Sale",
+  "The Closer","The Pipeline Builder","The Prospector",
+  "The Deal Maker","The Revenue Driver","The Top Performer",
+  "The Rainmaker","The Negotiator","The Consistent One",
 ];
 
 // ── STORAGE ───────────────────────────────────────────────────────────────────
