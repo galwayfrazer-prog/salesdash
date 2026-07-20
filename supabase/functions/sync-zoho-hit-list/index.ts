@@ -134,8 +134,9 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = requiredEnv("SUPABASE_URL");
-  const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const adminKey = optionalEnv("SALES_OS_SUPABASE_SECRET_KEY")
+    || requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const supabase = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const syncId = crypto.randomUUID();

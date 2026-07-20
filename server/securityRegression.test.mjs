@@ -94,7 +94,7 @@ assert.match(authMigrationSource, /SALES_OS_APPROVED_EXISTING_AUTH_USER_IDS/);
 
 const envExample = await readFile(path.join(root, ".env.example"), "utf8");
 for (const line of envExample.split(/\r?\n/)) {
-  if (!/^(ZOHO_CLIENT_SECRET|ZOHO_REFRESH_TOKEN|SUPABASE_SERVICE_ROLE_KEY|HIT_LIST_SYNC_SECRET)=/.test(line)) continue;
+  if (!/^(ZOHO_CLIENT_SECRET|ZOHO_REFRESH_TOKEN|SUPABASE_SERVICE_ROLE_KEY|SALES_OS_SUPABASE_SECRET_KEY|HIT_LIST_SYNC_SECRET)=/.test(line)) continue;
   assert.equal(line.split("=", 2)[1], "", "Secret examples must remain blank.");
 }
 
@@ -103,7 +103,7 @@ try {
   for (const name of await readdir(distDirectory)) {
     if (!name.endsWith(".js")) continue;
     const bundledSource = await readFile(path.join(distDirectory, name), "utf8");
-    assert.doesNotMatch(bundledSource, /ZOHO_CLIENT_SECRET|SUPABASE_SERVICE_ROLE_KEY|HIT_LIST_SYNC_SECRET/);
+    assert.doesNotMatch(bundledSource, /ZOHO_CLIENT_SECRET|SUPABASE_SERVICE_ROLE_KEY|SALES_OS_SUPABASE_SECRET_KEY|HIT_LIST_SYNC_SECRET/);
     assert.doesNotMatch(bundledSource, /api\.anthropic\.com|api\.resend\.com\/emails/i);
   }
 } catch (error) {
