@@ -153,10 +153,61 @@ insert into auth.users (
   'authenticated', 'authenticated', 'rep8@wildvision.io', now(), now(),
   '{}', '{}', now(), now(), false, false
 );
+set role authenticated;
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000008', false);
+select * from public.claim_sales_os_membership();
+reset role;
+
 do $$
 begin
-  if exists (select 1 from public.sales_os_members where user_id = '10000000-0000-0000-0000-000000000008') then
-    raise exception 'A recreated same-email Auth user reclaimed a role';
+  if not exists (
+    select 1 from public.sales_os_members
+    where user_id = '10000000-0000-0000-0000-000000000008'
+      and email = 'rep8@wildvision.io'
+      and role = 'rep'
+      and active = true
+  ) then
+    raise exception 'An approved recreated Google account could not rejoin';
+  end if;
+end;
+$$;
+
+update public.sales_os_approved_emails
+set active = false
+where email = 'rep8@wildvision.io';
+delete from auth.users where id = '10000000-0000-0000-0000-000000000008';
+
+insert into auth.users (
+  instance_id, id, aud, role, email, email_confirmed_at, last_sign_in_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_sso_user, is_anonymous
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '20000000-0000-0000-0000-000000000008',
+  'authenticated', 'authenticated', 'rep8@wildvision.io', now(), now(),
+  '{}', '{}', now(), now(), false, false
+);
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000008', false);
+do $$
+begin
+  begin
+    perform * from public.claim_sales_os_membership();
+    raise exception 'A deactivated approved email reclaimed a role';
+  exception when insufficient_privilege then
+    null;
+  end;
+end;
+$$;
+reset role;
+
+do $$
+begin
+  if exists (
+    select 1 from public.sales_os_members
+    where user_id = '20000000-0000-0000-0000-000000000008'
+  ) then
+    raise exception 'A deactivated email still received membership';
   end if;
 end;
 $$;

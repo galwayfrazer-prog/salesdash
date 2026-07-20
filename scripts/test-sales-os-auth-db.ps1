@@ -14,6 +14,7 @@ npx.cmd supabase db reset --local
 if ($LASTEXITCODE -ne 0) { throw "Local Supabase reset failed." }
 
 $fixture = Join-Path $PSScriptRoot "..\supabase\tests\sales_os_auth_fixture.sql"
+$googleAccess = Join-Path $PSScriptRoot "..\supabase\tests\sales_os_google_access.sql"
 $preCutover = Join-Path $PSScriptRoot "..\supabase\tests\sales_os_auth_precutover.sql"
 $cutover = Join-Path $PSScriptRoot "..\supabase\cutover\202607_sales_os_auth_lockdown.sql"
 $postCutover = Join-Path $PSScriptRoot "..\supabase\tests\sales_os_auth_postcutover.sql"
@@ -21,8 +22,14 @@ $postCutover = Join-Path $PSScriptRoot "..\supabase\tests\sales_os_auth_postcuto
 Get-Content -Raw $fixture | docker exec -i $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres
 if ($LASTEXITCODE -ne 0) { throw "Local Auth fixture failed." }
 
+Get-Content -Raw $googleAccess | docker exec -i $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres
+if ($LASTEXITCODE -ne 0) { throw "The Google email allowlist test failed." }
+
 Get-Content -Raw $preCutover | docker exec -i $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres
 if ($LASTEXITCODE -ne 0) { throw "The pre-cutover Preview reader exposed unsafe data." }
+
+docker exec $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "update auth.users set email_confirmed_at = null where email = 'rep8@wildvision.io';" *> $null
+if ($LASTEXITCODE -ne 0) { throw "Could not create the invalid local account fixture." }
 
 $failedAsExpected = $false
 $previousErrorPreference = $ErrorActionPreference
@@ -31,12 +38,12 @@ Get-Content -Raw $cutover | docker exec -i $container psql -v ON_ERROR_STOP=1 -U
 $cutoverExitCode = $LASTEXITCODE
 $ErrorActionPreference = $previousErrorPreference
 if ($cutoverExitCode -ne 0) { $failedAsExpected = $true }
-if (-not $failedAsExpected) { throw "Cutover should have rejected an account that never signed in." }
+if (-not $failedAsExpected) { throw "Cutover should have rejected an unconfirmed linked account." }
 
 $rollbackState = docker exec $container psql -U postgres -d postgres -Atc "select (exists(select 1 from public.kv_store where key like 'invite:%'))::text || '|' || (exists(select 1 from public.kv_store where key like 'user:%' and value::jsonb ? 'passwordHash'))::text;"
 if ($rollbackState.Trim() -ne "true|true") { throw "Failed cutover did not roll back safely." }
 
-docker exec $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "update auth.users set last_sign_in_at = now() where email = 'rep8@wildvision.io';" *> $null
+docker exec $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "update auth.users set email_confirmed_at = now(), last_sign_in_at = now() where email = 'rep8@wildvision.io';" *> $null
 if ($LASTEXITCODE -ne 0) { throw "Could not complete the local account fixture." }
 
 Get-Content -Raw $cutover | docker exec -i $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres

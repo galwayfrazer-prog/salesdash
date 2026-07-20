@@ -4,6 +4,11 @@ import { fetchZohoData } from "./zohoApi.js";
 import { filterDealsForPeriod } from "./salesPeriod.js";
 import { supabase } from "./supabaseClient.js";
 import {
+  buildPostedMeetingRecap,
+  createEmptyMeetingRecap,
+  hasMeetingRecapContent,
+} from "./meetingRecap.mjs";
+import {
   makeLocalTestUser,
   mergeAuthenticatedUser,
   normalizeEmail,
@@ -441,24 +446,33 @@ export default function App() {
     }
   }
 
-  async function hydrateHostedUser(authUser, forcePasswordSetup=false) {
-    const { data: membership, error: memberError } = await supabase
+  async function readHostedMembership(authUserId) {
+    return supabase
       .from("sales_os_members")
       .select("email,user_id,role,display_name,active")
-      .eq("user_id", authUser.id)
+      .eq("user_id", authUserId)
       .eq("active", true)
       .maybeSingle();
+  }
+
+  async function hydrateHostedUser(authUser) {
+    let { data: membership, error: memberError } = await readHostedMembership(authUser.id);
     if (memberError) throw new Error("Team membership could not be checked.");
-    if (!membership) throw new Error("This account has not been approved for Sales OS.");
+    if (!membership) {
+      const { error: claimError } = await supabase.rpc("claim_sales_os_membership");
+      if (claimError) throw new Error("This work email has not been approved for Sales OS.");
+      ({ data: membership, error: memberError } = await readHostedMembership(authUser.id));
+      if (memberError) throw new Error("Team membership could not be checked.");
+    }
+    if (!membership) throw new Error("This work email has not been approved for Sales OS.");
 
     await syncFromSupabase();
     const hydrated = mergeAuthenticatedUser(authUser, membership, getUser(membership.email));
-    if (forcePasswordSetup) hydrated.needsPasswordSetup = true;
     setUser(hydrated);
     authUserIdRef.current = hydrated.authUserId;
     setAllUsers(getAllUsers().filter(item=>item.setupComplete));
     setAuthError("");
-    setView(hydrated.needsPasswordSetup ? "password" : hydrated.setupComplete ? "dashboard" : "setup");
+    setView(hydrated.setupComplete ? "dashboard" : "setup");
     return hydrated;
   }
 
@@ -473,7 +487,6 @@ export default function App() {
     }
 
     let active = true;
-    const passwordLink = /(?:^|[&#?])type=(?:recovery|invite)(?:&|$)/.test(window.location.hash + window.location.search);
     supabase.auth.getUser()
       .then(async ({ data, error }) => {
         if (!active) return;
@@ -485,9 +498,11 @@ export default function App() {
           setView("login");
           return;
         }
-        try { await hydrateHostedUser(data.user, passwordLink); }
+        try { await hydrateHostedUser(data.user); }
         catch (loadError) {
+          await supabase.auth.signOut({ scope: "local" });
           clearDashboardCache();
+          authUserIdRef.current = null;
           setAuthError(loadError.message);
           setView("login");
         }
@@ -515,24 +530,12 @@ export default function App() {
             if (error || !data.user) throw new Error("Invalid session");
             if (data.user.id !== authUserIdRef.current) await hydrateHostedUser(data.user);
           } catch {
+            await supabase.auth.signOut({ scope: "local" });
             clearDashboardCache();
             authUserIdRef.current = null;
             setUser(null);
             setAllUsers([]);
             setAuthError("The signed-in account could not be verified. Please sign in again.");
-            setView("login");
-          }
-        });
-      }
-      if (event === "PASSWORD_RECOVERY") {
-        queueMicrotask(async () => {
-          try {
-            const { data, error } = await supabase.auth.getUser();
-            if (error || !data.user) throw new Error("Invalid recovery session");
-            await hydrateHostedUser(data.user, true);
-          } catch {
-            clearDashboardCache();
-            setAuthError("The password link could not be opened safely. Please request a new one.");
             setView("login");
           }
         });
@@ -544,35 +547,35 @@ export default function App() {
     };
   }, []);
 
-  async function doLogin(email, password) {
+  async function doLocalLogin(email) {
     const normalizedEmail = normalizeEmail(email);
-    if (localAuthMode) {
-      const localUser = makeLocalTestUser(
-        normalizedEmail,
-        import.meta.env.VITE_LOCAL_USER_ROLE || "manager",
-        getUser(normalizedEmail),
-      );
-      localStorage.setItem("wvos:user:" + normalizedEmail, JSON.stringify(localUser));
-      setUser(localUser);
-      setAllUsers(getAllUsers().filter(item=>item.setupComplete));
-      setView(localUser.setupComplete ? "dashboard" : "setup");
-      return null;
-    }
-    if (!supabase) return "Sales OS login is not configured yet.";
-    let data;
-    let error;
-    try {
-      ({ data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password }));
-    } catch {
-      return "Sales OS could not connect. Please try again.";
-    }
-    if (error || !data.user) return "Email or password is incorrect.";
-    try { await hydrateHostedUser(data.user); }
-    catch (loadError) {
-      await supabase.auth.signOut({ scope: "local" });
-      return loadError.message;
-    }
+    if (!localAuthMode) return "Local test login is not available here.";
+    const localUser = makeLocalTestUser(
+      normalizedEmail,
+      import.meta.env.VITE_LOCAL_USER_ROLE || "manager",
+      getUser(normalizedEmail),
+    );
+    localStorage.setItem("wvos:user:" + normalizedEmail, JSON.stringify(localUser));
+    setUser(localUser);
+    setAllUsers(getAllUsers().filter(item=>item.setupComplete));
+    setView(localUser.setupComplete ? "dashboard" : "setup");
     return null;
+  }
+
+  async function doGoogleLogin() {
+    if (!supabase) return "Sales OS login is not configured yet.";
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: {
+          hd: "wildvision.io",
+          prompt: "select_account",
+        },
+      },
+    });
+    return error ? "Google sign-in could not start. Please try again." : null;
   }
 
   async function doLogout() {
@@ -582,37 +585,6 @@ export default function App() {
     setUser(null);
     setAllUsers([]);
     setView("login");
-  }
-
-  async function completeRequiredPassword(password) {
-    if (!user) return;
-    if (!supabase) {
-      const updated={...user,needsPasswordSetup:false};
-      setUser(updated);
-      setView(updated.setupComplete?"dashboard":"setup");
-      return;
-    }
-    const { data, error } = await supabase.auth.updateUser({
-      password,
-      data: { needs_password_setup: false },
-    });
-    if (error || !data.user) throw new Error("Password could not be changed.");
-    await supabase.auth.signOut({ scope: "others" });
-    await hydrateHostedUser(data.user);
-  }
-
-  async function changeOwnPassword(password) {
-    if (!supabase) return;
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw new Error("Password could not be changed.");
-    await supabase.auth.signOut({ scope: "others" });
-  }
-
-  async function requestPasswordReset(email) {
-    if (!supabase) throw new Error("Password recovery is only available on the hosted test site.");
-    const redirectTo = `${window.location.origin}${window.location.pathname}`;
-    const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), { redirectTo });
-    if (error) throw new Error("The recovery email could not be sent.");
   }
 
   useEffect(() => { if(user) refreshAllUsers(); }, [user?.email]);
@@ -696,11 +668,10 @@ export default function App() {
           <div style={{fontSize:13,color:"var(--text-dim3)",letterSpacing:"0.06em",textTransform:"uppercase"}}>Loading...</div>
         </div>
       )}
-      {!syncing && view==="login" && <LoginScreen doLogin={doLogin} requestPasswordReset={requestPasswordReset} localMode={localAuthMode} configError={authError} />}
-      {!syncing && user?.needsPasswordSetup && view!=="login" && <RequiredPasswordChange user={user} onSave={completeRequiredPassword} doLogout={doLogout} />}
-      {!syncing && view==="setup" && user && !user.needsPasswordSetup && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
-      {!syncing && user && !user.needsPasswordSetup && user.setupComplete && view!=="login" && view!=="setup" && (
-        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} changeOwnPassword={changeOwnPassword} lightMode={lightMode} toggleLightMode={toggleLightMode} />
+      {!syncing && view==="login" && <LoginScreen doLocalLogin={doLocalLogin} doGoogleLogin={doGoogleLogin} localMode={localAuthMode} configError={authError} />}
+      {!syncing && view==="setup" && user && <SetupScreen user={user} refreshUser={refreshUser} setView={setView} />}
+      {!syncing && user?.setupComplete && view!=="login" && view!=="setup" && (
+        <Shell user={user} view={view} setView={setView} doLogout={doLogout} allUsers={allUsers} refreshAllUsers={refreshAllUsers} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />
       )}
     </div>
   );
@@ -708,58 +679,17 @@ export default function App() {
 
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
-function RequiredPasswordChange({ user, onSave, doLogout }) {
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function submit(event) {
-    event.preventDefault();
-    setError("");
-    if (password.length<8) { setError("Use at least 8 characters."); return; }
-    if (password!==confirmation) { setError("Passwords don't match."); return; }
-    setSaving(true);
-    try { await onSave(password); }
-    catch (saveError) { setError(saveError.message||"Password could not be changed."); setSaving(false); }
-  }
-
-  return (
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <form onSubmit={submit} className="card" style={{width:"100%",maxWidth:390,padding:24}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:22}}>
-          <img src={WV_LOGO} alt="" style={{width:30,height:30}} />
-          <div>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:700,textTransform:"uppercase"}}>Choose a new password</div>
-            <div style={{fontSize:12,color:"var(--text-dim)"}}>{user.email}</div>
-          </div>
-        </div>
-        <p style={{fontSize:13,color:"var(--text-muted)",marginBottom:16}}>Set a private password before continuing to Sales OS.</p>
-        <div style={{display:"grid",gap:12}}>
-          <div><label>New password</label><input type="password" autoComplete="new-password" value={password} onChange={event=>setPassword(event.target.value)} /></div>
-          <div><label>Confirm password</label><input type="password" autoComplete="new-password" value={confirmation} onChange={event=>setConfirmation(event.target.value)} /></div>
-        </div>
-        {error&&<div style={{color:"#ef4444",fontSize:13,marginTop:12}}>{error}</div>}
-        <button type="submit" className="btn btn-p" disabled={saving} style={{width:"100%",justifyContent:"center",marginTop:16}}>{saving?"Saving...":"Save and continue"}</button>
-        <button type="button" onClick={doLogout} style={{width:"100%",marginTop:10,background:"none",border:"none",color:"var(--text-dim)",cursor:"pointer"}}>Sign out</button>
-      </form>
-    </div>
-  );
-}
-
-function LoginScreen({ doLogin, requestPasswordReset, localMode, configError }) {
+function LoginScreen({ doLocalLogin, doGoogleLogin, localMode, configError }) {
   const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [recoverySent, setRecoverySent] = useState(false);
 
   async function tryLogin(e) {
     e.preventDefault(); setErr("");
-    if (!email.trim()||(!localMode&&!pw)){setErr(localMode?"Enter the email to use for the local test.":"Enter your email and password.");return;}
+    if (!email.trim()){setErr("Enter the email to use for the local test.");return;}
     setBusy(true);
     try {
-      const r = await doLogin(email, pw);
+      const r = await doLocalLogin(email);
       if (r) setErr(r);
     } catch {
       setErr("Sales OS could not connect. Please try again.");
@@ -768,12 +698,14 @@ function LoginScreen({ doLogin, requestPasswordReset, localMode, configError }) 
     }
   }
 
-  async function sendRecovery() {
-    setErr(""); setRecoverySent(false);
-    if (!email.trim()) { setErr("Enter your email first."); return; }
+  async function startGoogleLogin() {
+    setErr("");
     setBusy(true);
-    try { await requestPasswordReset(email); setRecoverySent(true); }
-    catch (error) { setErr(error.message); }
+    try {
+      const message = await doGoogleLogin();
+      if (message) setErr(message);
+    }
+    catch { setErr("Google sign-in could not start. Please try again."); }
     finally { setBusy(false); }
   }
 
@@ -790,16 +722,24 @@ function LoginScreen({ doLogin, requestPasswordReset, localMode, configError }) 
         {localMode&&<div style={{fontSize:12,color:"#f59e0b",marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>Local test mode. No real account is being used.</div>}
         {configError&&<div style={{color:"#f59e0b",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>{configError}</div>}
         {err&&<div style={{color:"#ef4444",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#ef444418",borderRadius:6,border:"1px solid #ef444433"}}>{err}</div>}
-        {recoverySent&&<div style={{color:"#4ade80",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#16a34a18",borderRadius:6,border:"1px solid #16a34a33"}}>If this is an approved account, a recovery email is on its way.</div>}
-        <form onSubmit={tryLogin} className="fi">
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:18}}>{localMode?"Open local test.":"Welcome back."}</div>
-          <div style={{display:"grid",gap:12,marginBottom:16}}>
-            <div><label>Email</label><input type="email" autoComplete="email" placeholder="you@wildvision.io" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-            {!localMode&&<div><label>Password</label><input type="password" autoComplete="current-password" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} /></div>}
+        {localMode ? (
+          <form onSubmit={tryLogin} className="fi">
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:18}}>Open local test.</div>
+            <div style={{display:"grid",gap:12,marginBottom:16}}>
+              <div><label>Email</label><input type="email" autoComplete="email" placeholder="you@wildvision.io" value={email} onChange={e=>setEmail(e.target.value)} /></div>
+            </div>
+            <button type="submit" className="btn btn-p" disabled={busy} style={{width:"100%",justifyContent:"center"}}>{busy?"Checking...":"Continue →"}</button>
+          </form>
+        ) : (
+          <div className="fi">
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Sign in to Sales OS.</div>
+            <p style={{fontSize:13,color:"var(--text-muted)",lineHeight:1.5,marginBottom:18}}>Use your approved Wild Vision Google account.</p>
+            <button type="button" className="btn btn-p" onClick={startGoogleLogin} disabled={busy} style={{width:"100%",justifyContent:"center",background:"#fff",color:"#111",border:"1px solid #ddd"}}>
+              {busy?"Opening Google...":"Continue with Google"}
+            </button>
+            <p style={{fontSize:11,color:"var(--text-dim3)",textAlign:"center",lineHeight:1.5,marginTop:12}}>Only approved @wildvision.io accounts can open this app.</p>
           </div>
-          <button type="submit" className="btn btn-p" disabled={busy} style={{width:"100%",justifyContent:"center"}}>{busy?"Checking...":localMode?"Continue →":"Sign In →"}</button>
-          {!localMode&&<button type="button" onClick={sendRecovery} disabled={busy} style={{width:"100%",marginTop:12,background:"none",border:"none",color:"var(--text-dim)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:12}}>Forgot password?</button>}
-        </form>
+        )}
       </div>
     </div>
   );
@@ -918,7 +858,7 @@ function SetupScreen({ user, refreshUser, setView }) {
 }
 
 // ── SHELL ─────────────────────────────────────────────────────────────────────
-function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, changeOwnPassword, lightMode, toggleLightMode }) {
+function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, lightMode, toggleLightMode }) {
   const [open, setOpen] = useState(true);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
@@ -972,7 +912,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         {view==="calculator"&&<Calculator user={user} />}
         {view==="targets"&&<Targets user={user} allUsers={allUsers} />}
         {view==="incentive"&&<Incentives user={user} allUsers={allUsers} />}
-        {view==="profile"&&<Profile user={user} refreshUser={refreshUser} changeOwnPassword={changeOwnPassword} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
+        {view==="profile"&&<Profile user={user} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
         {view==="admin"&&user.role==="manager"&&<Admin user={user} allUsers={allUsers} refreshAllUsers={refreshAllUsers} />}
       </div>
     </div>
@@ -4153,24 +4093,15 @@ function Incentives({ user, allUsers }) {
 }
 
 // ── PROFILE ───────────────────────────────────────────────────────────────────
-function Profile({ user, refreshUser, changeOwnPassword, lightMode, toggleLightMode }) {
-  const [form, setForm] = useState({displayName:user.displayName||"",title:user.title||"",bio:user.bio||"",accentColor:user.accentColor||B.orange,photo:user.photo||null,pw:"",pw2:""});
+function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
+  const [form, setForm] = useState({displayName:user.displayName||"",title:user.title||"",bio:user.bio||"",accentColor:user.accentColor||B.orange,photo:user.photo||null});
   const [saved, setSaved] = useState(false);
-  const [err, setErr] = useState("");
   const fileRef = useRef();
   const c = form.accentColor;
 
-  async function save() {
-    if (form.pw&&form.pw.length<8){setErr("Password must be at least 8 characters.");return;}
-    if (form.pw&&form.pw!==form.pw2){setErr("Passwords don't match.");return;}
-    setErr("");
+  function save() {
     const updated={...user,displayName:form.displayName.trim(),nickname:form.displayName.trim(),title:form.title,bio:form.bio,accentColor:form.accentColor,photo:form.photo};
-    if (form.pw) {
-      try { await changeOwnPassword(form.pw); }
-      catch (error) { setErr(error.message); return; }
-    }
     saveUser(updated); refreshUser(); setSaved(true); setTimeout(()=>setSaved(false),2000);
-    setForm(p=>({...p,pw:"",pw2:""}));
   }
 
   return (
@@ -4220,15 +4151,7 @@ function Profile({ user, refreshUser, changeOwnPassword, lightMode, toggleLightM
               {lightMode?"☀️ Light":"🌙 Dark"}
             </button>
           </div>
-          {!user.localTestOnly&&<div style={{borderTop:`1px solid ${B.border}`,paddingTop:14}}>
-            <div style={{fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:10}}>Change Password (optional)</div>
-            <div style={{display:"grid",gap:10}}>
-              <div><label>New Password</label><input type="password" placeholder="Leave blank to keep current" value={form.pw} onChange={e=>setForm(p=>({...p,pw:e.target.value}))} /></div>
-              <div><label>Confirm</label><input type="password" value={form.pw2} onChange={e=>setForm(p=>({...p,pw2:e.target.value}))} /></div>
-            </div>
-          </div>}
         </div>
-        {err&&<div style={{color:"#ef4444",fontSize:13,marginTop:10}}>{err}</div>}
         <button className="btn btn-p" onClick={save} style={{marginTop:14,width:"100%",justifyContent:"center"}}>{saved?"✓ Saved!":"Save Changes"}</button>
       </div>
     </div>
@@ -4245,7 +4168,8 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   const [editSigning, setEditSigning] = useState(null);
   const [announcement, setAnnouncement] = useState(getAnnouncement()||{text:"",emoji:"📣"});
   const [annSaved, setAnnSaved] = useState(false);
-  const [recap, setRecap] = useState(getMeetingRecap()||{date:"",summary:"",link:"",tasks:[]});
+  const [currentRecap, setCurrentRecap] = useState(getMeetingRecap());
+  const [recap, setRecap] = useState(createEmptyMeetingRecap);
   const [recapSaved, setRecapSaved] = useState(false);
   const [newTask, setNewTask] = useState({task:"",assignee:"All"});
   const taskAssignees = ["All", ...allUsers.map(u => u.nickname||u.displayName)];
@@ -4286,12 +4210,21 @@ function Admin({ user, allUsers, refreshAllUsers }) {
     setTimeout(()=>setBadgeSaved(false),2000);
   }
   function saveRecap() {
-    if (!recap.summary.trim()&&!recap.tasks.length) return;
-    const r={...recap, updatedAt:Date.now(), updatedBy:user.email};
-    saveMeetingRecap(r); setRecapSaved(true);
+    if (!hasMeetingRecapContent(recap)) return;
+    if (currentRecap&&!window.confirm("A recap is already live. Replace it with this new recap?")) return;
+    const r=buildPostedMeetingRecap(recap,{updatedAt:Date.now(),updatedBy:user.email});
+    saveMeetingRecap(r);
+    setCurrentRecap(r);
+    setRecap(createEmptyMeetingRecap());
+    setNewTask({task:"",assignee:"All"});
+    setRecapSaved(true);
     setTimeout(()=>setRecapSaved(false),2000);
   }
-  function removeRecap() { clearMeetingRecap(); setRecap({date:"",summary:"",link:"",tasks:[]}); }
+  function removeRecap() {
+    if (!currentRecap||!window.confirm("Clear the current team recap? It will disappear from every dashboard.")) return;
+    clearMeetingRecap();
+    setCurrentRecap(null);
+  }
   function addTask() {
     if (!newTask.task.trim()) return;
     setRecap(p=>({...p,tasks:[...p.tasks,{...newTask,id:Date.now()}]}));
@@ -4623,12 +4556,39 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {/* ── ANNOUNCE ── */}
       {tab==="recap"&&(
         <div>
-          <p style={{color:"var(--text-2)",fontSize:14,marginBottom:20}}>Post the weekly meeting summary and task list. It appears as a card on every rep's dashboard until you clear it.</p>
+          <p style={{color:"var(--text-2)",fontSize:14,marginBottom:20}}>The current recap appears on every rep's dashboard. Use the empty form below when you are ready to replace it.</p>
 
           {recapSaved&&<div style={{background:"#0a150a",border:"1px solid #1a3a1a",borderRadius:10,padding:"10px 16px",marginBottom:14,fontSize:13,color:"#4ade80"}}>✓ Recap posted to all rep dashboards.</div>}
 
+          {currentRecap?(
+            <div className="card" style={{padding:22,marginBottom:14,borderColor:"#3b82f644"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:14}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#60a5fa",letterSpacing:"0.08em",textTransform:"uppercase"}}>Current Team Recap</div>
+                  <div style={{fontSize:12,color:"var(--text-dim3)",marginTop:3}}>Live on every rep's dashboard</div>
+                </div>
+                <button className="btn btn-g btn-sm" onClick={removeRecap}>Clear Current Recap</button>
+              </div>
+              {currentRecap.date&&<div style={{fontSize:12,color:"var(--text-dim3)",marginBottom:8}}>{currentRecap.date}</div>}
+              {currentRecap.summary&&<div style={{fontSize:14,color:"var(--text-3)",lineHeight:1.6,whiteSpace:"pre-wrap",marginBottom:(currentRecap.tasks||[]).length?12:0}}>{currentRecap.summary}</div>}
+              {(currentRecap.tasks||[]).length>0&&(
+                <div style={{display:"grid",gap:5,marginBottom:currentRecap.link?12:0}}>
+                  {(currentRecap.tasks||[]).map((t,i)=>(
+                    <div key={t.id||i} style={{fontSize:12,color:"var(--text-2)",padding:"7px 10px",background:"var(--bg-inner)",borderRadius:7}}>
+                      {t.task} <span style={{color:"#60a5fa"}}>— {t.assignee==="All"?"Everyone":t.assignee}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {currentRecap.link&&<a href={currentRecap.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:"#3b82f6",fontWeight:600,textDecoration:"none"}}>View recording →</a>}
+            </div>
+          ):(
+            <div className="card" style={{padding:18,marginBottom:14,color:"var(--text-2)",fontSize:13}}>No meeting recap is live.</div>
+          )}
+
           <div className="card" style={{padding:22,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Meeting Details</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:currentRecap?4:14}}>Create New Recap</div>
+            {currentRecap&&<div style={{fontSize:12,color:"var(--text-dim3)",marginBottom:14}}>You will be asked before this replaces the current recap.</div>}
             <div style={{display:"grid",gap:12}}>
               <div><label>Meeting Date</label><input placeholder="e.g. 27 May 2026" value={recap.date} onChange={e=>setRecap(p=>({...p,date:e.target.value}))} /></div>
               <div><label>Fathom Recording Link (optional)</label><input placeholder="https://fathom.video/calls/..." value={recap.link} onChange={e=>setRecap(p=>({...p,link:e.target.value}))} /></div>
@@ -4663,8 +4623,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
           </div>
 
           <div style={{display:"flex",gap:8}}>
-            <button className="btn btn-p" onClick={saveRecap} disabled={!recap.summary.trim()&&!recap.tasks.length} style={{justifyContent:"center"}}>{recapSaved?"✓ Posted!":"Post to Team"}</button>
-            {getMeetingRecap()&&<button className="btn btn-g" onClick={removeRecap}>Clear Recap</button>}
+            <button className="btn btn-p" onClick={saveRecap} disabled={!hasMeetingRecapContent(recap)} style={{justifyContent:"center"}}>{recapSaved?"✓ Posted!":currentRecap?"Replace Current Recap":"Post to Team"}</button>
           </div>
 
           {/* Preview */}

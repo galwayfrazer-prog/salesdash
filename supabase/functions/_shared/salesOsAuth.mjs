@@ -15,7 +15,9 @@ export async function requireSalesOsMember({ userClient, admin }) {
   }
 
   const email = String(user.email || "").trim().toLowerCase();
-  if (!email) throw new SalesOsAuthError(403, "Approved membership required");
+  if (!/^[^@\s]+@wildvision\.io$/.test(email)) {
+    throw new SalesOsAuthError(403, "A verified Wild Vision email is required");
+  }
 
   const { data: member, error: memberError } = await admin
     .from("sales_os_members")

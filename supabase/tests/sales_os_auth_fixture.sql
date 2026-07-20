@@ -12,6 +12,19 @@ create policy "allow all" on public.kv_store
   using (true)
   with check (true);
 
+delete from public.sales_os_approved_emails;
+insert into public.sales_os_approved_emails (email, role, display_name, active)
+values
+  ('manager1@wildvision.io', 'manager', 'Manager One', true),
+  ('manager2@wildvision.io', 'manager', 'Manager Two', true),
+  ('rep3@wildvision.io', 'rep', 'Rep Three', true),
+  ('rep4@wildvision.io', 'rep', 'Rep Four', true),
+  ('rep5@wildvision.io', 'rep', 'Rep Five', true),
+  ('rep6@wildvision.io', 'rep', 'Rep Six', true),
+  ('rep7@wildvision.io', 'rep', 'Rep Seven', true),
+  ('rep8@wildvision.io', 'rep', 'Rep Eight', true),
+  ('inactive@wildvision.io', 'rep', 'Inactive User', false);
+
 insert into auth.users (
   instance_id,
   id,

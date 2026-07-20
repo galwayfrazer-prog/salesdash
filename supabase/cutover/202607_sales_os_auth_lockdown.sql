@@ -1,6 +1,6 @@
--- Run this only during the coordinated Supabase Auth cutover, after every
--- existing Sales OS user has an accepted Auth account and a pre-bound
--- sales_os_members row. It intentionally stops the legacy browser login.
+-- Run this only after Google login has been tested by at least one approved
+-- manager. Other approved staff can claim their membership on first sign-in.
+-- It intentionally stops the legacy browser login.
 
 begin;
 
@@ -27,67 +27,67 @@ begin
     raise exception 'Sales OS user profiles must be valid JSON with an email matching their key';
   end if;
 
+  if (
+    select count(*)
+    from public.sales_os_approved_emails
+    where active = true
+  ) <> 8 then
+    raise exception 'Expected exactly eight active approved Sales OS emails';
+  end if;
+
   if exists (
     select 1
     from public.kv_store profile
-    left join public.sales_os_members member
-      on member.email = substring(profile.key from 6)
-    left join auth.users auth_user
-      on auth_user.id = member.user_id
+    left join public.sales_os_approved_emails approved
+      on approved.email = substring(profile.key from 6)
+      and approved.active = true
     where profile.key like 'user:%'
       and (
-        member.user_id is null
-        or member.active is not true
-        or member.role not in ('rep', 'manager')
+        approved.email is null
         or (
           profile.value::jsonb ? 'role'
-          and member.role <> coalesce(profile.value::jsonb ->> 'role', '')
+          and approved.role <> coalesce(profile.value::jsonb ->> 'role', '')
         )
-        or (
-          not (profile.value::jsonb ? 'role')
-          and (
-            has_table_privilege('anon', 'public.kv_store', 'INSERT,UPDATE,DELETE')
-            or exists (
-              select 1
-              from pg_policies
-              where schemaname = 'public'
-                and tablename = 'kv_store'
-                and roles @> array['public']::name[]
-            )
-          )
-        )
-        or lower(coalesce(auth_user.email, '')) <> member.email
-        or auth_user.email_confirmed_at is null
-        or auth_user.last_sign_in_at is null
-        or auth_user.deleted_at is not null
       )
   ) then
-    raise exception 'Every legacy Sales OS user must have an active, confirmed, exact Auth membership with the same approved role';
+    raise exception 'Every legacy profile must match the exact approved email and role';
   end if;
 
-  if (
-    select count(*)
-    from public.sales_os_members
-    where active = true
-  ) <> 8 then
-    raise exception 'Expected exactly eight active Sales OS memberships';
+  if (select count(*) from public.sales_os_approved_emails where active = true and role = 'manager') <> 2 then
+    raise exception 'Expected exactly two approved Sales OS managers';
   end if;
 
   if exists (
     select 1
     from public.sales_os_members member
+    left join public.sales_os_approved_emails approved
+      on approved.email = member.email
+      and approved.active = true
+    left join auth.users auth_user
+      on auth_user.id = member.user_id
     where member.active = true
-      and not exists (
-        select 1
-        from public.kv_store profile
-        where profile.key = ('user:' || member.email)
+      and (
+        approved.email is null
+        or approved.role <> member.role
+        or lower(coalesce(auth_user.email, '')) <> member.email
+        or auth_user.email_confirmed_at is null
+        or auth_user.deleted_at is not null
       )
   ) then
-    raise exception 'Active Sales OS memberships must exactly match the eight legacy user profiles';
+    raise exception 'Every existing membership must match a confirmed Auth user and approved role';
   end if;
 
-  if (select count(*) from public.sales_os_members where active = true and role = 'manager') <> 2 then
-    raise exception 'Expected exactly two active Sales OS managers';
+  if not exists (
+    select 1
+    from public.sales_os_members member
+    join auth.users auth_user on auth_user.id = member.user_id
+    where member.active = true
+      and member.role = 'manager'
+      and auth_user.email_confirmed_at is not null
+      and auth_user.last_sign_in_at is not null
+      and auth_user.deleted_at is null
+  ) then
+    raise exception 'At least one approved manager must test sign-in before cutover';
   end if;
 end;
 $$;

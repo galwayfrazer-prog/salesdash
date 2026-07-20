@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  isWildVisionEmail,
   makeLocalTestUser,
   mergeAuthenticatedUser,
   profileForRemoteStorage,
@@ -9,6 +10,10 @@ import {
   requireSalesOsMember,
   SalesOsAuthError,
 } from "../supabase/functions/_shared/salesOsAuth.mjs";
+
+assert.equal(isWildVisionEmail("FILIP.STANIC@WILDVISION.IO"), true);
+assert.equal(isWildVisionEmail("filip@wildvision.io.attacker.test"), false);
+assert.equal(isWildVisionEmail("filip@gmail.com"), false);
 
 const dirtyProfile = {
   email: "REP@WILDVISION.IO",
@@ -47,6 +52,14 @@ assert.throws(
   () => mergeAuthenticatedUser(authUser, { ...member, user_id: "another-user" }, dirtyProfile),
   /not linked/,
 );
+assert.throws(
+  () => mergeAuthenticatedUser({ ...authUser, email: "personal@gmail.com" }, { ...member, email: "personal@gmail.com" }, dirtyProfile),
+  /verified Wild Vision email/,
+);
+assert.throws(
+  () => mergeAuthenticatedUser({ ...authUser, email_confirmed_at: null }, member, dirtyProfile),
+  /verified Wild Vision email/,
+);
 
 const local = makeLocalTestUser("local@wildvision.io", "manager", dirtyProfile);
 assert.equal(local.localTestOnly, true);
@@ -81,6 +94,14 @@ await assert.rejects(
   requireSalesOsMember({
     userClient: { auth: { async getUser() { return { data: { user: authUser }, error: null }; } } },
     admin: { from() { return queryResult({ data: null, error: null }, []); } },
+  }),
+  (error) => error instanceof SalesOsAuthError && error.status === 403,
+);
+
+await assert.rejects(
+  requireSalesOsMember({
+    userClient: { auth: { async getUser() { return { data: { user: { ...authUser, email: "personal@gmail.com" } }, error: null }; } } },
+    admin: { from() { throw new Error("Membership query must not run for a personal email."); } },
   }),
   (error) => error instanceof SalesOsAuthError && error.status === 403,
 );

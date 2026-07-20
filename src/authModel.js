@@ -14,6 +14,10 @@ export function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+export function isWildVisionEmail(value) {
+  return /^[^@\s]+@wildvision\.io$/.test(normalizeEmail(value));
+}
+
 export function displayNameFromEmail(value) {
   return normalizeEmail(value)
     .split("@")[0]
@@ -43,7 +47,10 @@ export function mergeAuthenticatedUser(authUser, membership, legacyProfile = {})
   const authEmail = normalizeEmail(authUser?.email);
   const memberEmail = normalizeEmail(membership?.email);
   if (!authUser?.id || !membership?.active) throw new Error("Approved membership required.");
-  if (membership.user_id !== authUser.id || !authEmail || memberEmail !== authEmail) {
+  if (!authUser.email_confirmed_at || !isWildVisionEmail(authEmail)) {
+    throw new Error("A verified Wild Vision email is required.");
+  }
+  if (membership.user_id !== authUser.id || memberEmail !== authEmail) {
     throw new Error("This account is not linked to the approved membership.");
   }
 

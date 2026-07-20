@@ -18,15 +18,19 @@ for (const forbidden of [
   /function\s+secureReadableCode\b/,
   /auth\.admin/,
   /LS\.set\(["']invite:/,
+  /auth\.signInWithPassword/,
+  /auth\.resetPasswordForEmail/,
+  /auth\.updateUser\(\{\s*password/,
+  /type=["']password["']/,
 ]) {
   assert.doesNotMatch(appSource, forbidden);
 }
 for (const required of [
-  /auth\.signInWithPassword/,
+  /auth\.signInWithOAuth/,
+  /provider:\s*["']google["']/,
+  /claim_sales_os_membership/,
   /auth\.getUser/,
   /auth\.onAuthStateChange/,
-  /auth\.resetPasswordForEmail/,
-  /auth\.updateUser/,
 ]) {
   assert.match(appSource, required);
 }
@@ -36,6 +40,7 @@ const sharedAuthSource = await readFile(
   "utf8",
 );
 assert.match(sharedAuthSource, /\.eq\("user_id", user\.id\)/);
+assert.match(sharedAuthSource, /wildvision\\\.io/);
 assert.doesNotMatch(sharedAuthSource, /\.update\(/);
 assert.doesNotMatch(sharedAuthSource, /\.eq\("email"/);
 
@@ -55,6 +60,16 @@ assert.match(previewMigrationSource, /- 'passwordHash'/i);
 assert.doesNotMatch(previewMigrationSource, /delete from public\.kv_store/i);
 assert.doesNotMatch(previewMigrationSource, /revoke all on table public\.kv_store/i);
 
+const googleAccessMigrationSource = await readFile(
+  path.join(root, "supabase", "migrations", "202607200001_sales_os_google_access.sql"),
+  "utf8",
+);
+assert.match(googleAccessMigrationSource, /sales_os_approved_emails/i);
+assert.match(googleAccessMigrationSource, /claim_sales_os_membership/i);
+assert.match(googleAccessMigrationSource, /email_confirmed_at is not null/i);
+assert.match(googleAccessMigrationSource, /grant execute on function public\.claim_sales_os_membership\(\) to authenticated/i);
+assert.doesNotMatch(googleAccessMigrationSource, /grant select.*sales_os_approved_emails.*authenticated/i);
+
 const cutoverSource = await readFile(
   path.join(root, "supabase", "cutover", "202607_sales_os_auth_lockdown.sql"),
   "utf8",
@@ -63,7 +78,8 @@ assert.match(cutoverSource, /lock table public\.kv_store in share row exclusive 
 assert.match(cutoverSource, /from pg_policies/i);
 assert.match(cutoverSource, /revoke all on table public\.kv_store from public, anon, authenticated/i);
 assert.match(cutoverSource, /- 'passwordHash'/);
-assert.match(cutoverSource, /last_sign_in_at is null/i);
+assert.match(cutoverSource, /last_sign_in_at is not null/i);
+assert.match(cutoverSource, /sales_os_approved_emails/i);
 assert.match(cutoverSource, /sales_os_dashboard_snapshot/i);
 assert.match(cutoverSource, /sales_os_safe_team_signings/i);
 assert.match(cutoverSource, /key in \('announcement:current', 'meeting:recap'\)/i);
