@@ -410,7 +410,8 @@ export default function App() {
     if (savedMode === "1") setLightMode(true);
     syncFromSupabase().finally(async () => {
       if (!getUser("frazer@wildvision.io")) {
-        saveUser({email:"frazer@wildvision.io",passwordHash:await hashPassword("WildVision123"),role:"manager",displayName:"Frazer",nickname:"Frazer",title:"Head of Sales",bio:"",accentColor:"#ff6700",photo:null,setupComplete:true,createdAt:Date.now()});
+        // Default manager account — password must be set manually in Supabase kv_store
+      // to avoid hardcoding credentials in source code. See README for setup instructions.
       }
       const saved = sessionStorage.getItem("wv_dash_user");
       if (saved) { try { const u=JSON.parse(saved); setUser(u); setView(u.setupComplete?"dashboard":"setup"); } catch {} }
@@ -1318,7 +1319,6 @@ function RepStats({ user, allUsers }) {
       <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Stats up to handoff — once it reaches Ready to Submit or Awaiting Platform Approval, it's out of your hands.</p>
       <p style={{color:"var(--text-dim2)",fontSize:13,marginBottom:20}}>Live from Zoho CRM.</p>
 
-      {error==="demo"&&<div style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#d97706"}}>⚡ Demo data — live Zoho data loads in Bolt.</div>}
 
       {loading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
 
