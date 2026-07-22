@@ -16,6 +16,11 @@ import {
   performanceEventsForOwner,
 } from "./zohoSalesMetrics.js";
 import {
+  clearZohoSalesSnapshots,
+  readZohoSalesSnapshot,
+  writeZohoSalesSnapshot,
+} from "./zohoSalesSnapshot.js";
+import {
   buildPostedMeetingRecap,
   createEmptyMeetingRecap,
   hasMeetingRecapContent,
@@ -34,13 +39,14 @@ import {
 } from "./authModel.js";
 
 // ── SUPABASE ───────────────────────────────────────────────────────────────────
-function clearDashboardCache() {
+function clearDashboardCache({ clearSalesSnapshot = true } = {}) {
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
     if (key?.startsWith("wvos:") && !key.startsWith("wvos:pref:")) {
       localStorage.removeItem(key);
     }
   }
+  if (clearSalesSnapshot) clearZohoSalesSnapshots();
 }
 
 // Pull dashboard data only after Supabase Auth has verified the user.
@@ -58,7 +64,7 @@ async function syncFromSupabase() {
   if (kvResult.error) throw new Error("Dashboard data could not be loaded.");
   if (memberResult.error) throw new Error("Team membership could not be loaded.");
 
-  clearDashboardCache();
+  clearDashboardCache({ clearSalesSnapshot:false });
 
   const members = memberResult.data || [];
   const membersByEmail = new Map(members.map((member) => [normalizeEmail(member.email), member]));
@@ -958,42 +964,58 @@ function SetupScreen({ user, refreshUser, setView }) {
 
 // ── SHELL ─────────────────────────────────────────────────────────────────────
 function useZohoSalesData(user, onAuthRequired) {
-  const [state, setState] = useState({
-    loading: true,
-    ready: false,
-    error: "",
-    stale: false,
-    generatedAt: "",
-    ownDeals: [],
-    teamDeals: [],
-    teamEvents: [],
+  const [state, setState] = useState(() => {
+    const cached = readZohoSalesSnapshot(user);
+    return {
+      loading: true,
+      ready: Boolean(cached),
+      error: "",
+      stale: cached?.stale === true,
+      generatedAt: cached?.generatedAt || "",
+      ownDeals: cached?.ownDeals || [],
+      teamDeals: [],
+      teamEvents: cached?.teamEvents || [],
+      cached: Boolean(cached),
+      teamDetailsLoading: false,
+      teamDetailsError: "",
+    };
   });
   const requestIdRef = useRef(0);
   const authRequiredRef = useRef(onAuthRequired);
   authRequiredRef.current = onAuthRequired;
 
+  async function loadManagerTeamDetails(requestId, quickState) {
+    try {
+      const payload = await fetchZohoData("zoho-sales-deals", { scope:"team" });
+      if (requestId !== requestIdRef.current) return;
+      const teamDeals = Array.isArray(payload.deals) ? payload.deals : [];
+      const fullState = {
+        ...quickState,
+        stale: quickState.stale || payload.stale === true,
+        generatedAt: payload.generatedAt || quickState.generatedAt,
+        teamDeals,
+        teamEvents: buildZohoPerformanceEvents(teamDeals),
+        cached: false,
+        teamDetailsLoading: false,
+        teamDetailsError: "",
+      };
+      setState(fullState);
+      writeZohoSalesSnapshot(user, fullState);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      setState(previous=>({
+        ...previous,
+        teamDetailsLoading:false,
+        teamDetailsError:error?.message || "Full team details could not be loaded.",
+      }));
+      if (isAuthRequiredError(error)) authRequiredRef.current?.();
+    }
+  }
+
   async function load() {
     const requestId = ++requestIdRef.current;
     setState(previous=>({...previous,loading:true,error:""}));
     try {
-      if (user.role === "manager") {
-        const payload = await fetchZohoData("zoho-sales-deals", { scope:"team" });
-        const teamDeals = Array.isArray(payload.deals) ? payload.deals : [];
-        const email = user.email.toLowerCase();
-        if (requestId !== requestIdRef.current) return;
-        setState({
-            loading: false,
-            ready: true,
-            error: "",
-          stale: payload.stale===true,
-          generatedAt: payload.generatedAt||"",
-          ownDeals: teamDeals.filter(deal=>String(deal.Owner?.email||"").toLowerCase()===email),
-          teamDeals,
-          teamEvents: buildZohoPerformanceEvents(teamDeals),
-        });
-        return;
-      }
-
       const [personal, summary] = await Promise.all([
         fetchZohoData("zoho-sales-deals", { ownerEmail:user.email }),
         fetchZohoData("zoho-sales-deals", { scope:"summary" }),
@@ -1004,22 +1026,32 @@ function useZohoSalesData(user, onAuthRequired) {
         .filter(event=>event.submittedBy!==ownEmail)
         .concat(buildZohoPerformanceEvents(ownDeals));
       if (requestId !== requestIdRef.current) return;
-      setState({
-          loading: false,
-          ready: true,
-          error: "",
+      const quickState = {
+        loading: false,
+        ready: true,
+        error: "",
         stale: personal.stale===true||summary.stale===true,
         generatedAt: personal.generatedAt||summary.generatedAt||"",
         ownDeals,
         teamDeals: [],
         teamEvents,
-      });
+        cached: false,
+        teamDetailsLoading: user.role === "manager",
+        teamDetailsError: "",
+      };
+      setState(previous=>({
+        ...quickState,
+        teamDeals:user.role === "manager" ? previous.teamDeals : [],
+      }));
+      writeZohoSalesSnapshot(user, quickState);
+      if (user.role === "manager") void loadManagerTeamDetails(requestId, quickState);
     } catch (error) {
       if (requestId !== requestIdRef.current) return;
       setState(previous=>({
-          ...previous,
-          loading:false,
-          error:error?.message||"Zoho sales data could not be loaded.",
+        ...previous,
+        loading:false,
+        stale:previous.ready || previous.stale,
+        error:error?.message||"Zoho sales data could not be loaded.",
       }));
       if (isAuthRequiredError(error)) authRequiredRef.current?.();
     }
@@ -1506,6 +1538,7 @@ function RepStats({ user, allUsers, salesData }) {
   const zohoDeals = salesData.ownDeals;
   const teamZohoDeals = salesData.teamDeals;
   const loading = salesData.loading;
+  const blockingLoading = loading && !salesData.ready;
   const error = salesData.error;
   const stale = salesData.stale;
   const generatedAt = salesData.generatedAt;
@@ -1546,9 +1579,9 @@ function RepStats({ user, allUsers, salesData }) {
       {error&&<div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#ef4444"}}><strong>Could not load Zoho stats.</strong> {error} No demo numbers are being shown.</div>}
       {!error&&stale&&<div role="status" style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#d97706"}}>Showing the last saved Zoho snapshot because the newest refresh failed.</div>}
 
-      {loading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
+      {blockingLoading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
 
-      {!loading&&<>
+      {!blockingLoading&&<>
         {/* Tab bar */}
         <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:20,width:"fit-content"}}>
           <button style={T("overview")} onClick={()=>setActiveTab("overview")}>Overview</button>
@@ -1718,7 +1751,13 @@ function RepStats({ user, allUsers, salesData }) {
         </>}
 
         {/* ── TEAM STATS (manager only) ── */}
-        {activeTab==="team"&&isManager&&<TeamStatsView allUsers={allUsers} deals={filterByPeriod(teamZohoDeals)} c={c} />}
+        {activeTab==="team"&&isManager&&(
+          salesData.teamDetailsLoading&&teamZohoDeals.length===0
+            ? <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading detailed team stats...</div></div>
+            : salesData.teamDetailsError&&teamZohoDeals.length===0
+              ? <div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"10px 16px",fontSize:13,color:"#ef4444"}}>Detailed team stats could not be loaded. The rest of Sales OS is still available.</div>
+              : <TeamStatsView allUsers={allUsers} deals={filterByPeriod(teamZohoDeals)} c={c} />
+        )}
       </>}
     </div>
   );

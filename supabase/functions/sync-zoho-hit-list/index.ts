@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildHitList, hitListCounts } from "../_shared/hitList.mjs";
 import { buildDealFacts } from "../_shared/dealFacts.mjs";
+import { buildTeamSalesSummary } from "../_shared/teamSalesSummary.mjs";
 import { fetchJsonWithRetry } from "../_shared/fetchJson.mjs";
 
 const DEFAULT_ACCOUNTS_DOMAIN = "https://accounts.zoho.eu";
@@ -168,6 +169,7 @@ Deno.serve(async (request) => {
       orgSlug: optionalEnv("ZOHO_CRM_ORG_SLUG", DEFAULT_CRM_ORG_SLUG),
     });
     const dealFacts = buildDealFacts(deals);
+    const teamSalesSummary = buildTeamSalesSummary(dealFacts);
     const counts = hitListCounts(rows, deals.length);
     const generatedAt = new Date().toISOString();
 
@@ -218,6 +220,7 @@ Deno.serve(async (request) => {
         opportunities: counts.opportunities,
         missing_spotify: counts.missingSpotify,
         missing_microsoft_start: counts.missingMicrosoftStart,
+        team_sales_summary: teamSalesSummary,
         error_code: null,
       })
       .eq("id", syncId);

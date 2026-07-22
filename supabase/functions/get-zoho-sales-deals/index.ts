@@ -105,7 +105,7 @@ Deno.serve(async (request) => {
 
   const { data: sync, error: syncError } = await admin
     .from("zoho_hit_list_syncs")
-    .select("id,generated_at")
+    .select("id,generated_at,team_sales_summary")
     .eq("status", "completed")
     .order("completed_at", { ascending: false })
     .limit(1)
@@ -119,11 +119,29 @@ Deno.serve(async (request) => {
   const wantsTeam = requestedScope === "team";
   const wantsSummary = requestedScope === "summary";
   const ownerEmail = wantsTeam && member.role === "manager" ? "" : memberEmail;
+  const generatedAt = sync.generated_at ? new Date(sync.generated_at).toISOString() : null;
+  const ageMs = generatedAt ? Date.now() - Date.parse(generatedAt) : 0;
+  const precomputedSummary = Array.isArray(sync.team_sales_summary)
+    ? sync.team_sales_summary
+    : [];
+
+  if (wantsSummary && precomputedSummary.length > 0) {
+    return json(200, {
+      source: "supabase-cache",
+      readOnly: true,
+      generatedAt,
+      stale: ageMs > 20 * 60 * 1000,
+      refreshIntervalMinutes: 10,
+      count: precomputedSummary.reduce(
+        (total, row) => total + (Number(row?.count) || 0),
+        0,
+      ),
+      teamSummary: precomputedSummary,
+    }, origin);
+  }
 
   try {
     const rows = await readAllFacts(admin, sync.id, wantsSummary ? "" : ownerEmail);
-    const generatedAt = sync.generated_at ? new Date(sync.generated_at).toISOString() : null;
-    const ageMs = generatedAt ? Date.now() - Date.parse(generatedAt) : 0;
     if (wantsSummary) {
       const teamSummary = buildTeamSalesSummary(rows);
       return json(200, {
