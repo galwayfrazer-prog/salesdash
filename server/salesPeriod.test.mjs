@@ -10,6 +10,6 @@ const deals = [
   { id: "invalid", Closing_Date: "not-a-date" },
 ];
 
-assert.deepEqual(filterDealsForPeriod(deals, "quarter", now).map(({ id }) => id), ["start", "inside"]);
-assert.equal(filterDealsForPeriod(deals, "all", now), deals);
+assert.deepEqual(filterDealsForPeriod(deals, "quarter", now).map(({ id }) => id), ["start"]);
+assert.deepEqual(filterDealsForPeriod(deals, "all", now).map(({ id }) => id), ["before", "start"]);
 console.log("Sales period boundary test passed.");

@@ -3,6 +3,7 @@ import {
   requireSalesOsMember,
   SalesOsAuthError,
 } from "../_shared/salesOsAuth.mjs";
+import { buildTeamSalesSummary } from "../_shared/teamSalesSummary.mjs";
 
 function env(name: string) {
   return Deno.env.get(name)?.trim() || "";
@@ -114,13 +115,27 @@ Deno.serve(async (request) => {
     error: "The Zoho cache has not completed its first sync yet",
   }, origin);
 
-  const wantsTeam = new URL(request.url).searchParams.get("scope") === "team";
+  const requestedScope = new URL(request.url).searchParams.get("scope") || "";
+  const wantsTeam = requestedScope === "team";
+  const wantsSummary = requestedScope === "summary";
   const ownerEmail = wantsTeam && member.role === "manager" ? "" : memberEmail;
 
   try {
-    const rows = await readAllFacts(admin, sync.id, ownerEmail);
+    const rows = await readAllFacts(admin, sync.id, wantsSummary ? "" : ownerEmail);
     const generatedAt = sync.generated_at ? new Date(sync.generated_at).toISOString() : null;
     const ageMs = generatedAt ? Date.now() - Date.parse(generatedAt) : 0;
+    if (wantsSummary) {
+      const teamSummary = buildTeamSalesSummary(rows);
+      return json(200, {
+        source: "supabase-cache",
+        readOnly: true,
+        generatedAt,
+        stale: ageMs > 20 * 60 * 1000,
+        refreshIntervalMinutes: 10,
+        count: teamSummary.reduce((total, row) => total + row.count, 0),
+        teamSummary,
+      }, origin);
+    }
     const deals = rows.map((row) => ({
       id: row.deal_id,
       Deal_Name: row.deal_name,

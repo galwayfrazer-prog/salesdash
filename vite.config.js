@@ -42,7 +42,7 @@ function localZohoHitListApi({ mode }) {
     });
   }
 
-  async function loadSalesDeals({ forceRefresh = false, ownerEmail = "", team = false } = {}) {
+  async function loadSalesDeals({ forceRefresh = false, ownerEmail = "", team = false, teamSummary = false } = {}) {
     const cache = await getCache();
     return getZohoSalesDeals({
       env,
@@ -52,6 +52,7 @@ function localZohoHitListApi({ mode }) {
       cache,
       ownerEmail,
       team,
+      teamSummary,
     });
   }
 
@@ -121,6 +122,7 @@ function localZohoHitListApi({ mode }) {
               forceRefresh,
               ownerEmail: requestUrl.searchParams.get("ownerEmail") || "",
               team: requestUrl.searchParams.get("scope") === "team",
+              teamSummary: requestUrl.searchParams.get("scope") === "summary",
             });
           response.statusCode = 200;
           response.end(JSON.stringify(payload));

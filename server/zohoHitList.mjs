@@ -5,6 +5,7 @@ import {
   hitListCounts,
 } from "../supabase/functions/_shared/hitList.mjs";
 import { buildDealFacts } from "../supabase/functions/_shared/dealFacts.mjs";
+import { buildTeamSalesSummary } from "../supabase/functions/_shared/teamSalesSummary.mjs";
 import { fetchJsonWithRetry } from "../supabase/functions/_shared/fetchJson.mjs";
 
 const DEFAULT_ACCOUNTS_DOMAIN = "https://accounts.zoho.eu";
@@ -286,6 +287,7 @@ export async function getZohoSalesDeals({
   cacheTtlMs = HIT_LIST_REFRESH_INTERVAL_MS,
   ownerEmail = "",
   team = false,
+  teamSummary = false,
 } = {}) {
   const snapshot = await getZohoSnapshot({
     env,
@@ -296,6 +298,19 @@ export async function getZohoSalesDeals({
     cacheTtlMs,
     requireDealFacts: true,
   });
+  if (teamSummary) {
+    const summary = buildTeamSalesSummary(snapshot.payload.dealFacts);
+    return {
+      source: snapshot.payload.source,
+      readOnly: true,
+      generatedAt: snapshot.payload.generatedAt,
+      refreshIntervalMinutes: snapshot.payload.refreshIntervalMinutes,
+      stale: snapshot.stale,
+      count: summary.reduce((total, row) => total + row.count, 0),
+      teamSummary: summary,
+    };
+  }
+
   const deals = filterDealFacts(snapshot.payload.dealFacts, { ownerEmail, team });
   return {
     source: snapshot.payload.source,

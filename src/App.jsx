@@ -4,6 +4,13 @@ import { fetchZohoData } from "./zohoApi.js";
 import { filterDealsForPeriod } from "./salesPeriod.js";
 import { supabase } from "./supabaseClient.js";
 import {
+  buildZohoPerformanceEvents,
+  buildZohoPerformanceEventsFromSummary,
+  computeZohoOutcomeStats,
+  normalizeZohoPlatform,
+  performanceEventsForOwner,
+} from "./zohoSalesMetrics.js";
+import {
   buildPostedMeetingRecap,
   createEmptyMeetingRecap,
   hasMeetingRecapContent,
@@ -190,12 +197,12 @@ const saveMeetingRecap = r => LS.set("meeting:recap", r);
 const clearMeetingRecap = () => LS.del("meeting:recap");
 
 // Activity feed — built from existing signing data across all users
-function getActivityFeed(allUsers, limit=40) {
+function getActivityFeed(allUsers, limit=40, salesEvents) {
   const events = [];
   allUsers.forEach(u => {
     const signings = getSignings(u.email);
     signings.forEach(s => {
-      if (s.status === "approved" && s.approvedAt) {
+      if (!Array.isArray(salesEvents) && s.status === "approved" && s.approvedAt) {
         events.push({ type:"approved", user:u, signing:s, ts:s.approvedAt });
       }
       if (s.status === "pending" && s.submittedAt) {
@@ -210,6 +217,14 @@ function getActivityFeed(allUsers, limit=40) {
       events.push({ type:"badge", user:u, badge:b, ts:b.awardedAt });
     });
   });
+  if (Array.isArray(salesEvents)) {
+    salesEvents.forEach(signing => {
+      const user = allUsers.find(item=>item.email.toLowerCase()===signing.submittedBy);
+      if (user && signing.timestamp) {
+        events.push({ type:"approved", user, signing, ts:signing.timestamp });
+      }
+    });
+  }
   return events.sort((a,b) => b.ts - a.ts).slice(0, limit);
 }
 
@@ -232,7 +247,10 @@ const initials = n => (n||"?").split(" ").map(w=>w[0]).join("").toUpperCase().sl
 const quarterStart = () => { const n=new Date(),q=Math.floor(n.getMonth()/3); return new Date(n.getFullYear(),q*3,1).getTime(); };
 const thirtyDaysAgo = () => Date.now()-30*24*60*60*1000;
 const greeting = () => { const h=new Date().getHours(); return h<12?"Morning":h<17?"Afternoon":"Evening"; };
-const wvPct = label => parseFloat(label)||50;
+const wvPct = label => {
+  const parsed = parseFloat(label);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
 
 // Quarter helpers
 function getQuarterBounds(offset=0) {
@@ -260,10 +278,10 @@ function daysLeftInQuarter() {
 }
 
 // Streak logic
-function calcStreaks(email) {
+function calcStreaks(email, salesEvents) {
   // Weekly streak: 2+ deals each week for 2+ consecutive weeks
   // Hot week: 3+ deals in current week
-  const all = getSignings(email).filter(s=>s.status==="approved"&&s.contractDate);
+  const all = approvedSignings(email, 0, salesEvents);
   const weeklyMap = {};
   all.forEach(s => {
     const d = new Date(s.contractDate);
@@ -287,14 +305,14 @@ function calcStreaks(email) {
 }
 
 // Rank change: compare this week vs last week rankings
-function getRankChange(email, allUsers, metric="total") {
-  function weekScore(em, since) {
-    const s=getSignings(em).filter(x=>x.status==="approved"&&x.contractDate&&new Date(x.contractDate).getTime()>=since);
-    return s.length;
+function getRankChange(email, allUsers, metric="total", salesEvents) {
+  function weekScore(em, since, until) {
+    const events=approvedSignings(em, since, salesEvents).filter(s=>s.timestamp<until);
+    return metric==="total"?events.length:events.filter(s=>s.platform===metric).length;
   }
   const thisWk=getWeekStart(0), lastWk=getWeekStart(-1);
-  const thisRanks=[...allUsers].sort((a,b)=>weekScore(b.email,thisWk)-weekScore(a.email,thisWk));
-  const lastRanks=[...allUsers].sort((a,b)=>weekScore(b.email,lastWk)-weekScore(a.email,lastWk));
+  const thisRanks=[...allUsers].sort((a,b)=>weekScore(b.email,thisWk,Date.now()+1)-weekScore(a.email,thisWk,Date.now()+1));
+  const lastRanks=[...allUsers].sort((a,b)=>weekScore(b.email,lastWk,thisWk)-weekScore(a.email,lastWk,thisWk));
   const thisPos=thisRanks.findIndex(u=>u.email===email);
   const lastPos=lastRanks.findIndex(u=>u.email===email);
   if (thisPos<0||lastPos<0) return 0;
@@ -309,23 +327,23 @@ function calcForecast(signings, daysElapsed, daysTotal) {
 }
 
 // Split trend: current quarter avg vs previous quarter avg
-function splitTrend(email, platform) {
+function splitTrend(email, platform, salesEvents) {
   const curr=getQuarterBounds(0), prev=getQuarterBounds(-1);
-  const currDeals=platformSignings(email,platform,curr.start).filter(s=>s.split&&new Date(s.contractDate).getTime()<=curr.end);
-  const prevDeals=platformSignings(email,platform,prev.start).filter(s=>s.split&&new Date(s.contractDate).getTime()<=prev.end);
+  const currDeals=platformSignings(email,platform,curr.start,salesEvents).filter(s=>wvPct(s.split)!=null&&new Date(s.contractDate).getTime()<=curr.end);
+  const prevDeals=platformSignings(email,platform,prev.start,salesEvents).filter(s=>wvPct(s.split)!=null&&new Date(s.contractDate).getTime()<=prev.end);
   const avg=(deals)=>deals.length?deals.reduce((a,d)=>a+wvPct(d.split),0)/deals.length:null;
   return {curr:avg(currDeals),prev:avg(prevDeals)};
 }
 
 // ── PERFORMANCE SCORE ────────────────────────────────────────────────────────
 // Composite 0-100 score: target attainment (40%) + split quality (30%) + activity (20%) + team rank (10%)
-function calcPerformanceScore(email, allUsers, targets) {
+function calcPerformanceScore(email, allUsers, targets, salesEvents) {
   const qStart = quarterStart();
   const myTarget = targets[email] || {};
 
   // 1. Target attainment across platforms that have targets (40%)
   const platScores = PLATFORMS.map(p => {
-    const sig = platformSignings(email, p, qStart).length;
+    const sig = platformSignings(email, p, qStart, salesEvents).length;
     const tSig = myTarget[`signings_${p}`] || 0;
     if (!tSig) return null;
     return Math.min(100, Math.round((sig / tSig) * 100));
@@ -334,26 +352,41 @@ function calcPerformanceScore(email, allUsers, targets) {
 
   // 2. Split quality vs target for FB and MSN (30%)
   const splitScores = ["Facebook","MSN"].map(p => {
-    const avg = avgSplitForPlatform(email, p, qStart);
+    const avg = avgSplitForPlatform(email, p, qStart, salesEvents);
     const target = myTarget[`split_${p}`] || SPLIT_TARGETS[p] || 0;
     if (!avg || !target) return null;
     return Math.min(100, Math.round((avg / target) * 100));
   }).filter(s => s !== null);
-  const splitQuality = splitScores.length > 0 ? splitScores.reduce((a,b)=>a+b,0)/splitScores.length : 50;
+  const splitQuality = splitScores.length > 0 ? splitScores.reduce((a,b)=>a+b,0)/splitScores.length : null;
 
   // 3. Recent activity — signed something in last 14 days (20%)
   const twoWeeksAgo = Date.now() - 14*24*60*60*1000;
-  const recentSigs = approvedSignings(email, twoWeeksAgo).length;
+  const recentSigs = approvedSignings(email, twoWeeksAgo, salesEvents).length;
   const activity = recentSigs >= 2 ? 100 : recentSigs === 1 ? 60 : 15;
 
   // 4. Team rank by total signings this quarter (10%)
-  const myTotal = approvedSignings(email, qStart).length;
-  const allTotals = allUsers.map(u => approvedSignings(u.email, qStart).length).sort((a,b)=>b-a);
+  const myTotal = approvedSignings(email, qStart, salesEvents).length;
+  const allTotals = allUsers.map(u => approvedSignings(u.email, qStart, salesEvents).length).sort((a,b)=>b-a);
   const rankIdx = allTotals.findIndex(t => t <= myTotal);
   const rankPct = allTotals.length > 1 ? Math.round(((allTotals.length - rankIdx) / allTotals.length) * 100) : 50;
 
-  const score = Math.round(attainment*0.40 + splitQuality*0.30 + activity*0.20 + rankPct*0.10);
-  return { score: Math.min(100, Math.max(0, score)), attainment: Math.round(attainment), splitQuality: Math.round(splitQuality), activity, rankPct };
+  const parts = [
+    { value: attainment, weight: 0.40 },
+    { value: splitQuality, weight: 0.30 },
+    { value: activity, weight: 0.20 },
+    { value: rankPct, weight: 0.10 },
+  ].filter(part=>part.value!==null);
+  const totalWeight = parts.reduce((sum,part)=>sum+part.weight,0);
+  const score = totalWeight > 0
+    ? Math.round(parts.reduce((sum,part)=>sum+(part.value*part.weight),0)/totalWeight)
+    : 0;
+  return {
+    score: Math.min(100, Math.max(0, score)),
+    attainment: Math.round(attainment),
+    splitQuality: splitQuality===null?null:Math.round(splitQuality),
+    activity,
+    rankPct,
+  };
 }
 
 function perfScoreColor(score) {
@@ -372,14 +405,14 @@ function perfScoreLabel(score) {
 
 // ── MOMENTUM INDICATOR ────────────────────────────────────────────────────────
 // Compares last 4 weeks of signings vs previous 4 weeks
-function calcMomentum(email) {
+function calcMomentum(email, salesEvents) {
   const now = Date.now();
   const wk = 7*24*60*60*1000;
   const last4Start = now - 4*wk;
   const prev4Start = now - 8*wk;
 
-  const last4 = approvedSignings(email, last4Start).length;
-  const prev4 = approvedSignings(email, prev4Start).filter(s => {
+  const last4 = approvedSignings(email, last4Start, salesEvents).length;
+  const prev4 = approvedSignings(email, prev4Start, salesEvents).filter(s => {
     const t = new Date(s.contractDate).getTime();
     return t >= prev4Start && t < last4Start;
   }).length;
@@ -404,15 +437,18 @@ function momentumColor(trend) {
   return "#d97706";
 }
 
-function approvedSignings(email, since) {
+function approvedSignings(email, since, salesEvents) {
+  if (Array.isArray(salesEvents)) {
+    return performanceEventsForOwner(salesEvents, email, since || 0);
+  }
   return getSignings(email).filter(s=>s.status==="approved"&&s.contractDate&&new Date(s.contractDate).getTime()>=(since||0));
 }
-function platformSignings(email, platform, since) {
-  return approvedSignings(email, since).filter(s=>s.platform===platform);
+function platformSignings(email, platform, since, salesEvents) {
+  return approvedSignings(email, since, salesEvents).filter(s=>s.platform===platform);
 }
-function avgSplitForPlatform(email, platform, since) {
-  const deals = platformSignings(email, platform, since).filter(s=>s.split);
-  if (!deals.length) return 0;
+function avgSplitForPlatform(email, platform, since, salesEvents) {
+  const deals = platformSignings(email, platform, since, salesEvents).filter(s=>wvPct(s.split)!=null);
+  if (!deals.length) return null;
   return deals.reduce((acc,d)=>acc+wvPct(d.split),0)/deals.length;
 }
 
@@ -858,8 +894,91 @@ function SetupScreen({ user, refreshUser, setView }) {
 }
 
 // ── SHELL ─────────────────────────────────────────────────────────────────────
+function useZohoSalesData(user) {
+  const [state, setState] = useState({
+    loading: true,
+    ready: false,
+    error: "",
+    stale: false,
+    generatedAt: "",
+    ownDeals: [],
+    teamDeals: [],
+    teamEvents: [],
+  });
+
+  async function load() {
+    setState(previous=>({...previous,loading:true,error:""}));
+    try {
+      if (user.role === "manager") {
+        const payload = await fetchZohoData("zoho-sales-deals", { scope:"team" });
+        const teamDeals = Array.isArray(payload.deals) ? payload.deals : [];
+        const email = user.email.toLowerCase();
+        setState({
+          loading: false,
+          ready: true,
+          error: "",
+          stale: payload.stale===true,
+          generatedAt: payload.generatedAt||"",
+          ownDeals: teamDeals.filter(deal=>String(deal.Owner?.email||"").toLowerCase()===email),
+          teamDeals,
+          teamEvents: buildZohoPerformanceEvents(teamDeals),
+        });
+        return;
+      }
+
+      const [personal, summary] = await Promise.all([
+        fetchZohoData("zoho-sales-deals", { ownerEmail:user.email }),
+        fetchZohoData("zoho-sales-deals", { scope:"summary" }),
+      ]);
+      const ownDeals = Array.isArray(personal.deals)?personal.deals:[];
+      const ownEmail = user.email.toLowerCase();
+      const teamEvents = buildZohoPerformanceEventsFromSummary(summary.teamSummary)
+        .filter(event=>event.submittedBy!==ownEmail)
+        .concat(buildZohoPerformanceEvents(ownDeals));
+      setState({
+        loading: false,
+        ready: true,
+        error: "",
+        stale: personal.stale===true||summary.stale===true,
+        generatedAt: personal.generatedAt||summary.generatedAt||"",
+        ownDeals,
+        teamDeals: [],
+        teamEvents,
+      });
+    } catch (error) {
+      setState(previous=>({
+        ...previous,
+        loading:false,
+        error:error?.message||"Zoho sales data could not be loaded.",
+      }));
+    }
+  }
+
+  useEffect(() => {
+    void load();
+    const timer = setInterval(load, 10*60*1000);
+    return () => clearInterval(timer);
+  }, [user.email, user.role]);
+
+  return { ...state, reload:load };
+}
+
+function SalesDataGate({ salesData, children }) {
+  if (salesData.loading&&!salesData.ready) {
+    return <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:B.orange,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading Sales OS numbers from Zoho...</div></div>;
+  }
+  if (salesData.error&&!salesData.ready) {
+    return <div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"14px 18px",fontSize:14,color:"#ef4444"}}><strong>Could not load Zoho sales numbers.</strong> {salesData.error} No manual or demo totals are being shown. <button className="btn btn-g btn-sm" onClick={salesData.reload} style={{marginLeft:10}}>Try again</button></div>;
+  }
+  return <>
+    {(salesData.stale||salesData.error)&&<div role="status" style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"9px 14px",marginBottom:14,fontSize:13,color:"#d97706"}}>Showing the last saved Zoho snapshot because the newest refresh did not complete.</div>}
+    {children}
+  </>;
+}
+
 function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, lightMode, toggleLightMode }) {
   const [open, setOpen] = useState(true);
+  const salesData = useZohoSalesData(user);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
     {id:"dashboard",icon:"⚡",label:"Dashboard"},
@@ -867,7 +986,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
     {id:"stats",icon:"📊",label:"My Stats"},
     {id:"targets",icon:"🎯",label:"Targets"},
     {id:"hit-list",icon:"📋",label:"Hit List Report"},
-    {id:"signings",icon:"✍️",label:"Log Signing"},
+    {id:"signings",icon:"✍️",label:"Manual Tracker"},
     {id:"incentive",icon:"🔥",label:"Incentives"},
     {id:"calculator",icon:"💰",label:"Comm. Calc"},
     {id:"profile",icon:"👤",label:"My Profile"},
@@ -904,16 +1023,16 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         <button onClick={()=>setOpen(o=>!o)} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",padding:"10px",fontSize:13,borderTop:`1px solid ${B.border}`}}>{open?"◀":"▶"}</button>
       </div>
       <div style={{flex:1,overflow:"auto",padding:26}}>
-        {view==="dashboard"&&<Dashboard user={user} allUsers={allUsers} announcement={getAnnouncement()} />}
+        {view==="dashboard"&&<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={allUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="hit-list"&&<HitList />}
-        {view==="stats"&&<RepStats user={user} allUsers={allUsers} />}
+        {view==="stats"&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={allUsers} salesData={salesData} /></SalesDataGate>}
         {view==="signings"&&<LogSigning user={user} refreshUser={refreshUser} />}
-        {view==="leaderboard"&&<Leaderboard user={user} allUsers={allUsers} />}
+        {view==="leaderboard"&&<SalesDataGate salesData={salesData}><Leaderboard user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="calculator"&&<Calculator user={user} />}
-        {view==="targets"&&<Targets user={user} allUsers={allUsers} />}
-        {view==="incentive"&&<Incentives user={user} allUsers={allUsers} />}
+        {view==="targets"&&<SalesDataGate salesData={salesData}><Targets user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
+        {view==="incentive"&&<SalesDataGate salesData={salesData}><Incentives user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="profile"&&<Profile user={user} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
-        {view==="admin"&&user.role==="manager"&&<Admin user={user} allUsers={allUsers} refreshAllUsers={refreshAllUsers} />}
+        {view==="admin"&&user.role==="manager"&&<SalesDataGate salesData={salesData}><Admin user={user} allUsers={allUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
       </div>
     </div>
   );
@@ -984,15 +1103,15 @@ function MeetingRecapCard({ user }) {
   );
 }
 
-function Dashboard({ user, allUsers, announcement }) {
+function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
   const targets = getTargets();
   const badges = getBadges().filter(b=>b.recipientEmail===user.email);
   const incentive = getIncentive();
   const myTarget = targets[user.email]||{};
   const qStart = quarterStart();
   const pendingCount = getSignings(user.email).filter(s=>s.status==="pending").length;
-  const perfData = calcPerformanceScore(user.email, allUsers, targets);
-  const momentum = calcMomentum(user.email);
+  const perfData = calcPerformanceScore(user.email, allUsers, targets, salesEvents);
+  const momentum = calcMomentum(user.email, salesEvents);
   const c = user.accentColor||B.orange;
   const daysLeft = daysLeftInQuarter();
   const daysElapsed = daysElapsedInQuarter();
@@ -1000,21 +1119,21 @@ function Dashboard({ user, allUsers, announcement }) {
   const q = Math.floor(new Date().getMonth()/3);
   const wkStart = getWeekStart(0), lastWkStart = getWeekStart(-1), lastWkEnd = getWeekStart(0);
   const moStart = getMonthStart(0), lastMoStart = getMonthStart(-1), lastMoEnd = getMonthStart(0);
-  const streaks = calcStreaks(user.email);
+  const streaks = calcStreaks(user.email, salesEvents);
 
   const platforms = PLATFORMS.map(p=>({
     platform:p,
     color:PLATFORM_COLOR[p],
-    signings:platformSignings(user.email,p,qStart).length,
+    signings:platformSignings(user.email,p,qStart,salesEvents).length,
     target:myTarget[`signings_${p}`]||0,
-    avgSplit:SPLIT_TARGETS[p]!=null?avgSplitForPlatform(user.email,p,qStart):null,
+    avgSplit:SPLIT_TARGETS[p]!=null?avgSplitForPlatform(user.email,p,qStart,salesEvents):null,
     splitTarget:myTarget[`split_${p}`]||SPLIT_TARGETS[p]||null,
-    thisWeek:platformSignings(user.email,p,wkStart).length,
-    lastWeek:platformSignings(user.email,p,lastWkStart).filter(s=>new Date(s.contractDate).getTime() < lastWkEnd).length,
-    thisMonth:platformSignings(user.email,p,moStart).length,
-    lastMonth:platformSignings(user.email,p,lastMoStart).filter(s=>new Date(s.contractDate).getTime() < lastMoEnd).length,
-    forecast:calcForecast(platformSignings(user.email,p,qStart).length, daysElapsed, daysTotal),
-    splitTrend:SPLIT_TARGETS[p]!=null?splitTrend(user.email,p):null,
+    thisWeek:platformSignings(user.email,p,wkStart,salesEvents).length,
+    lastWeek:platformSignings(user.email,p,lastWkStart,salesEvents).filter(s=>new Date(s.contractDate).getTime() < lastWkEnd).length,
+    thisMonth:platformSignings(user.email,p,moStart,salesEvents).length,
+    lastMonth:platformSignings(user.email,p,lastMoStart,salesEvents).filter(s=>new Date(s.contractDate).getTime() < lastMoEnd).length,
+    forecast:calcForecast(platformSignings(user.email,p,qStart,salesEvents).length, daysElapsed, daysTotal),
+    splitTrend:SPLIT_TARGETS[p]!=null?splitTrend(user.email,p,salesEvents):null,
   }));
 
   const totalSignings=platforms.reduce((s,p)=>s+p.signings,0);
@@ -1058,10 +1177,14 @@ function Dashboard({ user, allUsers, announcement }) {
       {/* Weekly meeting recap — collapsed by default, expandable */}
       <MeetingRecapCard user={user} />
 
+      <div style={{fontSize:12,color:"var(--text-dim2)",marginBottom:12}}>
+        Sales numbers are read-only from Zoho CRM{salesData.generatedAt?` · updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. Current handoff-stage rules are provisional.
+      </div>
+
       {/* Pending approval notice */}
       {pendingCount>0&&(
         <div style={{background:"#1a1200",border:"1px solid #d97706",borderRadius:10,padding:"10px 16px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:15,color:"#d97706"}}>⏳ <strong>{pendingCount} signing{pendingCount>1?"s":""}</strong> awaiting approval — won't count toward targets until approved</div>
+          <div style={{fontSize:15,color:"#d97706"}}>⏳ <strong>{pendingCount} manual entr{pendingCount>1?"ies":"y"}</strong> awaiting approval. These do not affect the Zoho totals.</div>
         </div>
       )}
 
@@ -1071,7 +1194,7 @@ function Dashboard({ user, allUsers, announcement }) {
         <div className="card" style={{padding:18,borderColor:perfScoreColor(perfData.score)+"44",background:`linear-gradient(135deg,${perfScoreColor(perfData.score)}0a,#0d0d0d)`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div>
-              <div style={{fontSize:11,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Performance Score</div>
+          <div style={{fontSize:11,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Sales OS Score (Estimate)</div>
               <div style={{display:"flex",alignItems:"flex-end",gap:10,marginBottom:4}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:56,fontWeight:700,color:perfScoreColor(perfData.score),lineHeight:1}}>{perfData.score}</div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,color:"var(--text-dim3)",lineHeight:1,paddingBottom:6}}>/100</div>
@@ -1083,16 +1206,16 @@ function Dashboard({ user, allUsers, announcement }) {
               {[
                 {label:"Target Attainment",val:perfData.attainment,weight:"40%"},
                 {label:"Split Quality",val:perfData.splitQuality,weight:"30%"},
-                {label:"Recent Activity",val:perfData.activity,weight:"20%"},
+                {label:"Recent Zoho Handoffs",val:perfData.activity,weight:"20%"},
                 {label:"Team Rank",val:perfData.rankPct,weight:"10%"},
               ].map(s=>(
                 <div key={s.label}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
                     <span style={{fontSize:13,color:"var(--text-dim)"}}>{s.label}</span>
-                    <span style={{fontSize:12,color:perfScoreColor(s.val),fontWeight:600}}>{s.val}</span>
+                    <span style={{fontSize:12,color:s.val===null?"var(--text-dim3)":perfScoreColor(s.val),fontWeight:600}}>{s.val===null?"N/A":s.val}</span>
                   </div>
                   <div style={{height:3,background:"var(--bg-hover)",borderRadius:2,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${s.val}%`,background:perfScoreColor(s.val),borderRadius:2,transition:"width 0.5s"}} />
+                    <div style={{height:"100%",width:`${s.val||0}%`,background:s.val===null?"transparent":perfScoreColor(s.val),borderRadius:2,transition:"width 0.5s"}} />
                   </div>
                 </div>
               ))}
@@ -1137,7 +1260,7 @@ function Dashboard({ user, allUsers, announcement }) {
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,color:p.color,lineHeight:1,marginBottom:2}}>
                 {p.signings}<span style={{fontSize:15,color:"#e5e5e5",fontWeight:400}}>{p.target>0?` / ${p.target}`:""}</span>
               </div>
-              <div style={{fontSize:15,color:"var(--text-2)",marginBottom:p.target>0?6:4}}>signings this quarter</div>
+              <div style={{fontSize:15,color:"var(--text-2)",marginBottom:p.target>0?6:4}}>Zoho handoffs this quarter</div>
               {p.target>0&&<div style={{height:4,background:"var(--bg-hover)",borderRadius:2,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${pct}%`,background:p.color,borderRadius:2,transition:"width 0.5s"}} /></div>}
 
               {/* Week/month comparison */}
@@ -1177,7 +1300,7 @@ function Dashboard({ user, allUsers, announcement }) {
 
       {/* Personal forecast card */}
       <div className="card" style={{padding:16,marginBottom:12}}>
-        <div style={{fontSize:15,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:12}}>Personal Forecast — Q{q+1}</div>
+        <div style={{fontSize:15,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:12}}>Pace Forecast (Estimate) — Q{q+1}</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
           {platforms.map(p=>{
             const gap=p.target>0?p.target-p.signings:null;
@@ -1207,10 +1330,10 @@ function Dashboard({ user, allUsers, announcement }) {
 
       {/* Recent signings */}
       <div className="card" style={{padding:16}}>
-        <div style={{fontSize:15,fontWeight:600,color:B.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Recent Approved Signings</div>
+        <div style={{fontSize:15,fontWeight:600,color:B.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Recent Zoho Handoffs</div>
         {(() => {
-          const all=getSignings(user.email).filter(s=>s.status==="approved").slice(-5).reverse();
-          if (!all.length) return <div style={{color:"#e5e5e5",fontSize:15,textAlign:"center",padding:"16px 0"}}>No approved signings yet. Log your first once the contract is complete.</div>;
+          const all=[...approvedSignings(user.email,0,salesEvents)].sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
+          if (!all.length) return <div style={{color:"#e5e5e5",fontSize:15,textAlign:"center",padding:"16px 0"}}>No Zoho sales handoffs yet.</div>;
           return <div style={{display:"grid",gap:6}}>
             {all.map((s,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 11px",background:"var(--bg-inner)",borderRadius:8,border:`1px solid ${B.border}`}}>
@@ -1241,19 +1364,14 @@ function Dashboard({ user, allUsers, announcement }) {
 
 
 // ── REP STATS (Phase 2 — Close Rate + Cycle Speed) ───────────────────────────
-const PLATFORM_MAP_STATS = {
-  "Facebook":"Facebook","Microsoft Start":"MSN","Spotify":"Spotify",
-};
-const SALES_CLOSED_STAGES = ["Ready to Submit to Platform","Awaiting Platform Approval","Ready to go Live","Live"];
-
 // Compute stats from a set of Zoho deals
 function computeStats(deals) {
-  const normPlat = d => PLATFORM_MAP_STATS[d.Associated_Platform?.name || d.Associated_Platform || ""] || (d.Associated_Platform?.name || "Other");
-  const salesClosed = deals.filter(d => SALES_CLOSED_STAGES.includes(d.Stage));
-  const lost = deals.filter(d => d.Stage === "Lost");
+  const normPlat = d => normalizeZohoPlatform(d.Associated_Platform);
+  const outcomes = computeZohoOutcomeStats(deals);
+  const salesClosed = outcomes.positive;
+  const lost = outcomes.negative;
   const live = deals.filter(d => d.Stage === "Live");
-  const closedTotal = salesClosed.length + lost.length;
-  const closeRate = closedTotal > 0 ? Math.round((salesClosed.length / closedTotal) * 100) : null;
+  const closeRate = outcomes.rate;
 
   // A current Deal snapshot cannot tell whether a Lost Deal previously reached
   // contract stage. Keep this metric unavailable instead of showing a false 100%.
@@ -1267,16 +1385,14 @@ function computeStats(deals) {
     : null;
 
   const platRates = PLATFORMS.map(p => {
-    const pRaw = p === "MSN" ? "Microsoft Start" : p;
-    const pClosed = salesClosed.filter(d => (d.Associated_Platform?.name||d.Associated_Platform) === pRaw || normPlat(d) === p);
-    const pLost = lost.filter(d => (d.Associated_Platform?.name||d.Associated_Platform) === pRaw || normPlat(d) === p);
+    const pClosed = salesClosed.filter(d => normPlat(d) === p);
+    const pLost = lost.filter(d => normPlat(d) === p);
     const t = pClosed.length + pLost.length;
     return { platform:p, closed:pClosed.length, lost:pLost.length, total:t, rate: t>0 ? Math.round((pClosed.length/t)*100) : null };
   });
 
   const platCycles = PLATFORMS.map(p => {
-    const pRaw = p === "MSN" ? "Microsoft Start" : p;
-    const pd = cycleDeals.filter(d => (d.Associated_Platform?.name||d.Associated_Platform) === pRaw || normPlat(d) === p);
+    const pd = cycleDeals.filter(d => normPlat(d) === p);
     const avg = pd.length > 0 ? Math.round(pd.reduce((s,d) => s + Math.max(0, Math.floor((new Date(d.Closing_Date)-new Date(d.Created_Time))/864e5)), 0) / pd.length) : null;
     return { platform:p, avgDays:avg, count:pd.length };
   });
@@ -1301,47 +1417,18 @@ function buildQuarterHistory(deals) {
     .map(([key, val]) => ({ ...val, ...computeStats(val.deals) }));
 }
 
-function RepStats({ user, allUsers }) {
-  const [zohoDeals, setZohoDeals] = useState([]);
-  const [teamZohoDeals, setTeamZohoDeals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [stale, setStale] = useState(false);
-  const [generatedAt, setGeneratedAt] = useState("");
+function RepStats({ user, allUsers, salesData }) {
   const [period, setPeriod] = useState("quarter");
   const [activeTab, setActiveTab] = useState("overview"); // overview | history
+  const zohoDeals = salesData.ownDeals;
+  const teamZohoDeals = salesData.teamDeals;
+  const loading = salesData.loading;
+  const error = salesData.error;
+  const stale = salesData.stale;
+  const generatedAt = salesData.generatedAt;
   const c = user.accentColor || B.orange;
   const isManager = user.role === "manager";
   const q = Math.floor(new Date().getMonth()/3);
-
-  useEffect(() => {
-    loadDeals();
-    const timer = setInterval(loadDeals, 10*60*1000);
-    return () => clearInterval(timer);
-  }, [user.email, user.role]);
-
-  async function loadDeals() {
-    setLoading(true); setError(null);
-    try {
-      const data = await fetchZohoData("zoho-sales-deals", isManager
-        ? { scope:"team" }
-        : { ownerEmail:user.email });
-      const allDeals = Array.isArray(data.deals) ? data.deals : [];
-      const email = user.email.toLowerCase();
-      setTeamZohoDeals(isManager ? allDeals : []);
-      setZohoDeals(isManager
-        ? allDeals.filter(deal=>deal.Owner?.email===email)
-        : allDeals);
-      setStale(data.stale===true);
-      setGeneratedAt(data.generatedAt||"");
-    } catch(err) {
-      setZohoDeals([]);
-      setTeamZohoDeals([]);
-      setError(err.message||"Zoho sales data could not be loaded.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function filterByPeriod(deals) {
     return filterDealsForPeriod(deals, period);
@@ -1349,8 +1436,10 @@ function RepStats({ user, allUsers }) {
 
   const periodDeals = filterByPeriod(zohoDeals);
   const stats = computeStats(periodDeals);
-  const liveAll = zohoDeals.filter(d=>d.Stage==="Live");
-  const history = buildQuarterHistory(zohoDeals);
+  const liveAll = filterDealsForPeriod(zohoDeals,"all")
+    .filter(d=>d.Stage==="Live")
+    .sort((a,b)=>new Date(b.Closing_Date||b.Created_Time)-new Date(a.Closing_Date||a.Created_Time));
+  const history = buildQuarterHistory(filterDealsForPeriod(zohoDeals,"all"));
 
   const T = t => ({padding:"7px 14px",border:"none",background:activeTab===t?c:"transparent",color:activeTab===t?"#fff":"#bbb",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",borderRadius:6,transition:"all 0.15s"});
 
@@ -1365,7 +1454,7 @@ function RepStats({ user, allUsers }) {
               <button key={k} onClick={()=>setPeriod(k)} style={{padding:"6px 14px",borderRadius:6,border:"none",background:period===k?c:"transparent",color:period===k?"#fff":"#bbb",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"all 0.15s"}}>{l}</button>
             ))}
           </div>
-          <button onClick={loadDeals} disabled={loading} style={{background:"var(--border)",border:`1px solid ${c}44`,color:c,padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:loading?"not-allowed":"pointer",fontFamily:"'DM Sans',sans-serif"}}>{loading?"...":"↻"}</button>
+          <button onClick={salesData.reload} disabled={loading} style={{background:"var(--border)",border:`1px solid ${c}44`,color:c,padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:loading?"not-allowed":"pointer",fontFamily:"'DM Sans',sans-serif"}}>{loading?"...":"↻"}</button>
         </div>
       </div>
       <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Provisional sales stats from each Deal's current stage and Zoho Closing Date.</p>
@@ -1389,7 +1478,7 @@ function RepStats({ user, allUsers }) {
           {/* Key numbers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
-              {label:"Close Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} closed · ${stats.lost.length} lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#16a34a":stats.closeRate>=40?"#d97706":"#ef4444"):"#aaa"},
+              {label:"Provisional Outcome Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#16a34a":stats.closeRate>=40?"#d97706":"#ef4444"):"#aaa"},
               {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:stats.contractRate!==null?`${stats.contractClosed.length} of ${stats.contractTotal} from contract`:"needs Zoho stage history",col:stats.contractRate!==null?(stats.contractRate>=70?"#16a34a":"#d97706"):"#aaa"},
               {label:"Avg Cycle",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"created to Zoho close date",col:c},
               {label:"Deals Live",val:stats.live.length,sub:`Q${q+1} · ${liveAll.length} all time`,col:"#16a34a"},
@@ -1404,7 +1493,7 @@ function RepStats({ user, allUsers }) {
 
           {/* Platform close rate */}
           <div className="card" style={{padding:20,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Close Rate by Platform</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Outcome Rate by Platform (Provisional)</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
               {stats.platRates.map(p=>{
                 const pc=PLATFORM_COLOR[p.platform];
@@ -1412,7 +1501,7 @@ function RepStats({ user, allUsers }) {
                   <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#16a34a":"#d97706"):"#555",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
-                    <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} closed · {p.lost} lost</div>
+                    <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} handoffs · {p.lost} rejected/lost</div>
                     {p.total>0&&<div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#16a34a":"#d97706",borderRadius:3,transition:"width 0.5s"}} /></div>}
                   </div>
                 );
@@ -1468,13 +1557,13 @@ function RepStats({ user, allUsers }) {
 
         {/* ── QUARTER HISTORY ── */}
         {activeTab==="history"&&<>
-          <p style={{color:"var(--text-2)",fontSize:14,marginBottom:20}}>Close rate and cycle speed across the last 6 quarters. Spot trends in your performance over time.</p>
+          <p style={{color:"var(--text-2)",fontSize:14,marginBottom:20}}>Current Zoho Deal outcomes grouped by Closing Date for the last 6 quarters. This is a snapshot, not full stage history.</p>
           {history.length===0
             ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-dim3)"}}>Not enough historical data yet.</div>
             :<>
               {/* Close rate trend bars */}
               <div className="card" style={{padding:20,marginBottom:14}}>
-                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Close Rate Trend</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Outcome Rate Trend (Provisional)</div>
                 <div style={{display:"flex",alignItems:"flex-end",gap:10,height:140,marginBottom:12}}>
                   {history.map((qh,i)=>{
                     const rate=qh.closeRate||0, isCurrent=i===history.length-1;
@@ -1532,10 +1621,10 @@ function RepStats({ user, allUsers }) {
                     return (
                       <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"0a":"#080808",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#1e1e1e"}`}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#16a34a":qh.closeRate>=40?"#d97706":"#ef4444"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>close rate</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#16a34a":qh.closeRate>=40?"#d97706":"#ef4444"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>avg cycle</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#16a34a"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>closed</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#ef4444":"#555"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>lost</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#16a34a"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>handoffs</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#ef4444":"#555"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
                       </div>
                     );
                   })}
@@ -1557,7 +1646,7 @@ function TeamStatsView({ allUsers, deals, c }) {
   const [sortBy, setSortBy] = useState("closeRate"); // closeRate | cycle | closed
 
   const repStats = allUsers.map(u => {
-    const repDeals = deals.filter(deal=>deal.Owner?.email===u.email.toLowerCase());
+    const repDeals = deals.filter(deal=>String(deal.Owner?.email||"").toLowerCase()===u.email.toLowerCase());
     const s = computeStats(repDeals);
     return { u, ...s, dealCount: repDeals.length };
   });
@@ -1575,20 +1664,20 @@ function TeamStatsView({ allUsers, deals, c }) {
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
-        <p style={{color:"var(--text-2)",fontSize:14}}>Close rate and cycle speed per rep. Sort to see who's performing where.</p>
+        <p style={{color:"var(--text-2)",fontSize:14}}>Provisional outcome rate and cycle estimate per rep, from read-only Zoho data.</p>
         <div style={{display:"flex",background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
-          {sortBtn("closeRate","Close Rate")}
+          {sortBtn("closeRate","Outcome Rate")}
           {sortBtn("cycle","Cycle Speed")}
-          {sortBtn("closed","Deals Closed")}
+          {sortBtn("closed","Zoho Handoffs")}
         </div>
       </div>
 
       {/* Team summary strip */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:18}}>
         {[
-          {label:"Team Avg Close Rate",val:(() => { const rs=repStats.filter(r=>r.closeRate!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.closeRate||0),0)/rs.length)+"%":"—"; })(),col:"#16a34a"},
+          {label:"Team Avg Outcome Rate",val:(() => { const rs=repStats.filter(r=>r.closeRate!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.closeRate||0),0)/rs.length)+"%":"—"; })(),col:"#16a34a"},
           {label:"Team Avg Cycle",val:(() => { const rs=repStats.filter(r=>r.avgCycle!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.avgCycle||0),0)/rs.length)+"d":"—"; })(),col:c},
-          {label:"Total Deals Closed",val:repStats.reduce((s,r)=>s+r.salesClosed.length,0),col:"#ddd"},
+          {label:"Total Zoho Handoffs",val:repStats.reduce((s,r)=>s+r.salesClosed.length,0),col:"#ddd"},
         ].map(s=>(
           <div key={s.label} className="card" style={{padding:14}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
@@ -1613,10 +1702,10 @@ function TeamStatsView({ allUsers, deals, c }) {
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,flex:1}}>
                   {[
-                    {label:"Close Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#16a34a":rs.closeRate>=40?"#d97706":"#ef4444"):"#555"},
+                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#16a34a":rs.closeRate>=40?"#d97706":"#ef4444"):"#555"},
                     {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#16a34a":"#d97706"):"#555"},
                     {label:"Avg Cycle",val:rs.avgCycle!==null?rs.avgCycle+"d":"—",col:repC},
-                    {label:"Closed · Lost",val:`${rs.salesClosed.length} · ${rs.lost.length}`,col:"#ddd"},
+                    {label:"Handoff · Negative",val:`${rs.salesClosed.length} · ${rs.lost.length}`,col:"#ddd"},
                   ].map(s=>(
                     <div key={s.label} style={{textAlign:"center"}}>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:s.col,lineHeight:1,marginBottom:2}}>{s.val}</div>
@@ -1734,7 +1823,7 @@ function LogSigning({ user, refreshUser }) {
   return (
     <div className="fi" style={{maxWidth:640}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,flexWrap:"wrap",gap:12}}>
-        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase"}}>Log a Signing</div>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase"}}>Manual Signing Tracker</div>
         {lastDeal&&(
           <button onClick={copyLastDeal}
             style={{background:"var(--border)",border:`1px solid ${c}55`,color:c,padding:"10px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",alignSelf:"center"}}>
@@ -1742,11 +1831,12 @@ function LogSigning({ user, refreshUser }) {
           </button>
         )}
       </div>
-      <p style={{color:"var(--text-2)",fontSize:16,marginBottom:26}}>Submit once the contract is fully signed by both parties. It counts toward the quarter the contract was completed in.</p>
+      <p style={{color:"var(--text-2)",fontSize:16,marginBottom:6}}>This old tracker stays separate from Zoho.</p>
+      <p style={{color:"var(--text-dim2)",fontSize:13,marginBottom:26}}>Submitting here does not create or update a Zoho Deal, and it does not change the Zoho-powered dashboard totals.</p>
 
       {submitted&&(
         <div style={{background:"#0a150a",border:"1px solid #1a3a1a",borderRadius:12,padding:"16px 20px",marginBottom:20,fontSize:16,color:"#4ade80"}}>
-          🎉 Deal submitted! It will show on your dashboard once approved.
+          🎉 Manual entry submitted for manager review. Zoho was not changed.
         </div>
       )}
 
@@ -1855,7 +1945,7 @@ function AnimatedNumber({ value, color, size=28 }) {
   return <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:size,fontWeight:700,color,lineHeight:1}}>{display}</span>;
 }
 
-function Leaderboard({ user, allUsers }) {
+function Leaderboard({ user, allUsers, salesEvents, salesData }) {
   const [metric, setMetric] = useState("total");
   const [period, setPeriod] = useState("quarter");
   const MEDALS=["🥇","🥈","🥉"];
@@ -1865,14 +1955,14 @@ function Leaderboard({ user, allUsers }) {
   function score(u) {
     const p = metric==="total"?null:metric;
     if (p) {
-      const s=platformSignings(u.email,p,cutoff);
+      const s=platformSignings(u.email,p,cutoff,salesEvents);
       return s.length;
     }
-    return approvedSignings(u.email,cutoff).length;
+    return approvedSignings(u.email,cutoff,salesEvents).length;
   }
 
   function getAvgSplit(u) {
-    const deals=approvedSignings(u.email,cutoff).filter(s=>s.split&&SPLIT_TARGETS[s.platform]);
+    const deals=approvedSignings(u.email,cutoff,salesEvents).filter(s=>Number.isFinite(s.split)&&SPLIT_TARGETS[s.platform]);
     if(!deals.length) return null;
     return deals.reduce((a,d)=>a+wvPct(d.split),0)/deals.length;
   }
@@ -1883,7 +1973,8 @@ function Leaderboard({ user, allUsers }) {
   return (
     <div className="fi">
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Leaderboard</div>
-      <p style={{color:"#e5e5e5",fontSize:14,marginBottom:20}}>Stay hungry.</p>
+      <p style={{color:"#e5e5e5",fontSize:14,marginBottom:4}}>Ranks use read-only Zoho handoffs for the selected period.</p>
+      <p style={{color:"var(--text-dim2)",fontSize:12,marginBottom:20}}>Updated {salesData.generatedAt?new Date(salesData.generatedAt).toLocaleString():"from the latest snapshot"} · stage rules are provisional.</p>
 
       {/* Controls */}
       <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
@@ -1904,13 +1995,13 @@ function Leaderboard({ user, allUsers }) {
           {sorted.map((u,i)=>{
             const isMe=u.email===user.email, c=u.accentColor||B.orange;
             const s=score(u), max=score(sorted[0])||1;
-            const rankChange=getRankChange(u.email,allUsers);
-            const streaks=calcStreaks(u.email);
+            const rankChange=getRankChange(u.email,allUsers,metric,salesEvents);
+            const streaks=calcStreaks(u.email,salesEvents);
             const avgSp=getAvgSplit(u);
             const spTarget=SPLIT_TARGETS.Facebook; // use as benchmark
-            const pData=PLATFORMS.map(p=>({p,n:platformSignings(u.email,p,cutoff).length,col:PLATFORM_COLOR[p]}));
-            const perf=calcPerformanceScore(u.email,allUsers,getTargets());
-            const mom=calcMomentum(u.email);
+            const pData=PLATFORMS.map(p=>({p,n:platformSignings(u.email,p,cutoff,salesEvents).length,col:PLATFORM_COLOR[p]}));
+            const perf=calcPerformanceScore(u.email,allUsers,getTargets(),salesEvents);
+            const mom=calcMomentum(u.email,salesEvents);
 
             return (
               <div key={u.email} className="card" style={{padding:"12px 16px",borderColor:isMe?c+"66":B.border,background:isMe?c+"08":B.card,position:"relative",overflow:"hidden"}}>
@@ -1956,7 +2047,7 @@ function Leaderboard({ user, allUsers }) {
                     <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
                       <div style={{textAlign:"right"}}>
                         <AnimatedNumber value={s} color={c} size={26} />
-                        <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>signings</div>
+                        <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Zoho handoffs</div>
                         {rankChange!==0&&<div style={{fontSize:11,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1}}>{rankChange>0?"↑":"↓"}{Math.abs(rankChange)} this wk</div>}
                       </div>
                       <div style={{textAlign:"center",padding:"6px 10px",background:perfScoreColor(perf.score)+"18",border:`1px solid ${perfScoreColor(perf.score)}44`,borderRadius:8,minWidth:50}}>
@@ -2040,7 +2131,7 @@ function Calculator({ user }) {
 }
 
 // ── TARGETS ───────────────────────────────────────────────────────────────────
-function Targets({ user, allUsers }) {
+function Targets({ user, allUsers, salesEvents, salesData }) {
   const [targets, setTargets] = useState(getTargets());
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(targets);
@@ -2058,11 +2149,11 @@ function Targets({ user, allUsers }) {
 
   // Team aggregates per platform
   const teamData = PLATFORMS.map(p => {
-    const teamSigs = allUsers.reduce((s, u) => s + platformSignings(u.email, p, qStart).length, 0);
+    const teamSigs = allUsers.reduce((s, u) => s + platformSignings(u.email, p, qStart, salesEvents).length, 0);
     const teamTarget = allUsers.reduce((s, u) => s + (targets[u.email]?.[`signings_${p}`] || 0), 0);
-    const teamForecast = allUsers.reduce((s, u) => s + calcForecast(platformSignings(u.email, p, qStart).length, daysElapsed, daysTotal), 0);
+    const teamForecast = allUsers.reduce((s, u) => s + calcForecast(platformSignings(u.email, p, qStart, salesEvents).length, daysElapsed, daysTotal), 0);
     const teamAvgSplit = SPLIT_TARGETS[p] != null ? (() => {
-      const all = allUsers.flatMap(u => platformSignings(u.email, p, qStart).filter(s => s.split));
+      const all = allUsers.flatMap(u => platformSignings(u.email, p, qStart, salesEvents).filter(s => Number.isFinite(s.split)));
       return all.length ? all.reduce((a, d) => a + wvPct(d.split), 0) / all.length : 0;
     })() : null;
     const pct = teamTarget > 0 ? Math.min(100, Math.round((teamSigs / teamTarget) * 100)) : null;
@@ -2078,12 +2169,12 @@ function Targets({ user, allUsers }) {
   const myData = (() => {
     const t = targets[user.email] || {};
     return PLATFORMS.map(p => {
-      const sig = platformSignings(user.email, p, qStart).length;
+      const sig = platformSignings(user.email, p, qStart, salesEvents).length;
       const tSig = t[`signings_${p}`] || 0;
       const pct = tSig > 0 ? Math.min(100, Math.round((sig / tSig) * 100)) : null;
       const gap = tSig > 0 ? tSig - sig : null;
       const forecast = calcForecast(sig, daysElapsed, daysTotal);
-      const avgSp = SPLIT_TARGETS[p] != null ? avgSplitForPlatform(user.email, p, qStart) : null;
+      const avgSp = SPLIT_TARGETS[p] != null ? avgSplitForPlatform(user.email, p, qStart, salesEvents) : null;
       const tSplit = t[`split_${p}`] || SPLIT_TARGETS[p] || null;
       return { platform: p, color: PLATFORM_COLOR[p], sig, tSig, pct, gap, forecast, avgSp, tSplit };
     });
@@ -2106,6 +2197,10 @@ function Targets({ user, allUsers }) {
           {isManager && !editing && <button className="btn btn-g btn-sm" onClick={() => setEditing(true)}>Edit Targets</button>}
           {isManager && editing && <><button className="btn btn-g btn-sm" onClick={() => { setEditing(false); setDraft(targets); }}>Cancel</button><button className="btn btn-p btn-sm" onClick={save}>Save</button></>}
         </div>
+      </div>
+
+      <div style={{fontSize:12,color:"var(--text-dim2)",marginBottom:16}}>
+        Targets are set in Sales OS. Progress comes from read-only Zoho data{salesData.generatedAt?` · updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. Stage rules and pace forecasts are provisional.
       </div>
 
       {/* Weakest platform alert */}
@@ -2149,7 +2244,7 @@ function Targets({ user, allUsers }) {
                 <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 48, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{p.sig}</div>
                 {p.tSig > 0 && <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, color: B.muted, lineHeight: 1, paddingBottom: 4 }}>/ {p.tSig}</div>}
               </div>
-              <div style={{ fontSize: 12, color: B.muted, marginBottom: 10 }}>signings</div>
+              <div style={{ fontSize: 12, color: B.muted, marginBottom: 10 }}>Zoho handoffs</div>
 
               {/* Progress bar */}
               {p.tSig > 0 && (
@@ -2205,7 +2300,7 @@ function Targets({ user, allUsers }) {
                 <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 36, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{p.teamSigs}</div>
                 {p.teamTarget > 0 && <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, color: B.muted, lineHeight: 1, paddingBottom: 3 }}>/ {p.teamTarget}</div>}
               </div>
-              <div style={{ fontSize: 12, color: B.muted, marginBottom: p.teamTarget > 0 ? 8 : 4 }}>team signings</div>
+              <div style={{ fontSize: 12, color: B.muted, marginBottom: p.teamTarget > 0 ? 8 : 4 }}>team Zoho handoffs</div>
               {p.teamTarget > 0 && <>
                 <div style={{ height: 5, background: "#111", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
                   <div style={{ height: "100%", width: `${p.pct}%`, background: p.color, borderRadius: 3, transition: "width 0.6s" }} />
@@ -2241,7 +2336,7 @@ function Targets({ user, allUsers }) {
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
                     {PLATFORMS.map(p => {
-                      const sig = platformSignings(u.email, p, qStart).length;
+                      const sig = platformSignings(u.email, p, qStart, salesEvents).length;
                       const tSig = t[`signings_${p}`] || 0;
                       const pct = tSig > 0 ? Math.min(100, Math.round((sig / tSig) * 100)) : null;
                       const forecast = calcForecast(sig, daysElapsed, daysTotal);
@@ -2292,10 +2387,10 @@ function Targets({ user, allUsers }) {
                   </div>
                   <div style={{ display: "grid", gap: 5 }}>
                     {allUsers.map(u => {
-                      const uSig = platformSignings(u.email, p, qStart).length;
+                      const uSig = platformSignings(u.email, p, qStart, salesEvents).length;
                       const pct = total > 0 ? Math.round((uSig / total) * 100) : 0;
                       const uc = u.accentColor || B.orange;
-                      const avgSp = SPLIT_TARGETS[p] ? avgSplitForPlatform(u.email, p, qStart) : null;
+                      const avgSp = SPLIT_TARGETS[p] ? avgSplitForPlatform(u.email, p, qStart, salesEvents) : null;
                       return (
                         <div key={u.email} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <div style={{ width: 90, fontSize: 13, color: "#ddd", fontWeight: 500, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.nickname || u.displayName}</div>
@@ -4004,7 +4099,7 @@ function SnakesLaddersGame({ user }) {
   );
 }
 
-function Incentives({ user, allUsers }) {
+function Incentives({ user, allUsers, salesEvents, salesData }) {
   const [incentive, setIncentive] = useState(getIncentive());
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(incentive||{title:"",description:"",metric:"total",goal:"",deadline:"",reward:""});
@@ -4015,8 +4110,9 @@ function Incentives({ user, allUsers }) {
   function goLive() { const i={...form,goal:parseFloat(form.goal)||0,deadline:form.deadline?new Date(form.deadline).getTime():null,updatedAt:Date.now()}; saveIncentive(i);setIncentive(i);setEditing(false); }
 
   function progress(u) {
-    const cutoff = incentive?.deadline?Date.now()-30*24*60*60*1000:quarterStart();
-    const all=approvedSignings(u.email,cutoff);
+    const cutoff = incentive?.updatedAt||quarterStart();
+    const until = incentive?.deadline||Date.now();
+    const all=approvedSignings(u.email,cutoff,salesEvents).filter(event=>event.timestamp<=until);
     return incentive?.metric==="total"?all.length:all.filter(s=>s.platform===incentive.metric).length;
   }
 
@@ -4027,7 +4123,7 @@ function Incentives({ user, allUsers }) {
   return (
     <div className="fi">
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18,flexWrap:"wrap",gap:12}}>
-        <div><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:38,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>🔥 Incentives</div><p style={{color:"#e5e5e5",fontSize:14}}>Live competition.</p></div>
+        <div><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:38,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>🔥 Incentives</div><p style={{color:"#e5e5e5",fontSize:14}}>Simple Incentive progress comes from read-only Zoho data.</p><p style={{color:"var(--text-dim2)",fontSize:12,marginTop:3}}>Updated {salesData.generatedAt?new Date(salesData.generatedAt).toLocaleString():"from the latest snapshot"} · Snakes & Ladders stays manual.</p></div>
         {isManager&&incTab==="simple"&&!editing&&<button className="btn btn-g btn-sm" onClick={()=>setEditing(true)}>Set Incentive</button>}
       </div>
 
@@ -4046,7 +4142,7 @@ function Incentives({ user, allUsers }) {
             <div><label>Title</label><input placeholder='"Holiday to Ibiza 🏖️"' value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} /></div>
             <div><label>Description</label><textarea rows={2} value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} /></div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><label>Metric</label><select value={form.metric} onChange={e=>setForm(p=>({...p,metric:e.target.value}))}><option value="total">Most Total Signings</option>{PLATFORMS.map(p=><option key={p} value={p}>Most {p} Signings</option>)}</select></div>
+              <div><label>Metric</label><select value={form.metric} onChange={e=>setForm(p=>({...p,metric:e.target.value}))}><option value="total">Most Zoho Handoffs</option>{PLATFORMS.map(p=><option key={p} value={p}>Most {p} Handoffs</option>)}</select></div>
               <div><label>Goal</label><input type="number" value={form.goal} onChange={e=>setForm(p=>({...p,goal:e.target.value}))} /></div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -4159,7 +4255,7 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
 }
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
-function Admin({ user, allUsers, refreshAllUsers }) {
+function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
   const [tab, setTab] = useState("summary");
   const [bForm, setBForm] = useState({recipientEmail:"",name:"",emoji:"🏅",note:""});
   const [badgeSaved, setBadgeSaved] = useState(false);
@@ -4275,11 +4371,11 @@ function Admin({ user, allUsers, refreshAllUsers }) {
 
   // ── EXECUTIVE SUMMARY DATA ────────────────────────────────────────────────
   const teamTotals = PLATFORMS.map(p => {
-    const sigs = allUsers.reduce((s,u)=>s+platformSignings(u.email,p,qStart).length,0);
+    const sigs = allUsers.reduce((s,u)=>s+platformSignings(u.email,p,qStart,salesEvents).length,0);
     const target = allUsers.reduce((s,u)=>s+(getTargets()[u.email]?.[`signings_${p}`]||0),0);
-    const forecast = allUsers.reduce((s,u)=>s+calcForecast(platformSignings(u.email,p,qStart).length,daysElapsed,daysTotal),0);
+    const forecast = allUsers.reduce((s,u)=>s+calcForecast(platformSignings(u.email,p,qStart,salesEvents).length,daysElapsed,daysTotal),0);
     const avgSplit = SPLIT_TARGETS[p]!=null ? (() => {
-      const all=allUsers.flatMap(u=>platformSignings(u.email,p,qStart).filter(s=>s.split));
+      const all=allUsers.flatMap(u=>platformSignings(u.email,p,qStart,salesEvents).filter(s=>Number.isFinite(s.split)));
       return all.length?all.reduce((a,d)=>a+wvPct(d.split),0)/all.length:0;
     })() : null;
     const pct = target>0?Math.min(100,Math.round((sigs/target)*100)):null;
@@ -4290,7 +4386,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   const totalTarget = teamTotals.reduce((s,p)=>s+(p.target||0),0);
   const totalForecast = teamTotals.reduce((s,p)=>s+p.forecast,0);
   const overallPct = totalTarget>0?Math.round((totalSigs/totalTarget)*100):null;
-  const onStreak = allUsers.filter(u=>calcStreaks(u.email).weeklyStreak>=2);
+  const onStreak = allUsers.filter(u=>calcStreaks(u.email,salesEvents).weeklyStreak>=2);
   const weakestP = teamTotals.filter(p=>p.target>0).sort((a,b)=>(a.pct||0)-(b.pct||0))[0];
 
   function buildSummary() {
@@ -4301,7 +4397,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
     teamTotals.forEach(({p,sigs,target,forecast,pct,avgSplit,splitTarget}) => {
       if (!target) return;
       const status = pct>=100?"on target":pct>=80?"on pace":pct>=60?"slightly behind":"behind";
-      let ln = p+" is "+status+" — "+sigs+" of "+target+" signed";
+      let ln = p+" is "+status+" — "+sigs+" of "+target+" Zoho handoffs";
       if (forecast!==sigs) ln += ", forecasting "+forecast+" by quarter end";
       ln += ".";
       if (avgSplit!=null&&avgSplit>0&&splitTarget) {
@@ -4314,7 +4410,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       summary.push(onStreak.map(u=>u.nickname||u.displayName).join(", ")+" "+(onStreak.length===1?"is":"are")+" on a weekly signing streak.");
     }
     if (pending.length>0) {
-      summary.push(pending.length+" signing"+(pending.length>1?"s":"")+" currently awaiting approval.");
+      summary.push(pending.length+" manual tracker entr"+(pending.length>1?"ies":"y")+" currently awaiting approval. These do not affect Zoho totals.");
     }
     return summary;
   }
@@ -4329,7 +4425,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
     const end = offset===0 ? Date.now() : getMonthStart(offset+1);
     const label = getMonthLabel(offset);
     const perRep = allUsers.map(u => {
-      const sigs = getSignings(u.email).filter(s=>s.status==="approved"&&s.contractDate&&new Date(s.contractDate).getTime()>=start&&new Date(s.contractDate).getTime() < end);
+      const sigs = approvedSignings(u.email,start,salesEvents).filter(s=>s.timestamp < end);
       return { u, total:sigs.length, byPlatform: PLATFORMS.reduce((acc,p)=>({...acc,[p]:sigs.filter(s=>s.platform===p).length}),{}) };
     });
     const total = perRep.reduce((s,r)=>s+r.total,0);
@@ -4338,13 +4434,13 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   });
 
   // ── ACTIVITY FEED ─────────────────────────────────────────────────────────
-  const feed = getActivityFeed(allUsers, 50);
+  const feed = getActivityFeed(allUsers, 50, salesEvents);
 
   const ACTIVITY_ICONS = { approved:"✅", submitted:"📋", rejected:"❌", badge:"🏅" };
 
   function activityText(event) {
     const name = event.user?.nickname||event.user?.displayName||"Someone";
-    if (event.type==="approved") return `${name} had a signing approved — ${event.signing.dealName} (${event.signing.platform}${event.signing.split?" · "+event.signing.split:""})`;
+    if (event.type==="approved") return `${name} reached a Zoho sales handoff stage — ${event.signing.dealName} (${event.signing.platform}${event.signing.split?" · "+event.signing.split:""})`;
     if (event.type==="submitted") return `${name} submitted a signing for approval — ${event.signing.dealName} (${event.signing.platform})`;
     if (event.type==="rejected") return `${name}'s signing was rejected — ${event.signing.dealName}`;
     if (event.type==="badge") return `${name} was awarded the ${event.badge.emoji} ${event.badge.name} badge`;
@@ -4356,6 +4452,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
   return (
     <div className="fi">
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase",marginBottom:22}}>Manager</div>
+      <div style={{fontSize:12,color:"var(--text-dim2)",marginTop:-14,marginBottom:18}}>Sales totals come from read-only Zoho data{salesData.generatedAt?` · updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. Other manager tools below stay inside Sales OS.</div>
 
       {/* Tab bar */}
       <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22,flexWrap:"wrap"}}>
@@ -4367,7 +4464,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
         <button style={T("approvals")} onClick={()=>setTab("approvals")}>
           Approvals {pending.length>0&&<span style={{background:"#ef4444",color:"var(--text)",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:600,marginLeft:4}}>{pending.length}</span>}
         </button>
-        <button style={T("add")} onClick={()=>setTab("add")}>Add Deal</button>
+        <button style={T("add")} onClick={()=>setTab("add")}>Add Manual Entry</button>
         <button style={T("team")} onClick={()=>setTab("team")}>Team</button>
         <button style={T("invite")} onClick={()=>setTab("invite")}>Accounts</button>
         <button style={T("badges")} onClick={()=>setTab("badges")}>Badges</button>
@@ -4379,7 +4476,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
           <div className="card" style={{padding:24,marginBottom:14,background:"linear-gradient(135deg,#0d0d0d,#0a0a0a)",borderColor:"#ffffff18"}}>
             <div style={{fontSize:11,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:16}}>Executive Summary · Q{q+1} {now.getFullYear()}</div>
             {summaryLines.length===0
-              ? <div style={{color:"#e5e5e5",fontSize:14}}>No data yet — set targets and log some signings to generate a summary.</div>
+              ? <div style={{color:"#e5e5e5",fontSize:14}}>No Zoho handoffs or Sales OS targets are available yet.</div>
               : summaryLines.map((line,i)=>(
                   <div key={i} style={{display:"flex",gap:12,marginBottom:i<summaryLines.length-1?10:0}}>
                     <div style={{width:4,background:i===0?B.orange:"#333",borderRadius:2,flexShrink:0,marginTop:3}} />
@@ -4392,10 +4489,10 @@ function Admin({ user, allUsers, refreshAllUsers }) {
           {/* Key numbers row */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
-              {label:"Total Signings",val:totalSigs,sub:totalTarget>0?`Target: ${totalTarget}`:"No target",col:B.orange},
-              {label:"Overall Forecast",val:totalForecast,sub:totalTarget>0?`${Math.round(((totalForecast-totalTarget)/Math.max(totalTarget,1))*100)}% vs target`:"—",col:totalTarget>0&&totalForecast>=totalTarget?"#16a34a":"#d97706"},
+              {label:"Zoho Handoffs",val:totalSigs,sub:totalTarget>0?`Target: ${totalTarget}`:"No target",col:B.orange},
+              {label:"Pace Estimate",val:totalForecast,sub:totalTarget>0?`${Math.round(((totalForecast-totalTarget)/Math.max(totalTarget,1))*100)}% vs target`:"—",col:totalTarget>0&&totalForecast>=totalTarget?"#16a34a":"#d97706"},
               {label:"Days Left in Q",val:daysLeft,sub:`of ${daysTotal} total`,col:"#aaa"},
-              {label:"Pending Approval",val:pending.length,sub:pending.length>0?"Action needed":"All clear ✓",col:pending.length>0?"#ef4444":"#16a34a"},
+              {label:"Manual Pending",val:pending.length,sub:pending.length>0?"Separate tracker":"All clear ✓",col:pending.length>0?"#ef4444":"#16a34a"},
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
@@ -4435,9 +4532,9 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {/* ── ACTIVITY FEED ── */}
       {tab==="activity"&&(
         <div>
-          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Everything that's happened across the team, most recent first.</p>
+          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Zoho handoffs plus clearly separate manual approvals and badges, most recent first.</p>
           {feed.length===0
-            ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-2)"}}>No activity yet — starts filling up once the team logs signings.</div>
+            ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-2)"}}>No Zoho handoffs or Sales OS activity yet.</div>
             :<div style={{display:"grid",gap:7}}>
               {feed.map((event,i)=>{
                 const c = event.user?.accentColor||B.orange;
@@ -4462,7 +4559,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {/* ── MONTH VS MONTH ── */}
       {tab==="monthly"&&(
         <div>
-          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Team signings by month. Based on contract completion date.</p>
+          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Zoho handoffs grouped by Zoho Closing Date. This rule is provisional.</p>
 
           {/* Team totals bar chart */}
           <div className="card" style={{padding:20,marginBottom:14}}>
@@ -4704,10 +4801,10 @@ function Admin({ user, allUsers, refreshAllUsers }) {
       {/* ── APPROVALS ── */}
       {tab==="add"&&(
         <div>
-          <p style={{color:"var(--text-2)",fontSize:15,marginBottom:22}}>Add a signing directly for a team member. It will be marked as approved immediately and count toward their targets.</p>
+          <p style={{color:"var(--text-2)",fontSize:15,marginBottom:22}}>This is a separate manual tracker. It does not create or update a Zoho Deal, and it does not change the Zoho-powered totals.</p>
           {addSubmitted&&(
             <div style={{background:"#0a150a",border:"1px solid #1a3a1a",borderRadius:12,padding:"14px 18px",marginBottom:18,fontSize:15,color:"#4ade80"}}>
-              ✓ Deal added and approved for {allUsers.find(u=>u.email===addForm.repEmail)?.nickname||addForm.repEmail}.
+              ✓ Manual entry saved for {allUsers.find(u=>u.email===addForm.repEmail)?.nickname||addForm.repEmail}. Zoho was not changed.
             </div>
           )}
           <div className="card" style={{padding:26}}>
@@ -4756,7 +4853,7 @@ function Admin({ user, allUsers, refreshAllUsers }) {
               </div>
             </div>
             {addErr&&<div style={{color:"#ef4444",fontSize:14,marginTop:12}}>{addErr}</div>}
-            <button className="btn btn-p" onClick={submitForRep} style={{marginTop:20,width:"100%",justifyContent:"center",padding:"14px 24px",fontSize:16}}>Add Deal for Rep ✓</button>
+            <button className="btn btn-p" onClick={submitForRep} style={{marginTop:20,width:"100%",justifyContent:"center",padding:"14px 24px",fontSize:16}}>Save Manual Entry ✓</button>
           </div>
         </div>
       )}
