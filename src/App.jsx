@@ -21,6 +21,10 @@ import {
   hasMeetingRecapContent,
 } from "./meetingRecap.mjs";
 import {
+  buildPostedAnnouncement,
+  createEmptyAnnouncement,
+} from "./announcement.mjs";
+import {
   makeLocalTestUser,
   mergeAuthenticatedUser,
   normalizeEmail,
@@ -4332,7 +4336,8 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
   const [badges, setBadges] = useState(getBadges());
   const [pending, setPending] = useState(getAllPendingSignings());
   const [editSigning, setEditSigning] = useState(null);
-  const [announcement, setAnnouncement] = useState(getAnnouncement()||{text:"",emoji:"📣"});
+  const [currentAnnouncement, setCurrentAnnouncement] = useState(getAnnouncement());
+  const [announcement, setAnnouncement] = useState(createEmptyAnnouncement);
   const [annSaved, setAnnSaved] = useState(false);
   const [currentRecap, setCurrentRecap] = useState(getMeetingRecap());
   const [recap, setRecap] = useState(createEmptyMeetingRecap);
@@ -4399,12 +4404,22 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
   function removeTask(id) { setRecap(p=>({...p,tasks:p.tasks.filter(t=>t.id!==id)})); }
 
   function postAnnouncement() {
-    if (!announcement.text.trim()) return;
-    const a={...announcement,from:user.nickname||user.displayName,ts:Date.now()};
-    saveAnnouncement(a); setAnnSaved(true);
+    const authorName=user.nickname||user.displayName;
+    const a=buildPostedAnnouncement(announcement,{displayName:authorName,email:user.email});
+    if (!a) return;
+    const currentAuthor=currentAnnouncement?.from||"another manager";
+    if (currentAnnouncement&&!window.confirm(`Replace ${currentAuthor}'s current team announcement with this new one?`)) return;
+    saveAnnouncement(a);
+    setCurrentAnnouncement(a);
+    setAnnouncement(createEmptyAnnouncement());
+    setAnnSaved(true);
     setTimeout(()=>setAnnSaved(false),2000);
   }
-  function removeAnnouncement() { clearAnnouncement(); setAnnouncement({text:"",emoji:"📣"}); }
+  function removeAnnouncement() {
+    if (!currentAnnouncement||!window.confirm("Remove the current team announcement?")) return;
+    clearAnnouncement();
+    setCurrentAnnouncement(null);
+  }
 
   function submitForRep() {
     if (!addForm.repEmail){setAddErr("Select a team member.");return;}
@@ -4830,8 +4845,23 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
       {tab==="announce"&&(
         <div>
           <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Post a message that appears as a banner on every rep's dashboard until you remove it.</p>
+          {currentAnnouncement&&(
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Current Announcement</div>
+              <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                  <span style={{fontSize:18,flexShrink:0}}>{currentAnnouncement.emoji||"📣"}</span>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{currentAnnouncement.text}</div>
+                    <div style={{fontSize:12,color:"#e5e5e5",marginTop:2}}>From {currentAnnouncement.from||"Unknown manager"} · {currentAnnouncement.ts?timeAgo(currentAnnouncement.ts):"date unknown"}</div>
+                  </div>
+                </div>
+                <button className="btn btn-g btn-sm" onClick={removeAnnouncement} style={{flexShrink:0}}>Remove Current</button>
+              </div>
+            </div>
+          )}
           <div className="card" style={{padding:20,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Post Announcement</div>
+            <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>New Announcement</div>
             <div style={{display:"grid",gap:12,marginBottom:14}}>
               <div>
                 <label>Emoji</label>
@@ -4843,19 +4873,18 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
               </div>
               <div>
                 <label>Message</label>
-                <textarea rows={3} placeholder="e.g. Great week everyone — 14 signings across the team. Lets close Q3 strong" value={announcement.text} onChange={e=>setAnnouncement(p=>({...p,text:e.target.value}))} />
+                <textarea rows={3} maxLength={200} placeholder="e.g. Great week everyone — 14 signings across the team. Lets close Q3 strong" value={announcement.text} onChange={e=>setAnnouncement(p=>({...p,text:e.target.value}))} />
                 <div style={{fontSize:11,color:"#e5e5e5",marginTop:4,textAlign:"right"}}>{announcement.text.length}/200</div>
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button className="btn btn-p btn-sm" onClick={postAnnouncement} disabled={!announcement.text.trim()}>{annSaved?"✓ Posted!":"Post to Team"}</button>
-              {getAnnouncement()&&<button className="btn btn-g btn-sm" onClick={removeAnnouncement}>Remove Current</button>}
+              <button className="btn btn-p btn-sm" onClick={postAnnouncement} disabled={!announcement.text.trim()}>{annSaved?"✓ Posted!":currentAnnouncement?"Replace Current":"Post to Team"}</button>
             </div>
           </div>
           {/* Preview */}
           {announcement.text&&(
             <div>
-              <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Preview</div>
+              <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>New Announcement Preview</div>
               <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:18}}>{announcement.emoji||"📣"}</span>
                 <div>
