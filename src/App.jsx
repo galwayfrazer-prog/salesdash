@@ -2126,11 +2126,11 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
             const mom=calcMomentum(u.email,salesEvents);
 
             return (
-              <div key={u.email} className="card" style={{padding:"12px 16px",borderColor:isMe?c+"66":B.border,background:isMe?c+"08":B.card,position:"relative",overflow:"hidden"}}>
+              <div key={u.email} className="card" style={{padding:"12px 16px",minHeight:100,borderColor:isMe?c+"66":B.border,background:isMe?c+"08":B.card,position:"relative",overflow:"hidden",display:"flex",alignItems:"center"}}>
                 {/* Background progress bar */}
                 <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${Math.max(3,Math.round((s/max)*100))}%`,background:c+"0a",transition:"width 0.8s ease"}} />
 
-                <div style={{position:"relative",display:"flex",alignItems:"center",gap:12}}>
+                <div style={{position:"relative",display:"flex",alignItems:"center",gap:12,width:"100%"}}>
 
                   {/* Rank */}
                   <div style={{width:30,textAlign:"center",flexShrink:0}}>
@@ -2165,12 +2165,17 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
                   </div>
 
                   {/* Score + rank change + perf + momentum */}
-                  <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                  <div style={{width:190,textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
                     <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
                       <div style={{textAlign:"right"}}>
                         <AnimatedNumber value={s} color={c} size={26} />
                         <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Zoho handoffs</div>
-                        {rankChange!==0&&<div style={{fontSize:11,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1}}>{rankChange>0?"↑":"↓"}{Math.abs(rankChange)} this wk</div>}
+                        <div
+                          aria-hidden={rankChange===0?"true":undefined}
+                          style={{fontSize:11,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1,minHeight:14,whiteSpace:"nowrap",visibility:rankChange!==0?"visible":"hidden"}}
+                        >
+                          {rankChange!==0?`${rankChange>0?"↑":"↓"}${Math.abs(rankChange)} this wk`:"↑0 this wk"}
+                        </div>
                       </div>
                       <div style={{textAlign:"center",padding:"6px 10px",background:perfScoreColor(perf.score)+"18",border:`1px solid ${perfScoreColor(perf.score)}44`,borderRadius:8,minWidth:50}}>
                         <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700,color:perfScoreColor(perf.score),lineHeight:1}}>{perf.score}</div>
