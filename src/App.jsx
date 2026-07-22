@@ -1147,7 +1147,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
       <main ref={contentRef} tabIndex={-1} aria-label="Sales OS content" style={{flex:1,minWidth:0,minHeight:0,overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",scrollbarGutter:"stable",outline:"none",padding:26}}>
         {view==="dashboard"&&(statsEnabled
           ?<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={salesUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>
-          :<AccessOnlyDashboard user={user} announcement={getAnnouncement()} />)}
+          :<SalesDataGate salesData={salesData}><Admin user={user} allUsers={salesUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} summaryOnly /></SalesDataGate>)}
         {view==="hit-list"&&<HitList onAuthRequired={handleAuthRequired} />}
         {view==="crm-hygiene"&&<CrmHygiene onAuthRequired={handleAuthRequired} />}
         {view==="stats"&&statsEnabled&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={salesUsers} salesData={salesData} /></SalesDataGate>}
@@ -1224,33 +1224,6 @@ function MeetingRecapCard({ user }) {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function AccessOnlyDashboard({ user, announcement }) {
-  const c = user.accentColor || B.orange;
-  return (
-    <div className="fi">
-      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,textTransform:"uppercase",lineHeight:1,marginBottom:20}}>
-        {greeting()}, <span style={{color:c}}>{user.nickname||user.displayName}.</span>
-      </div>
-      {announcement&&(
-        <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:18,flexShrink:0}}>{announcement.emoji||"📣"}</span>
-          <div>
-            <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{announcement.text}</div>
-            {announcement.from&&<div style={{fontSize:12,color:"#e5e5e5",marginTop:2}}>From {announcement.from} · {timeAgo(announcement.ts)}</div>}
-          </div>
-        </div>
-      )}
-      <MeetingRecapCard user={user} />
-      <div className="card" style={{padding:24,borderColor:`${c}44`,maxWidth:760}}>
-        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Access-only account</div>
-        <div style={{color:"var(--text-2)",fontSize:15,lineHeight:1.6}}>
-          You can open and manage Sales OS, but your account is not included in sales scores, rankings, targets, incentives or team totals.
-        </div>
-      </div>
     </div>
   );
 }
@@ -4424,7 +4397,7 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
 }
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
-function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
+function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summaryOnly = false }) {
   const [tab, setTab] = useState("summary");
   const [bForm, setBForm] = useState({recipientEmail:"",name:"",emoji:"🏅",note:""});
   const [badgeSaved, setBadgeSaved] = useState(false);
@@ -4631,11 +4604,22 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
 
   return (
     <div className="fi">
-      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase",marginBottom:22}}>Manager</div>
-      <div style={{fontSize:12,color:"var(--text-dim2)",marginTop:-14,marginBottom:18}}>Sales totals come from read-only Zoho data{salesData.generatedAt?` · updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. Other manager tools below stay inside Sales OS.</div>
+      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:700,textTransform:"uppercase",marginBottom:22}}>{summaryOnly?"Dashboard":"Manager"}</div>
+      <div style={{fontSize:12,color:"var(--text-dim2)",marginTop:-14,marginBottom:18}}>Sales totals come from read-only Zoho data{salesData.generatedAt?` · updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. {summaryOnly?"Your access-only account is not included in these numbers.":"Other manager tools below stay inside Sales OS."}</div>
+
+      {summaryOnly&&currentAnnouncement&&(
+        <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18,flexShrink:0}}>{currentAnnouncement.emoji||"📣"}</span>
+          <div>
+            <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{currentAnnouncement.text}</div>
+            {currentAnnouncement.from&&<div style={{fontSize:12,color:"#e5e5e5",marginTop:2}}>From {currentAnnouncement.from} · {timeAgo(currentAnnouncement.ts)}</div>}
+          </div>
+        </div>
+      )}
+      {summaryOnly&&<MeetingRecapCard user={user} />}
 
       {/* Tab bar */}
-      <div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22,flexWrap:"wrap"}}>
+      {!summaryOnly&&<div style={{display:"flex",gap:3,background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,marginBottom:22,flexWrap:"wrap"}}>
         <button style={T("summary")} onClick={()=>setTab("summary")}>Summary</button>
         <button style={T("activity")} onClick={()=>setTab("activity")}>Activity</button>
         <button style={T("monthly")} onClick={()=>setTab("monthly")}>Month vs Month</button>
@@ -4647,7 +4631,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
         <button style={T("add")} onClick={()=>setTab("add")}>Add Manual Entry</button>
         <button style={T("team")} onClick={()=>setTab("team")}>Team</button>
         <button style={T("badges")} onClick={()=>setTab("badges")}>Badges</button>
-      </div>
+      </div>}
 
       {/* ── EXECUTIVE SUMMARY ── */}
       {tab==="summary"&&(
