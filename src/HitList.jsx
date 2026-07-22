@@ -162,7 +162,7 @@ export default function HitList({ onAuthRequired }) {
   );
 
   return (
-    <div className="fi" style={{ maxWidth: 1180, width: "100%", height: "calc(100vh - 52px)", margin: "0 auto", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="fi" style={{ width: "100%", height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16, flexShrink: 0 }}>
         <div>
           <div style={{ marginBottom: 6 }}>
