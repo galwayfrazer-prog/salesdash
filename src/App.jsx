@@ -28,6 +28,7 @@ import {
   makeLocalTestUser,
   mergeAuthenticatedUser,
   normalizeEmail,
+  normalizeUiMessage,
   profileForRemoteStorage,
   sanitizeLegacyProfile,
 } from "./authModel.js";
@@ -667,11 +668,12 @@ export default function App() {
   }
 
   async function doLogout(message = "") {
+    const safeMessage = normalizeUiMessage(message);
     clearDashboardCache();
     authUserIdRef.current = null;
     setUser(null);
     setAllUsers([]);
-    setAuthError(message);
+    setAuthError(safeMessage);
     setView("login");
     if (supabase) await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   }
@@ -779,6 +781,7 @@ function LoginScreen({ doLocalLogin, doGoogleLogin, localMode, configError }) {
   const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const visibleConfigError = normalizeUiMessage(configError);
 
   async function tryLogin(e) {
     e.preventDefault(); setErr("");
@@ -816,7 +819,7 @@ function LoginScreen({ doLocalLogin, doGoogleLogin, localMode, configError }) {
           </div>
         </div>
         {localMode&&<div style={{fontSize:12,color:"#f59e0b",marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>Local test mode. No real account is being used.</div>}
-        {configError&&<div style={{color:"#f59e0b",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>{configError}</div>}
+        {visibleConfigError&&<div style={{color:"#f59e0b",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>{visibleConfigError}</div>}
         {err&&<div style={{color:"#ef4444",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#ef444418",borderRadius:6,border:"1px solid #ef444433"}}>{err}</div>}
         {localMode ? (
           <form onSubmit={tryLogin} className="fi">
@@ -1088,7 +1091,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
             {open&&<div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:14,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"var(--text)"}}>{user.nickname||user.displayName}</div>
             <div style={{display:"flex",gap:10,alignItems:"center",marginTop:2}}>
-              <button onClick={doLogout} style={{background:"none",border:"none",color:B.muted,fontSize:12,cursor:"pointer",padding:0,fontFamily:"'DM Sans',sans-serif"}}>Sign out</button>
+              <button onClick={()=>{void doLogout();}} style={{background:"none",border:"none",color:B.muted,fontSize:12,cursor:"pointer",padding:0,fontFamily:"'DM Sans',sans-serif"}}>Sign out</button>
               <button onClick={toggleLightMode} style={{background:"none",border:"none",cursor:"pointer",padding:0,fontSize:14}} title={lightMode?"Switch to dark mode":"Switch to light mode"}>{lightMode?"🌙":"☀️"}</button>
             </div>
           </div>}

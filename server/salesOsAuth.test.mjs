@@ -3,6 +3,7 @@ import {
   isWildVisionEmail,
   makeLocalTestUser,
   mergeAuthenticatedUser,
+  normalizeUiMessage,
   profileForRemoteStorage,
   sanitizeLegacyProfile,
 } from "../src/authModel.js";
@@ -14,6 +15,9 @@ import {
 assert.equal(isWildVisionEmail("FILIP.STANIC@WILDVISION.IO"), true);
 assert.equal(isWildVisionEmail("filip@wildvision.io.attacker.test"), false);
 assert.equal(isWildVisionEmail("filip@gmail.com"), false);
+assert.equal(normalizeUiMessage("Please sign in again."), "Please sign in again.");
+assert.equal(normalizeUiMessage({ type: "click" }), "");
+assert.equal(normalizeUiMessage(null), "");
 
 const dirtyProfile = {
   email: "REP@WILDVISION.IO",

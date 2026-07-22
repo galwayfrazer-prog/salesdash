@@ -14,6 +14,10 @@ export function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+export function normalizeUiMessage(value) {
+  return typeof value === "string" ? value : "";
+}
+
 export function isWildVisionEmail(value) {
   return /^[^@\s]+@wildvision\.io$/.test(normalizeEmail(value));
 }
