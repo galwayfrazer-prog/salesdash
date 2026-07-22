@@ -1052,6 +1052,12 @@ function SalesDataGate({ salesData, children }) {
 
 function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, lightMode, toggleLightMode }) {
   const [open, setOpen] = useState(true);
+  const contentRef = useRef(null);
+  useEffect(() => {
+    if (!contentRef.current) return;
+    contentRef.current.scrollTop = 0;
+    contentRef.current.focus({preventScroll:true});
+  }, [view]);
   function handleAuthRequired() {
     void doLogout("Your secure session expired. Please sign in again.");
   }
@@ -1070,13 +1076,13 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
     ...(user.role==="manager"?[{id:"admin",icon:"⚙️",label:"Manager",badge:pendingCount}]:[]),
   ];
   return (
-    <div style={{display:"flex",minHeight:"100vh"}}>
-      <div style={{width:open?240:64,background:"var(--bg)",borderRight:`1px solid ${B.border}`,display:"flex",flexDirection:"column",flexShrink:0,transition:"width 0.2s",overflow:"hidden"}}>
+    <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
+      <div style={{width:open?240:64,height:"100vh",background:"var(--bg)",borderRight:`1px solid ${B.border}`,display:"flex",flexDirection:"column",flexShrink:0,transition:"width 0.2s",overflow:"hidden"}}>
         <div style={{padding:"20px 16px",borderBottom:`1px solid ${B.border}`,display:"flex",alignItems:"center",gap:12}}>
           <img src={WV_LOGO} alt="" style={{width:30,height:30,objectFit:"contain",flexShrink:0}} />
           {open&&<div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,letterSpacing:"0.06em",textTransform:"uppercase",whiteSpace:"nowrap"}}>Sales OS</div>}
         </div>
-        <nav style={{flex:1,padding:"12px 8px",display:"flex",flexDirection:"column",gap:3}}>
+        <nav style={{flex:1,minHeight:0,overflowY:"auto",padding:"12px 8px",display:"flex",flexDirection:"column",gap:3}}>
           {nav.map(item=>(
             <button key={item.id} className={`nav${view===item.id?" on":""}`} onClick={()=>setView(item.id)} style={{justifyContent:open?"flex-start":"center",padding:"11px 14px",fontSize:15}}>
               <span style={{fontSize:18,flexShrink:0}}>{item.icon}</span>
@@ -1099,7 +1105,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         </div>
         <button onClick={()=>setOpen(o=>!o)} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",padding:"10px",fontSize:13,borderTop:`1px solid ${B.border}`}}>{open?"◀":"▶"}</button>
       </div>
-      <div style={{flex:1,overflow:"auto",padding:26}}>
+      <main ref={contentRef} tabIndex={-1} aria-label="Sales OS content" style={{flex:1,minWidth:0,minHeight:0,overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",scrollbarGutter:"stable",outline:"none",padding:26}}>
         {view==="dashboard"&&<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={allUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="hit-list"&&<HitList onAuthRequired={handleAuthRequired} />}
         {view==="stats"&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={allUsers} salesData={salesData} /></SalesDataGate>}
@@ -1110,7 +1116,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         {view==="incentive"&&<SalesDataGate salesData={salesData}><Incentives user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="profile"&&<Profile user={user} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
         {view==="admin"&&user.role==="manager"&&<SalesDataGate salesData={salesData}><Admin user={user} allUsers={allUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
-      </div>
+      </main>
     </div>
   );
 }
@@ -4209,7 +4215,12 @@ function Incentives({ user, allUsers, salesEvents, salesData }) {
         <button style={IT("simple")} onClick={()=>setIncTab("simple")}>Simple Incentive</button>
       </div>
 
-      {incTab==="game"&&<SnakesLaddersGame user={user} />}
+      {incTab==="game"&&<>
+        <div style={{background:"#0d0d0d",border:"1px solid #1a1a1a",borderRadius:10,padding:"10px 14px",marginBottom:14,color:"var(--text-muted)",fontSize:12,lineHeight:1.5}}>
+          Game players and roll history are a shared manual list saved by the team. Someone can appear here before they create or sign in to a Sales OS account.
+        </div>
+        <SnakesLaddersGame user={user} />
+      </>}
 
       {incTab==="simple"&&<>
       {editing&&(
