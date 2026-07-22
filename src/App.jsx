@@ -34,6 +34,7 @@ import {
   mergeAuthenticatedUser,
   normalizeEmail,
   normalizeUiMessage,
+  isSalesStatsUser,
   profileForRemoteStorage,
   sanitizeLegacyProfile,
 } from "./authModel.js";
@@ -55,7 +56,7 @@ async function syncFromSupabase() {
   const [kvResult, memberResult] = await withTimeout(
     Promise.all([
       supabase.rpc("sales_os_dashboard_snapshot"),
-      supabase.from("sales_os_members").select("email,user_id,role,display_name,active").eq("active", true),
+      supabase.from("sales_os_members").select("email,user_id,role,display_name,active,stats_enabled").eq("active", true),
     ]),
     20_000,
     "Dashboard data took too long to load. Please try again.",
@@ -83,6 +84,7 @@ async function syncFromSupabase() {
         ...profile,
         email,
         role: member.role,
+        statsEnabled: member.stats_enabled !== false,
         displayName: profile.displayName || member.display_name || nameFromEmail(email),
       }));
     } catch {
@@ -97,6 +99,7 @@ async function syncFromSupabase() {
     localStorage.setItem(storageKey, JSON.stringify({
       email,
       role: member.role,
+      statsEnabled: member.stats_enabled !== false,
       displayName: member.display_name || nameFromEmail(email),
       nickname: member.display_name || nameFromEmail(email),
       setupComplete: true,
@@ -498,7 +501,7 @@ export default function App() {
     const storedProfile=getUser(user.email);
     if(storedProfile){
       const profile=sanitizeLegacyProfile(storedProfile);
-      const u={...profile,email:user.email,role:user.role,authUserId:user.authUserId,localTestOnly:user.localTestOnly,needsPasswordSetup:false};
+      const u={...profile,email:user.email,role:user.role,statsEnabled:user.statsEnabled!==false,authUserId:user.authUserId,localTestOnly:user.localTestOnly,needsPasswordSetup:false};
       setUser(u);
       setAllUsers(getAllUsers().filter(x=>x.setupComplete)); // keep leaderboard/allUsers in sync with any profile changes (nickname, photo, etc.)
     }
@@ -508,7 +511,7 @@ export default function App() {
     return withTimeout(
       supabase
         .from("sales_os_members")
-        .select("email,user_id,role,display_name,active")
+        .select("email,user_id,role,display_name,active,stats_enabled")
         .eq("user_id", authUserId)
         .eq("active", true)
         .maybeSingle(),
@@ -1094,14 +1097,16 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
     void doLogout("Your secure session expired. Please sign in again.");
   }
   const salesData = useZohoSalesData(user, handleAuthRequired);
+  const statsEnabled = isSalesStatsUser(user);
+  const salesUsers = allUsers.filter(isSalesStatsUser);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
     {id:"dashboard",icon:"⚡",label:"Dashboard"},
     {id:"leaderboard",icon:"🏆",label:"Leaderboard"},
-    {id:"stats",icon:"📊",label:"My Stats"},
+    ...(statsEnabled?[{id:"stats",icon:"📊",label:"My Stats"}]:[]),
     {id:"targets",icon:"🎯",label:"Targets"},
     {id:"hit-list",icon:"📋",label:"Hit List Report"},
-    {id:"signings",icon:"✍️",label:"Manual Tracker"},
+    ...(statsEnabled?[{id:"signings",icon:"✍️",label:"Manual Tracker"}]:[]),
     {id:"incentive",icon:"🔥",label:"Incentives"},
     {id:"calculator",icon:"💰",label:"Comm. Calc"},
     {id:"profile",icon:"👤",label:"My Profile"},
@@ -1138,16 +1143,18 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         <button onClick={()=>setOpen(o=>!o)} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",padding:"10px",fontSize:13,borderTop:`1px solid ${B.border}`}}>{open?"◀":"▶"}</button>
       </div>
       <main ref={contentRef} tabIndex={-1} aria-label="Sales OS content" style={{flex:1,minWidth:0,minHeight:0,overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",scrollbarGutter:"stable",outline:"none",padding:26}}>
-        {view==="dashboard"&&<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={allUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
+        {view==="dashboard"&&(statsEnabled
+          ?<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={salesUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>
+          :<AccessOnlyDashboard user={user} announcement={getAnnouncement()} />)}
         {view==="hit-list"&&<HitList onAuthRequired={handleAuthRequired} />}
-        {view==="stats"&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={allUsers} salesData={salesData} /></SalesDataGate>}
-        {view==="signings"&&<LogSigning user={user} refreshUser={refreshUser} />}
-        {view==="leaderboard"&&<SalesDataGate salesData={salesData}><Leaderboard user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
+        {view==="stats"&&statsEnabled&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={salesUsers} salesData={salesData} /></SalesDataGate>}
+        {view==="signings"&&statsEnabled&&<LogSigning user={user} refreshUser={refreshUser} />}
+        {view==="leaderboard"&&<SalesDataGate salesData={salesData}><Leaderboard user={user} allUsers={salesUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="calculator"&&<Calculator user={user} />}
-        {view==="targets"&&<SalesDataGate salesData={salesData}><Targets user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
-        {view==="incentive"&&<SalesDataGate salesData={salesData}><Incentives user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
+        {view==="targets"&&<SalesDataGate salesData={salesData}><Targets user={user} allUsers={salesUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
+        {view==="incentive"&&<SalesDataGate salesData={salesData}><Incentives user={user} allUsers={salesUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="profile"&&<Profile user={user} refreshUser={refreshUser} lightMode={lightMode} toggleLightMode={toggleLightMode} />}
-        {view==="admin"&&user.role==="manager"&&<SalesDataGate salesData={salesData}><Admin user={user} allUsers={allUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
+        {view==="admin"&&user.role==="manager"&&<SalesDataGate salesData={salesData}><Admin user={user} allUsers={salesUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
       </main>
     </div>
   );
@@ -1214,6 +1221,33 @@ function MeetingRecapCard({ user }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function AccessOnlyDashboard({ user, announcement }) {
+  const c = user.accentColor || B.orange;
+  return (
+    <div className="fi">
+      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,textTransform:"uppercase",lineHeight:1,marginBottom:20}}>
+        {greeting()}, <span style={{color:c}}>{user.nickname||user.displayName}.</span>
+      </div>
+      {announcement&&(
+        <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18,flexShrink:0}}>{announcement.emoji||"📣"}</span>
+          <div>
+            <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{announcement.text}</div>
+            {announcement.from&&<div style={{fontSize:12,color:"#e5e5e5",marginTop:2}}>From {announcement.from} · {timeAgo(announcement.ts)}</div>}
+          </div>
+        </div>
+      )}
+      <MeetingRecapCard user={user} />
+      <div className="card" style={{padding:24,borderColor:`${c}44`,maxWidth:760}}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Access-only account</div>
+        <div style={{color:"var(--text-2)",fontSize:15,lineHeight:1.6}}>
+          You can open and manage Sales OS, but your account is not included in sales scores, rankings, targets, incentives or team totals.
+        </div>
+      </div>
     </div>
   );
 }

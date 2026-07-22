@@ -8,6 +8,7 @@ const PROFILE_ONLY_FIELDS = new Set([
   "authUserId",
   "needsPasswordSetup",
   "localTestOnly",
+  "statsEnabled",
 ]);
 
 export function normalizeEmail(value) {
@@ -29,6 +30,10 @@ export function displayNameFromEmail(value) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function isSalesStatsUser(user) {
+  return user?.statsEnabled !== false;
 }
 
 export function sanitizeLegacyProfile(value) {
@@ -64,6 +69,7 @@ export function mergeAuthenticatedUser(authUser, membership, legacyProfile = {})
     ...profile,
     email: authEmail,
     role: membership.role,
+    statsEnabled: membership.stats_enabled !== false,
     displayName,
     nickname: profile.nickname || displayName,
     authUserId: authUser.id,
@@ -80,6 +86,7 @@ export function makeLocalTestUser(email, role, legacyProfile = {}) {
     ...profile,
     email: normalizedEmail,
     role: safeRole,
+    statsEnabled: true,
     displayName,
     nickname: profile.nickname || displayName,
     setupComplete: profile.setupComplete ?? true,

@@ -21,7 +21,7 @@ export async function requireSalesOsMember({ userClient, admin }) {
 
   const { data: member, error: memberError } = await admin
     .from("sales_os_members")
-    .select("email,user_id,role,display_name,active")
+    .select("email,user_id,role,display_name,active,stats_enabled")
     .eq("user_id", user.id)
     .eq("active", true)
     .maybeSingle();
