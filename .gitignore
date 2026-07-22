@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Local credentials
+.env
+.env.*
+!.env.example
+zohoapisales.md
+client_secret_*.apps.googleusercontent.com.json
+.data/
+supabase/.temp/
+supabase/.branches/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

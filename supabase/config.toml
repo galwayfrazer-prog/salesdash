@@ -1,0 +1,10 @@
+project_id = "jiprcwsdcqdjtkzddiku"
+
+[functions.sync-zoho-hit-list]
+verify_jwt = false
+
+[functions.get-zoho-hit-list]
+verify_jwt = false
+
+[functions.get-zoho-sales-deals]
+verify_jwt = false
