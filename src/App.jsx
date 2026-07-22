@@ -743,14 +743,21 @@ export default function App() {
         .nav:hover{background:var(--bg-hover);color:var(--text);}
         .nav.on{background:${B.orange}18;color:${B.orange};}
         .fi{animation:fadeIn 0.25s ease;}
+        .app-loading-screen{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:var(--bg);}
+        .app-loading-stack{width:180px;display:grid;justify-items:center;gap:20px;text-align:center;}
+        .app-loading-logo{display:block;width:40px;height:40px;object-fit:contain;transform:translateX(3px);}
+        .app-loading-spinner{width:32px;height:32px;border:3px solid #1a1a1a;border-top-color:${B.orange};border-radius:50%;animation:spin 0.7s linear infinite;}
+        .app-loading-label{width:100%;font-size:13px;line-height:1;color:var(--text-dim3);letter-spacing:0.06em;text-align:center;text-transform:uppercase;}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
       `}</style>
       {syncing && (
-        <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}>
-          <img src={WV_LOGO} alt="" style={{width:40,height:40,objectFit:"contain"}} />
-          <div style={{width:32,height:32,border:"3px solid #1a1a1a",borderTopColor:B.orange,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} />
-          <div style={{fontSize:13,color:"var(--text-dim3)",letterSpacing:"0.06em",textTransform:"uppercase"}}>Loading...</div>
+        <div className="app-loading-screen" role="status" aria-live="polite" aria-label="Loading Sales OS">
+          <div className="app-loading-stack">
+            <img className="app-loading-logo" src={WV_LOGO} alt="" />
+            <div className="app-loading-spinner" aria-hidden="true" />
+            <div className="app-loading-label">Loading Sales OS...</div>
+          </div>
         </div>
       )}
       {!syncing && view==="login" && <LoginScreen doLocalLogin={doLocalLogin} doGoogleLogin={doGoogleLogin} localMode={localAuthMode} configError={authError} />}
