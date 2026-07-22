@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchZohoData } from "./zohoApi.js";
+import { isAuthRequiredError } from "./sessionRecovery.js";
 
 const PLATFORM_COLORS = {
   "Microsoft Start": "#ff00a8",
@@ -65,7 +66,7 @@ function compareLastActivity(left, right, direction) {
   return direction === "oldest" ? leftTime - rightTime : rightTime - leftTime;
 }
 
-export default function HitList() {
+export default function HitList({ onAuthRequired }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("creator-asc");
@@ -105,6 +106,7 @@ export default function HitList() {
       } catch (loadError) {
         if (loadError.name !== "AbortError") {
           setError(loadError.message || "Zoho data could not be loaded.");
+          if (isAuthRequiredError(loadError)) onAuthRequired?.();
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);

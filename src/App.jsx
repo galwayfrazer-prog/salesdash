@@ -4,6 +4,11 @@ import { fetchZohoData } from "./zohoApi.js";
 import { filterDealsForPeriod } from "./salesPeriod.js";
 import { supabase } from "./supabaseClient.js";
 import {
+  getVerifiedAuthUser,
+  isAuthRequiredError,
+  withTimeout,
+} from "./sessionRecovery.js";
+import {
   buildZohoPerformanceEvents,
   buildZohoPerformanceEventsFromSummary,
   computeZohoOutcomeStats,
@@ -36,10 +41,15 @@ function clearDashboardCache() {
 // Pull dashboard data only after Supabase Auth has verified the user.
 async function syncFromSupabase() {
   if (!supabase) return [];
-  const [kvResult, memberResult] = await Promise.all([
-    supabase.rpc("sales_os_dashboard_snapshot"),
-    supabase.from("sales_os_members").select("email,user_id,role,display_name,active").eq("active", true),
-  ]);
+  const [kvResult, memberResult] = await withTimeout(
+    Promise.all([
+      supabase.rpc("sales_os_dashboard_snapshot"),
+      supabase.from("sales_os_members").select("email,user_id,role,display_name,active").eq("active", true),
+    ]),
+    20_000,
+    "Dashboard data took too long to load. Please try again.",
+    "DASHBOARD_TIMEOUT",
+  );
   if (kvResult.error) throw new Error("Dashboard data could not be loaded.");
   if (memberResult.error) throw new Error("Team membership could not be loaded.");
 
@@ -461,6 +471,7 @@ export default function App() {
   const [lightMode, setLightMode] = useState(false);
   const [authError, setAuthError] = useState("");
   const authUserIdRef = useRef(null);
+  const hydrationRef = useRef(null);
   const localAuthMode = import.meta.env.DEV && !supabase;
 
   // Persist light mode preference to localStorage
@@ -483,33 +494,56 @@ export default function App() {
   }
 
   async function readHostedMembership(authUserId) {
-    return supabase
-      .from("sales_os_members")
-      .select("email,user_id,role,display_name,active")
-      .eq("user_id", authUserId)
-      .eq("active", true)
-      .maybeSingle();
+    return withTimeout(
+      supabase
+        .from("sales_os_members")
+        .select("email,user_id,role,display_name,active")
+        .eq("user_id", authUserId)
+        .eq("active", true)
+        .maybeSingle(),
+      15_000,
+      "Team membership took too long to check. Please try again.",
+      "MEMBERSHIP_TIMEOUT",
+    );
   }
 
   async function hydrateHostedUser(authUser) {
-    let { data: membership, error: memberError } = await readHostedMembership(authUser.id);
-    if (memberError) throw new Error("Team membership could not be checked.");
-    if (!membership) {
-      const { error: claimError } = await supabase.rpc("claim_sales_os_membership");
-      if (claimError) throw new Error("This work email has not been approved for Sales OS.");
-      ({ data: membership, error: memberError } = await readHostedMembership(authUser.id));
-      if (memberError) throw new Error("Team membership could not be checked.");
+    if (hydrationRef.current?.userId === authUser.id) {
+      return hydrationRef.current.promise;
     }
-    if (!membership) throw new Error("This work email has not been approved for Sales OS.");
 
-    await syncFromSupabase();
-    const hydrated = mergeAuthenticatedUser(authUser, membership, getUser(membership.email));
-    setUser(hydrated);
-    authUserIdRef.current = hydrated.authUserId;
-    setAllUsers(getAllUsers().filter(item=>item.setupComplete));
-    setAuthError("");
-    setView(hydrated.setupComplete ? "dashboard" : "setup");
-    return hydrated;
+    const promise = (async () => {
+      let { data: membership, error: memberError } = await readHostedMembership(authUser.id);
+      if (memberError) throw new Error("Team membership could not be checked.");
+      if (!membership) {
+        const { error: claimError } = await withTimeout(
+          supabase.rpc("claim_sales_os_membership"),
+          15_000,
+          "Sales OS access took too long to check. Please try again.",
+          "MEMBERSHIP_TIMEOUT",
+        );
+        if (claimError) throw new Error("This work email has not been approved for Sales OS.");
+        ({ data: membership, error: memberError } = await readHostedMembership(authUser.id));
+        if (memberError) throw new Error("Team membership could not be checked.");
+      }
+      if (!membership) throw new Error("This work email has not been approved for Sales OS.");
+
+      await syncFromSupabase();
+      const hydrated = mergeAuthenticatedUser(authUser, membership, getUser(membership.email));
+      setUser(hydrated);
+      authUserIdRef.current = hydrated.authUserId;
+      setAllUsers(getAllUsers().filter(item=>item.setupComplete));
+      setAuthError("");
+      setView(hydrated.setupComplete ? "dashboard" : "setup");
+      return hydrated;
+    })();
+
+    hydrationRef.current = { userId: authUser.id, promise };
+    try {
+      return await promise;
+    } finally {
+      if (hydrationRef.current?.promise === promise) hydrationRef.current = null;
+    }
   }
 
   useEffect(() => {
@@ -523,10 +557,10 @@ export default function App() {
     }
 
     let active = true;
-    supabase.auth.getUser()
-      .then(async ({ data, error }) => {
+    getVerifiedAuthUser(supabase.auth)
+      .then(async (authUser) => {
         if (!active) return;
-        if (error || !data.user) {
+        if (!authUser) {
           clearDashboardCache();
           authUserIdRef.current = null;
           setUser(null);
@@ -534,11 +568,16 @@ export default function App() {
           setView("login");
           return;
         }
-        try { await hydrateHostedUser(data.user); }
+        try { await hydrateHostedUser(authUser); }
         catch (loadError) {
-          await supabase.auth.signOut({ scope: "local" });
+          const accessDenied = loadError?.message?.includes("not been approved");
+          if (isAuthRequiredError(loadError) || accessDenied) {
+            await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          }
           clearDashboardCache();
           authUserIdRef.current = null;
+          setUser(null);
+          setAllUsers([]);
           setAuthError(loadError.message);
           setView("login");
         }
@@ -546,6 +585,9 @@ export default function App() {
       .catch(() => {
         if (!active) return;
         clearDashboardCache();
+        authUserIdRef.current = null;
+        setUser(null);
+        setAllUsers([]);
         setAuthError("Sales OS login could not be checked. Please try again.");
         setView("login");
       })
@@ -562,11 +604,17 @@ export default function App() {
       if (event === "SIGNED_IN" && session?.user?.id !== authUserIdRef.current) {
         queueMicrotask(async () => {
           try {
-            const { data, error } = await supabase.auth.getUser();
-            if (error || !data.user) throw new Error("Invalid session");
-            if (data.user.id !== authUserIdRef.current) await hydrateHostedUser(data.user);
-          } catch {
-            await supabase.auth.signOut({ scope: "local" });
+            const authUser = await getVerifiedAuthUser(supabase.auth);
+            if (!authUser) {
+              await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+              throw new Error("Invalid session");
+            }
+            if (authUser.id !== authUserIdRef.current) await hydrateHostedUser(authUser);
+          } catch (error) {
+            const accessDenied = error?.message?.includes("not been approved");
+            if (isAuthRequiredError(error) || accessDenied) {
+              await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+            }
             clearDashboardCache();
             authUserIdRef.current = null;
             setUser(null);
@@ -614,13 +662,14 @@ export default function App() {
     return error ? "Google sign-in could not start. Please try again." : null;
   }
 
-  async function doLogout() {
-    if (supabase) await supabase.auth.signOut({ scope: "local" });
+  async function doLogout(message = "") {
     clearDashboardCache();
     authUserIdRef.current = null;
     setUser(null);
     setAllUsers([]);
+    setAuthError(message);
     setView("login");
+    if (supabase) await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   }
 
   useEffect(() => { if(user) refreshAllUsers(); }, [user?.email]);
@@ -894,7 +943,7 @@ function SetupScreen({ user, refreshUser, setView }) {
 }
 
 // ── SHELL ─────────────────────────────────────────────────────────────────────
-function useZohoSalesData(user) {
+function useZohoSalesData(user, onAuthRequired) {
   const [state, setState] = useState({
     loading: true,
     ready: false,
@@ -905,18 +954,23 @@ function useZohoSalesData(user) {
     teamDeals: [],
     teamEvents: [],
   });
+  const requestIdRef = useRef(0);
+  const authRequiredRef = useRef(onAuthRequired);
+  authRequiredRef.current = onAuthRequired;
 
   async function load() {
+    const requestId = ++requestIdRef.current;
     setState(previous=>({...previous,loading:true,error:""}));
     try {
       if (user.role === "manager") {
         const payload = await fetchZohoData("zoho-sales-deals", { scope:"team" });
         const teamDeals = Array.isArray(payload.deals) ? payload.deals : [];
         const email = user.email.toLowerCase();
+        if (requestId !== requestIdRef.current) return;
         setState({
-          loading: false,
-          ready: true,
-          error: "",
+            loading: false,
+            ready: true,
+            error: "",
           stale: payload.stale===true,
           generatedAt: payload.generatedAt||"",
           ownDeals: teamDeals.filter(deal=>String(deal.Owner?.email||"").toLowerCase()===email),
@@ -935,10 +989,11 @@ function useZohoSalesData(user) {
       const teamEvents = buildZohoPerformanceEventsFromSummary(summary.teamSummary)
         .filter(event=>event.submittedBy!==ownEmail)
         .concat(buildZohoPerformanceEvents(ownDeals));
+      if (requestId !== requestIdRef.current) return;
       setState({
-        loading: false,
-        ready: true,
-        error: "",
+          loading: false,
+          ready: true,
+          error: "",
         stale: personal.stale===true||summary.stale===true,
         generatedAt: personal.generatedAt||summary.generatedAt||"",
         ownDeals,
@@ -946,18 +1001,23 @@ function useZohoSalesData(user) {
         teamEvents,
       });
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       setState(previous=>({
-        ...previous,
-        loading:false,
-        error:error?.message||"Zoho sales data could not be loaded.",
+          ...previous,
+          loading:false,
+          error:error?.message||"Zoho sales data could not be loaded.",
       }));
+      if (isAuthRequiredError(error)) authRequiredRef.current?.();
     }
   }
 
   useEffect(() => {
     void load();
     const timer = setInterval(load, 10*60*1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      requestIdRef.current += 1;
+    };
   }, [user.email, user.role]);
 
   return { ...state, reload:load };
@@ -978,7 +1038,10 @@ function SalesDataGate({ salesData, children }) {
 
 function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refreshUser, lightMode, toggleLightMode }) {
   const [open, setOpen] = useState(true);
-  const salesData = useZohoSalesData(user);
+  function handleAuthRequired() {
+    void doLogout("Your secure session expired. Please sign in again.");
+  }
+  const salesData = useZohoSalesData(user, handleAuthRequired);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
     {id:"dashboard",icon:"⚡",label:"Dashboard"},
@@ -1024,7 +1087,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
       </div>
       <div style={{flex:1,overflow:"auto",padding:26}}>
         {view==="dashboard"&&<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={allUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
-        {view==="hit-list"&&<HitList />}
+        {view==="hit-list"&&<HitList onAuthRequired={handleAuthRequired} />}
         {view==="stats"&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={allUsers} salesData={salesData} /></SalesDataGate>}
         {view==="signings"&&<LogSigning user={user} refreshUser={refreshUser} />}
         {view==="leaderboard"&&<SalesDataGate salesData={salesData}><Leaderboard user={user} allUsers={allUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}

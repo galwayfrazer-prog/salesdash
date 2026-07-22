@@ -29,11 +29,21 @@ for (const required of [
   /auth\.signInWithOAuth/,
   /provider:\s*["']google["']/,
   /claim_sales_os_membership/,
-  /auth\.getUser/,
+  /getVerifiedAuthUser/,
   /auth\.onAuthStateChange/,
 ]) {
   assert.match(appSource, required);
 }
+
+const sessionRecoverySource = await readFile(
+  path.join(root, "src", "sessionRecovery.js"),
+  "utf8",
+);
+assert.match(sessionRecoverySource, /auth\.getSession\(\)/);
+assert.match(sessionRecoverySource, /auth\.refreshSession\(\)/);
+assert.match(sessionRecoverySource, /auth\.getUser\(accessToken\)/);
+assert.match(sessionRecoverySource, /Authorization:\s*`Bearer \$\{accessToken\}`/);
+assert.doesNotMatch(sessionRecoverySource, /service[_-]?role/i);
 
 const sharedAuthSource = await readFile(
   path.join(root, "supabase", "functions", "_shared", "salesOsAuth.mjs"),
