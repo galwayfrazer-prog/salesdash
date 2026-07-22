@@ -1,6 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildHitList, hitListCounts } from "../_shared/hitList.mjs";
 import { buildDealFacts } from "../_shared/dealFacts.mjs";
+import {
+  buildCrmHygieneRows,
+  crmHygieneCounts,
+} from "../_shared/crmHygiene.mjs";
 import { buildTeamSalesSummary } from "../_shared/teamSalesSummary.mjs";
 import { fetchJsonWithRetry } from "../_shared/fetchJson.mjs";
 
@@ -169,6 +173,10 @@ Deno.serve(async (request) => {
       orgSlug: optionalEnv("ZOHO_CRM_ORG_SLUG", DEFAULT_CRM_ORG_SLUG),
     });
     const dealFacts = buildDealFacts(deals);
+    const crmHygieneRows = buildCrmHygieneRows(dealFacts, {
+      apiDomain: auth.apiDomain,
+      orgSlug: optionalEnv("ZOHO_CRM_ORG_SLUG", DEFAULT_CRM_ORG_SLUG),
+    });
     const teamSalesSummary = buildTeamSalesSummary(dealFacts);
     const counts = hitListCounts(rows, deals.length);
     const generatedAt = new Date().toISOString();
@@ -194,6 +202,8 @@ Deno.serve(async (request) => {
         deal_id: deal.id,
         deal_name: deal.Deal_Name,
         stage: deal.Stage,
+        creator_id: deal.Creator.id,
+        creator_name: deal.Creator.name,
         associated_platform: deal.Associated_Platform.name,
         wv_percentage: deal.WV_Percentage,
         closing_date: deal.Closing_Date || null,
@@ -208,6 +218,27 @@ Deno.serve(async (request) => {
         layout_name: deal.Layout.name,
       }));
       await insertInBatches(supabase, "zoho_deal_facts", databaseFacts);
+    }
+
+    if (crmHygieneRows.length > 0) {
+      const databaseHygieneRows = crmHygieneRows.map((row) => ({
+        sync_id: syncId,
+        row_key: row.id,
+        deal_id: row.dealId,
+        deal_name: row.dealName,
+        creator_name: row.creator,
+        platform: row.platform,
+        stage: row.stage,
+        owner_name: row.owner,
+        owner_email: row.ownerEmail,
+        last_activity_at: row.lastActivityAt || null,
+        days_inactive: row.daysInactive,
+        inactive_7_days: row.inactive7Days,
+        neglected_90_days: row.neglected90Days,
+        missing_fields: row.missingFields,
+        zoho_record_url: row.zohoRecordUrl,
+      }));
+      await insertInBatches(supabase, "zoho_crm_hygiene_rows", databaseHygieneRows);
     }
 
     const { error: finishError } = await supabase
@@ -243,7 +274,12 @@ Deno.serve(async (request) => {
       .in("status", ["running", "failed"])
       .lt("started_at", abandonedBefore);
 
-    return json(200, { ok: true, generatedAt, counts });
+    return json(200, {
+      ok: true,
+      generatedAt,
+      counts,
+      crmHygieneCounts: crmHygieneCounts(crmHygieneRows),
+    });
   } catch (error) {
     const errorCode = error instanceof SyncError ? error.code : "SYNC_FAILED";
     if (syncCreated) {

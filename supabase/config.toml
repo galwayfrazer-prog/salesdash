@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.get-zoho-sales-deals]
 verify_jwt = false
+
+[functions.get-zoho-crm-hygiene]
+verify_jwt = false

@@ -5,6 +5,10 @@ import {
   hitListCounts,
 } from "../supabase/functions/_shared/hitList.mjs";
 import { buildDealFacts } from "../supabase/functions/_shared/dealFacts.mjs";
+import {
+  buildCrmHygieneRows,
+  crmHygieneCounts,
+} from "../supabase/functions/_shared/crmHygiene.mjs";
 import { buildTeamSalesSummary } from "../supabase/functions/_shared/teamSalesSummary.mjs";
 import { fetchJsonWithRetry } from "../supabase/functions/_shared/fetchJson.mjs";
 
@@ -182,7 +186,12 @@ async function writeCachedSnapshot(cache, payload) {
 }
 
 function publicHitListPayload(payload, stale) {
-  const { dealFacts: _dealFacts, version: _version, ...hitList } = payload;
+  const {
+    dealFacts: _dealFacts,
+    crmHygieneRows: _crmHygieneRows,
+    version: _version,
+    ...hitList
+  } = payload;
   return { ...hitList, stale };
 }
 
@@ -202,15 +211,21 @@ async function refreshZohoSnapshot({ env, allowLocalCredentialFile, localCredent
   const auth = await getAccessToken(config);
   const deals = await fetchDeals(auth);
   const rows = buildHitList(deals, { apiDomain: auth.apiDomain, orgSlug: config.orgSlug });
+  const dealFacts = buildDealFacts(deals);
+  const crmHygieneRows = buildCrmHygieneRows(dealFacts, {
+    apiDomain: auth.apiDomain,
+    orgSlug: config.orgSlug,
+  });
   const payload = {
-    version: 2,
+    version: 3,
     source: "zoho-cache",
     readOnly: true,
     generatedAt: new Date().toISOString(),
     refreshIntervalMinutes: 10,
     counts: hitListCounts(rows, deals.length),
     rows,
-    dealFacts: buildDealFacts(deals),
+    dealFacts,
+    crmHygieneRows,
   };
 
   await writeCachedSnapshot(cache, payload);
@@ -225,12 +240,15 @@ async function getZohoSnapshot({
   cache,
   cacheTtlMs,
   requireDealFacts = false,
+  requireCrmHygiene = false,
 }) {
   const cached = await readCachedSnapshot(cache);
   const cacheHasDealFacts = Array.isArray(cached?.payload?.dealFacts);
+  const cacheHasCrmHygiene = Array.isArray(cached?.payload?.crmHygieneRows);
   const cachedAgeMs = cached ? cacheAgeMs(cached) : Number.POSITIVE_INFINITY;
   const cacheIsUsable = cached
     && (!requireDealFacts || cacheHasDealFacts)
+    && (!requireCrmHygiene || cacheHasCrmHygiene)
     && cachedAgeMs < cacheTtlMs;
   const refreshAllowed = !cached || cachedAgeMs >= cacheTtlMs;
 
@@ -252,7 +270,9 @@ async function getZohoSnapshot({
   try {
     return { payload: await inFlightRefresh, stale: false };
   } catch (error) {
-    if (cached && (!requireDealFacts || cacheHasDealFacts)) {
+    if (cached
+      && (!requireDealFacts || cacheHasDealFacts)
+      && (!requireCrmHygiene || cacheHasCrmHygiene)) {
       return { payload: cached.payload, stale: true };
     }
     throw error;
@@ -320,6 +340,37 @@ export async function getZohoSalesDeals({
     stale: snapshot.stale,
     count: deals.length,
     deals,
+  };
+}
+
+export async function getZohoCrmHygiene({
+  env = process.env,
+  allowLocalCredentialFile = false,
+  localCredentialFile = "",
+  forceRefresh = false,
+  cache = null,
+  cacheTtlMs = HIT_LIST_REFRESH_INTERVAL_MS,
+} = {}) {
+  const snapshot = await getZohoSnapshot({
+    env,
+    allowLocalCredentialFile,
+    localCredentialFile,
+    forceRefresh,
+    cache,
+    cacheTtlMs,
+    requireDealFacts: true,
+    requireCrmHygiene: true,
+  });
+  const rows = snapshot.payload.crmHygieneRows;
+
+  return {
+    source: snapshot.payload.source,
+    readOnly: true,
+    generatedAt: snapshot.payload.generatedAt,
+    refreshIntervalMinutes: snapshot.payload.refreshIntervalMinutes,
+    stale: snapshot.stale,
+    counts: crmHygieneCounts(rows),
+    rows,
   };
 }
 

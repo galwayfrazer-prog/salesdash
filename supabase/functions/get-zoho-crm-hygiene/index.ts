@@ -3,7 +3,7 @@ import {
   requireSalesOsMember,
   SalesOsAuthError,
 } from "../_shared/salesOsAuth.mjs";
-import { buildTeamSalesSummary } from "../_shared/teamSalesSummary.mjs";
+import { crmHygieneCounts } from "../_shared/crmHygiene.mjs";
 
 function env(name: string) {
   return Deno.env.get(name)?.trim() || "";
@@ -22,7 +22,7 @@ function allowedOrigin(request: Request) {
 function responseHeaders(origin: string) {
   return {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
+    "Cache-Control": "private, max-age=60",
     ...(origin ? { "Access-Control-Allow-Origin": origin, Vary: "Origin" } : {}),
   };
 }
@@ -31,7 +31,7 @@ function json(status: number, body: Record<string, unknown>, origin = "") {
   return new Response(JSON.stringify(body), { status, headers: responseHeaders(origin) });
 }
 
-async function readAllFacts(
+async function readAllRows(
   admin: ReturnType<typeof createClient>,
   syncId: string,
   ownerEmail: string,
@@ -41,10 +41,10 @@ async function readAllFacts(
 
   for (let from = 0; from < 20_000; from += pageSize) {
     let query = admin
-      .from("zoho_deal_facts")
-      .select("deal_id,deal_name,stage,creator_id,creator_name,associated_platform,wv_percentage,closing_date,created_time,modified_time,last_activity_at,owner_id,owner_name,owner_email,pipeline,layout_id,layout_name")
+      .from("zoho_crm_hygiene_rows")
+      .select("row_key,deal_id,deal_name,creator_name,platform,stage,owner_name,owner_email,last_activity_at,days_inactive,inactive_7_days,neglected_90_days,missing_fields,zoho_record_url")
       .eq("sync_id", syncId)
-      .order("deal_id", { ascending: true })
+      .order("deal_name", { ascending: true })
       .range(from, from + pageSize - 1);
     if (ownerEmail) query = query.eq("owner_email", ownerEmail);
 
@@ -92,6 +92,7 @@ Deno.serve(async (request) => {
   const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
   let member;
   try {
     ({ member } = await requireSalesOsMember({ userClient, admin }));
@@ -101,11 +102,10 @@ Deno.serve(async (request) => {
     }
     return json(503, { error: "Membership could not be checked" }, origin);
   }
-  const memberEmail = member.email;
 
   const { data: sync, error: syncError } = await admin
     .from("zoho_hit_list_syncs")
-    .select("id,generated_at,team_sales_summary")
+    .select("id,generated_at")
     .eq("status", "completed")
     .order("completed_at", { ascending: false })
     .limit(1)
@@ -115,60 +115,27 @@ Deno.serve(async (request) => {
     error: "The Zoho cache has not completed its first sync yet",
   }, origin);
 
-  const requestedScope = new URL(request.url).searchParams.get("scope") || "";
-  const wantsTeam = requestedScope === "team";
-  const wantsSummary = requestedScope === "summary";
-  const ownerEmail = wantsTeam && member.role === "manager" ? "" : memberEmail;
-  const generatedAt = sync.generated_at ? new Date(sync.generated_at).toISOString() : null;
-  const ageMs = generatedAt ? Date.now() - Date.parse(generatedAt) : 0;
-  const precomputedSummary = Array.isArray(sync.team_sales_summary)
-    ? sync.team_sales_summary
-    : [];
-
-  if (wantsSummary && precomputedSummary.length > 0) {
-    return json(200, {
-      source: "supabase-cache",
-      readOnly: true,
-      generatedAt,
-      stale: ageMs > 20 * 60 * 1000,
-      refreshIntervalMinutes: 10,
-      count: precomputedSummary.reduce(
-        (total, row) => total + (Number(row?.count) || 0),
-        0,
-      ),
-      teamSummary: precomputedSummary,
-    }, origin);
-  }
-
   try {
-    const rows = await readAllFacts(admin, sync.id, wantsSummary ? "" : ownerEmail);
-    if (wantsSummary) {
-      const teamSummary = buildTeamSalesSummary(rows);
-      return json(200, {
-        source: "supabase-cache",
-        readOnly: true,
-        generatedAt,
-        stale: ageMs > 20 * 60 * 1000,
-        refreshIntervalMinutes: 10,
-        count: teamSummary.reduce((total, row) => total + row.count, 0),
-        teamSummary,
-      }, origin);
-    }
-    const deals = rows.map((row) => ({
-      id: row.deal_id,
-      Deal_Name: row.deal_name,
-      Stage: row.stage,
-      Creator: { id: row.creator_id, name: row.creator_name },
-      Associated_Platform: { name: row.associated_platform },
-      WV_Percentage: row.wv_percentage,
-      Closing_Date: row.closing_date,
-      Created_Time: row.created_time,
-      Modified_Time: row.modified_time,
-      Last_Activity_Time: row.last_activity_at,
-      Owner: { id: row.owner_id, name: row.owner_name, email: row.owner_email },
-      Pipeline: row.pipeline,
-      Layout: { id: row.layout_id, name: row.layout_name },
+    const ownerEmail = member.role === "manager" ? "" : member.email;
+    const databaseRows = await readAllRows(admin, sync.id, ownerEmail);
+    const rows = databaseRows.map((row) => ({
+      id: row.row_key,
+      dealId: row.deal_id,
+      dealName: row.deal_name,
+      creator: row.creator_name,
+      platform: row.platform,
+      stage: row.stage,
+      owner: row.owner_name,
+      ownerEmail: row.owner_email,
+      lastActivityAt: row.last_activity_at,
+      daysInactive: row.days_inactive,
+      inactive7Days: row.inactive_7_days,
+      neglected90Days: row.neglected_90_days,
+      missingFields: row.missing_fields || [],
+      zohoRecordUrl: row.zoho_record_url,
     }));
+    const generatedAt = sync.generated_at ? new Date(sync.generated_at).toISOString() : null;
+    const ageMs = generatedAt ? Date.now() - Date.parse(generatedAt) : 0;
 
     return json(200, {
       source: "supabase-cache",
@@ -176,10 +143,10 @@ Deno.serve(async (request) => {
       generatedAt,
       stale: ageMs > 20 * 60 * 1000,
       refreshIntervalMinutes: 10,
-      count: deals.length,
-      deals,
+      counts: crmHygieneCounts(rows),
+      rows,
     }, origin);
   } catch {
-    return json(502, { error: "Cache rows could not be read" }, origin);
+    return json(502, { error: "CRM hygiene cache rows could not be read" }, origin);
   }
 });

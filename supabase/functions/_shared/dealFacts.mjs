@@ -27,19 +27,40 @@ function numberOrNull(value) {
 
 export function buildDealFacts(deals) {
   return deals
-    .map((deal) => ({
-      id: clean(String(deal.id || "")),
-      Deal_Name: clean(deal.Deal_Name) || "Unnamed Deal",
-      Stage: clean(deal.Stage),
-      Associated_Platform: platform(deal.Associated_Platform),
-      WV_Percentage: numberOrNull(deal.WV_Percentage),
-      Closing_Date: clean(deal.Closing_Date),
-      Created_Time: clean(deal.Created_Time),
-      Modified_Time: clean(deal.Modified_Time),
-      Last_Activity_Time: clean(deal.Last_Activity_Time),
-      Owner: lookup(deal.Owner),
-      Pipeline: clean(deal.Pipeline),
-      Layout: lookup(deal.Layout),
-    }))
+    .map((deal) => {
+      const dealName = clean(deal.Deal_Name);
+      const stage = clean(deal.Stage);
+      const associatedPlatform = platform(deal.Associated_Platform);
+      const creator = lookup(deal.Creator);
+      const owner = lookup(deal.Owner);
+      const lastActivity = clean(deal.Last_Activity_Time);
+      const missingCoreFields = [];
+
+      if (!dealName) missingCoreFields.push("Deal name");
+      if (!creator.name) missingCoreFields.push("Creator");
+      if (!associatedPlatform.name) missingCoreFields.push("Platform");
+      if (!owner.name) missingCoreFields.push("Owner");
+      if (!stage) missingCoreFields.push("Stage");
+      if (!lastActivity || Number.isNaN(Date.parse(lastActivity))) {
+        missingCoreFields.push("Last activity");
+      }
+
+      return {
+        id: clean(String(deal.id || "")),
+        Deal_Name: dealName || "Unnamed Deal",
+        Stage: stage,
+        Creator: creator,
+        Associated_Platform: associatedPlatform,
+        WV_Percentage: numberOrNull(deal.WV_Percentage),
+        Closing_Date: clean(deal.Closing_Date),
+        Created_Time: clean(deal.Created_Time),
+        Modified_Time: clean(deal.Modified_Time),
+        Last_Activity_Time: lastActivity,
+        Owner: owner,
+        Pipeline: clean(deal.Pipeline),
+        Layout: lookup(deal.Layout),
+        Missing_Core_Fields: missingCoreFields,
+      };
+    })
     .filter((deal) => deal.id);
 }

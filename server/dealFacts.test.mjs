@@ -5,6 +5,7 @@ import { filterDealFacts } from "./zohoHitList.mjs";
 const facts = buildDealFacts([{
   id: "deal-1",
   Deal_Name: "Test Deal",
+  Creator: { id: "creator-1", name: "Test Creator" },
   Stage: "Live",
   Associated_Platform: { id: "platform-1", name: "Spotify" },
   WV_Percentage: "55",
@@ -20,6 +21,8 @@ const facts = buildDealFacts([{
 assert.equal(facts.length, 1);
 assert.equal(facts[0].WV_Percentage, 55);
 assert.equal(facts[0].Associated_Platform.name, "Spotify");
+assert.equal(facts[0].Creator.name, "Test Creator");
+assert.deepEqual(facts[0].Missing_Core_Fields, []);
 assert.equal(facts[0].Owner.email, "rep@wildvision.io");
 assert.equal(facts[0].Layout.name, "Deals");
 assert.deepEqual(filterDealFacts(facts, { ownerEmail: "REP@WILDVISION.IO" }), facts);
