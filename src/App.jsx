@@ -4609,7 +4609,6 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
         </button>
         <button style={T("add")} onClick={()=>setTab("add")}>Add Manual Entry</button>
         <button style={T("team")} onClick={()=>setTab("team")}>Team</button>
-        <button style={T("invite")} onClick={()=>setTab("invite")}>Accounts</button>
         <button style={T("badges")} onClick={()=>setTab("badges")}>Badges</button>
       </div>
 
@@ -5092,15 +5091,6 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData }) {
               </div>
             ))}
           </div>}
-        </div>
-      )}
-
-      {/* ── INVITE ── */}
-      {tab==="invite"&&(
-        <div className="card" style={{padding:20}}>
-          <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Secure account access</div>
-          <p style={{fontSize:14,color:"var(--text-2)",lineHeight:1.6}}>Accounts are invited through Supabase Auth. Sales OS no longer creates invite codes, temporary passwords, or browser-managed accounts.</p>
-          <p style={{fontSize:12,color:"var(--text-dim)",lineHeight:1.6,marginTop:8}}>During the migration, an administrator will send each approved team member an email link and bind their exact Auth user ID to their role.</p>
         </div>
       )}
 
