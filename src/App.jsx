@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import HitList from "./HitList.jsx";
-import CrmHygiene from "./CrmHygiene.jsx";
 import { fetchZohoData } from "./zohoApi.js";
 import { filterDealsForPeriod } from "./salesPeriod.js";
 import { supabase } from "./supabaseClient.js";
@@ -1106,7 +1105,6 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
     {id:"leaderboard",icon:"🏆",label:"Leaderboard"},
     ...(statsEnabled?[{id:"stats",icon:"📊",label:"My Stats"}]:[]),
     {id:"targets",icon:"🎯",label:"Targets"},
-    {id:"crm-hygiene",icon:"⚠️",label:"CRM Hygiene"},
     {id:"hit-list",icon:"📋",label:"Hit List Report"},
     ...(statsEnabled?[{id:"signings",icon:"✍️",label:"Manual Tracker"}]:[]),
     {id:"incentive",icon:"🔥",label:"Incentives"},
@@ -1149,7 +1147,6 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
           ?<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={salesUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>
           :<SalesDataGate salesData={salesData}><Admin user={user} allUsers={salesUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} summaryOnly /></SalesDataGate>)}
         {view==="hit-list"&&<HitList onAuthRequired={handleAuthRequired} />}
-        {view==="crm-hygiene"&&<CrmHygiene onAuthRequired={handleAuthRequired} />}
         {view==="stats"&&statsEnabled&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={salesUsers} salesData={salesData} /></SalesDataGate>}
         {view==="signings"&&statsEnabled&&<LogSigning user={user} refreshUser={refreshUser} />}
         {view==="leaderboard"&&<SalesDataGate salesData={salesData}><Leaderboard user={user} allUsers={salesUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}

@@ -2,7 +2,6 @@ import { supabase, supabaseAnonKey, supabaseUrl } from "./supabaseClient.js";
 import { createAuthorizedFunctionRequester } from "./sessionRecovery.js";
 
 const ALLOWED_FUNCTIONS = new Set([
-  "zoho-crm-hygiene",
   "zoho-hit-list",
   "zoho-sales-deals",
 ]);
