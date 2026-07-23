@@ -27,6 +27,8 @@ function dealTime(deal) {
   return Date.parse(deal?.Modified_Time || deal?.Last_Activity_Time || deal?.Created_Time || "") || 0;
 }
 
+const DEAL_PANEL_HEIGHT = "clamp(360px, calc(100vh - 145px), 760px)";
+
 export default function ZohoDeals({ user, salesData, onAuthRequired }) {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("all");
@@ -128,9 +130,13 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(360px,1fr))", gap: 14, alignItems: "start" }}>
-        <section className="card" aria-label="Zoho Deals" style={{ overflow: "hidden" }}>
-          <div style={{ display: "flex", gap: 8, padding: 12, borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(360px,1fr))", gap: 14, alignItems: "stretch" }}>
+        <section
+          className="card"
+          aria-label="Zoho Deals"
+          style={{ height: DEAL_PANEL_HEIGHT, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
+        >
+          <div style={{ display: "flex", gap: 8, padding: 12, borderBottom: "1px solid var(--border)", flexWrap: "wrap", flexShrink: 0 }}>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -149,12 +155,12 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
             </select>
           </div>
 
-          <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", color: "var(--text-dim)", fontSize: 11 }}>
+          <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", color: "var(--text-dim)", fontSize: 11, flexShrink: 0 }}>
             {filteredDeals.length} Deal{filteredDeals.length === 1 ? "" : "s"}
             {filteredDeals.length > visibleDeals.length ? ` · showing first ${visibleDeals.length}` : ""}
           </div>
 
-          <div style={{ maxHeight: "calc(100vh - 285px)", minHeight: 300, overflowY: "auto" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             {detailsLoading && deals.length === 0 && (
               <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)" }}>Loading Zoho Deals...</div>
             )}
@@ -195,16 +201,20 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
           </div>
         </section>
 
-        <section className="card" aria-label="Selected Deal notes" style={{ padding: 18, minHeight: 360 }}>
+        <section
+          className="card"
+          aria-label="Selected Deal notes"
+          style={{ height: DEAL_PANEL_HEIGHT, minHeight: 0, padding: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}
+        >
           {!selectedDeal && (
-            <div style={{ minHeight: 320, display: "grid", placeItems: "center", textAlign: "center", color: "var(--text-muted)" }}>
+            <div style={{ flex: 1, minHeight: 0, display: "grid", placeItems: "center", textAlign: "center", color: "var(--text-muted)" }}>
               Select a Deal to read its Zoho notes.
             </div>
           )}
 
           {selectedDeal && (
-            <>
-              <div style={{ paddingBottom: 14, borderBottom: "1px solid var(--border)", marginBottom: 14 }}>
+            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              <div style={{ paddingBottom: 14, borderBottom: "1px solid var(--border)", marginBottom: 14, flexShrink: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
                   <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>
                     {text(selectedDeal.Deal_Name) || "Unnamed Deal"}
@@ -237,7 +247,7 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
               </div>
 
               {notesState.loading && (
-                <div style={{ padding: 28, textAlign: "center", color: "var(--text-muted)" }}>Loading Deal notes...</div>
+                <div style={{ flex: 1, display: "grid", placeItems: "center", padding: 28, textAlign: "center", color: "var(--text-muted)" }}>Loading Deal notes...</div>
               )}
               {notesState.error && (
                 <div role="alert" style={{ background: "#ef444412", border: "1px solid #ef444455", borderRadius: 10, padding: "11px 14px", color: "#ef4444", fontSize: 13 }}>
@@ -245,10 +255,10 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
                 </div>
               )}
               {!notesState.loading && !notesState.error && notesState.notes.length === 0 && (
-                <div style={{ padding: 28, textAlign: "center", color: "var(--text-muted)" }}>No notes are recorded for this Deal.</div>
+                <div style={{ flex: 1, display: "grid", placeItems: "center", padding: 28, textAlign: "center", color: "var(--text-muted)" }}>No notes are recorded for this Deal.</div>
               )}
               {!notesState.loading && notesState.notes.length > 0 && (
-                <div style={{ display: "grid", gap: 10, maxHeight: "calc(100vh - 335px)", overflowY: "auto" }}>
+                <div style={{ flex: 1, minHeight: 0, display: "grid", alignContent: "start", gap: 10, overflowY: "auto" }}>
                   {notesState.notes.map((note) => (
                     <article key={note.id} style={{ background: "var(--bg-inner)", border: "1px solid var(--border-sub)", borderRadius: 9, padding: 13 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
@@ -261,7 +271,7 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
                   ))}
                 </div>
               )}
-            </>
+            </div>
           )}
         </section>
       </div>
