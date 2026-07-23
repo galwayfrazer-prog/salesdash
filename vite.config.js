@@ -69,12 +69,13 @@ function localZohoHitListApi({ mode }) {
     });
   }
 
-  async function loadDealNotes(dealId) {
+  async function loadDealNotes(dealId, { forceRefresh = false } = {}) {
     return getZohoDealNotes({
       dealId,
       env,
       allowLocalCredentialFile: true,
       localCredentialFile,
+      forceRefresh,
     });
   }
 
@@ -143,7 +144,7 @@ function localZohoHitListApi({ mode }) {
           const payload = isHitListRequest
             ? await loadHitList({ forceRefresh })
             : isDealNotesRequest
-              ? await loadDealNotes(requestUrl.searchParams.get("dealId") || "")
+              ? await loadDealNotes(requestUrl.searchParams.get("dealId") || "", { forceRefresh })
             : isCrmHygieneRequest
               ? await loadCrmHygiene({ forceRefresh })
               : await loadSalesDeals({

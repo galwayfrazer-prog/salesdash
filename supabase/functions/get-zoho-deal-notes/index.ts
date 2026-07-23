@@ -5,6 +5,8 @@ import {
 } from "../_shared/salesOsAuth.mjs";
 import {
   canReadDealNotes,
+  isFreshDealNotesCache,
+  normalizeCachedDealNotes,
   sanitizeZohoNotes,
   validZohoDealId,
 } from "../_shared/dealNotes.mjs";
@@ -38,6 +40,33 @@ function responseHeaders(origin: string) {
 
 function json(status: number, body: Record<string, unknown>, origin = "") {
   return new Response(JSON.stringify(body), { status, headers: responseHeaders(origin) });
+}
+
+function notesBody({
+  deal,
+  notes,
+  source,
+  cached,
+  stale,
+  fetchedAt,
+}: {
+  deal: Record<string, unknown>;
+  notes: Array<Record<string, unknown>>;
+  source: string;
+  cached: boolean;
+  stale: boolean;
+  fetchedAt: string;
+}) {
+  return {
+    source,
+    readOnly: true,
+    cached,
+    stale,
+    fetchedAt,
+    deal: { id: deal.deal_id, name: deal.deal_name },
+    count: notes.length,
+    notes,
+  };
 }
 
 async function getZohoAccessToken() {
@@ -176,16 +205,61 @@ Deno.serve(async (request) => {
     return json(403, { error: "You can only read notes for your own Deals" }, origin);
   }
 
+  const forceRefresh = new URL(request.url).searchParams.get("refresh") === "1";
+  const { data: cachedRow, error: cacheReadError } = await admin
+    .from("zoho_deal_notes_cache")
+    .select("notes,fetched_at")
+    .eq("deal_id", dealId)
+    .maybeSingle();
+  if (cacheReadError) {
+    return json(502, { error: "The private Deal notes cache could not be read" }, origin);
+  }
+
+  const cachedNotes = normalizeCachedDealNotes(cachedRow?.notes);
+  if (!forceRefresh && isFreshDealNotesCache(cachedRow)) {
+    return json(200, notesBody({
+      deal,
+      notes: cachedNotes,
+      source: "supabase-cache",
+      cached: true,
+      stale: false,
+      fetchedAt: cachedRow.fetched_at,
+    }), origin);
+  }
+
   try {
     const notes = await readDealNotes(dealId);
-    return json(200, {
-      source: "zoho",
-      readOnly: true,
-      deal: { id: deal.deal_id, name: deal.deal_name },
-      count: notes.length,
+    const fetchedAt = new Date().toISOString();
+    const { error: cacheWriteError } = await admin
+      .from("zoho_deal_notes_cache")
+      .upsert({
+        deal_id: dealId,
+        notes,
+        fetched_at: fetchedAt,
+        source: "zoho",
+      }, { onConflict: "deal_id" });
+    if (cacheWriteError) {
+      return json(502, { error: "Deal notes were read but could not be saved safely" }, origin);
+    }
+    return json(200, notesBody({
+      deal,
       notes,
-    }, origin);
+      source: "zoho",
+      cached: false,
+      stale: false,
+      fetchedAt,
+    }), origin);
   } catch (error) {
+    if (cachedRow) {
+      return json(200, notesBody({
+        deal,
+        notes: cachedNotes,
+        source: "supabase-cache",
+        cached: true,
+        stale: true,
+        fetchedAt: cachedRow.fetched_at,
+      }), origin);
+    }
     const code = error instanceof Error ? error.message : "";
     if (code === "NOTES_PERMISSION_MISSING") {
       return json(503, { error: "The Zoho connection does not have notes permission" }, origin);

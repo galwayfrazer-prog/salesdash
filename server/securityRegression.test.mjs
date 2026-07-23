@@ -62,7 +62,17 @@ assert.match(dealNotesFunctionSource, /requireSalesOsMember/);
 assert.match(dealNotesFunctionSource, /canReadDealNotes/);
 assert.match(dealNotesFunctionSource, /request\.method !== "GET"/);
 assert.match(dealNotesFunctionSource, /\.eq\("deal_id", dealId\)/);
+assert.match(dealNotesFunctionSource, /\.from\("zoho_deal_notes_cache"\)/);
+assert.match(dealNotesFunctionSource, /isFreshDealNotesCache/);
 assert.doesNotMatch(dealNotesFunctionSource, /console\.(?:log|error)\([^)]*Note_Content/i);
+
+const dealNotesCacheMigrationSource = await readFile(
+  path.join(root, "supabase", "migrations", "202607230001_zoho_deal_notes_cache.sql"),
+  "utf8",
+);
+assert.match(dealNotesCacheMigrationSource, /enable row level security/i);
+assert.match(dealNotesCacheMigrationSource, /revoke all.*anon, authenticated/i);
+assert.match(dealNotesCacheMigrationSource, /grant select, insert, update, delete.*service_role/i);
 
 const migrationSource = await readFile(
   path.join(root, "supabase", "migrations", "202607170001_zoho_hit_list_cache.sql"),

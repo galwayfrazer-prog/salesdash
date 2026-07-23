@@ -11,6 +11,8 @@ import {
 } from "../supabase/functions/_shared/crmHygiene.mjs";
 import { buildTeamSalesSummary } from "../supabase/functions/_shared/teamSalesSummary.mjs";
 import {
+  isFreshDealNotesCache,
+  normalizeCachedDealNotes,
   sanitizeZohoNotes,
   validZohoDealId,
 } from "../supabase/functions/_shared/dealNotes.mjs";
@@ -25,6 +27,7 @@ export const HIT_LIST_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 let cachedSnapshot = null;
 let inFlightRefresh = null;
+const dealNotesCache = new Map();
 
 function normaliseDomain(value, fallback) {
   return (clean(value) || fallback).replace(/\/$/, "");
@@ -384,11 +387,27 @@ export async function getZohoDealNotes({
   env = process.env,
   allowLocalCredentialFile = false,
   localCredentialFile = "",
+  forceRefresh = false,
 } = {}) {
   if (!validZohoDealId(dealId)) {
     const error = new Error("A valid Zoho Deal is required.");
     error.code = "ZOHO_DEAL_REQUIRED";
     throw error;
+  }
+
+  const cachedRow = dealNotesCache.get(String(dealId));
+  if (!forceRefresh && isFreshDealNotesCache(cachedRow)) {
+    const notes = normalizeCachedDealNotes(cachedRow.notes);
+    return {
+      source: "memory-cache",
+      readOnly: true,
+      cached: true,
+      stale: false,
+      fetchedAt: cachedRow.fetchedAt,
+      dealId: String(dealId),
+      count: notes.length,
+      notes,
+    };
   }
 
   const config = await resolveConfig({
@@ -425,9 +444,14 @@ export async function getZohoDealNotes({
     if (!payload.info?.more_records) break;
   }
 
+  const fetchedAt = new Date().toISOString();
+  dealNotesCache.set(String(dealId), { notes, fetchedAt });
   return {
     source: "zoho",
     readOnly: true,
+    cached: false,
+    stale: false,
+    fetchedAt,
     dealId: String(dealId),
     count: notes.length,
     notes,

@@ -21,6 +21,8 @@ function noteText(value) {
     .trim();
 }
 
+export const DEAL_NOTES_CACHE_TTL_MS = 10 * 60 * 1000;
+
 export function validZohoDealId(value) {
   return /^\d+$/.test(clean(value));
 }
@@ -42,4 +44,27 @@ export function sanitizeZohoNotes(payload) {
     createdBy: personName(note?.Created_By),
     modifiedBy: personName(note?.Modified_By),
   })).filter((note) => note.id);
+}
+
+export function normalizeCachedDealNotes(value) {
+  return (Array.isArray(value) ? value : []).map((note) => ({
+    id: clean(note?.id),
+    title: clean(note?.title) || "Untitled note",
+    content: noteText(note?.content),
+    createdAt: clean(note?.createdAt),
+    modifiedAt: clean(note?.modifiedAt),
+    createdBy: clean(note?.createdBy),
+    modifiedBy: clean(note?.modifiedBy),
+  })).filter((note) => note.id);
+}
+
+export function isFreshDealNotesCache(
+  cache,
+  now = Date.now(),
+  ttlMs = DEAL_NOTES_CACHE_TTL_MS,
+) {
+  const fetchedAt = Date.parse(cache?.fetched_at || cache?.fetchedAt || "");
+  return Number.isFinite(fetchedAt)
+    && now >= fetchedAt
+    && now - fetchedAt < ttlMs;
 }

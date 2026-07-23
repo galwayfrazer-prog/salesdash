@@ -8,7 +8,7 @@ This is the permanent checklist for task 2, **Zoho CRM + sales dashboard integra
 | --- | --- | --- |
 | Connect Sales OS to Zoho | ✅ Done | Authenticated Sales OS pages read the secured Supabase copy of Zoho data. |
 | Deal data and stages | ✅ Done | Dashboard, My Stats, Leaderboard, Targets, and Manager pages. |
-| Deal notes | ✅ Done | The Zoho Deals page loads notes on demand for an allowed Deal. Reps see their own Deals; managers can inspect the team. |
+| Deal notes | ✅ Done | The Zoho Deals page loads notes on demand for an allowed Deal and privately caches opened Deals for 10 minutes. Reps see their own Deals; managers can inspect the team. |
 | Full activity history | ❌ Not done | Only the latest activity date is currently saved. |
 | Emails sent | ❌ Not done | Requires the approved Gmail or Lemlist integration. |
 | Reply rate | ❌ Not done | Requires the approved Gmail or Lemlist integration. |

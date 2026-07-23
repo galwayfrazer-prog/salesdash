@@ -31,7 +31,14 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("all");
   const [selectedDeal, setSelectedDeal] = useState(null);
-  const [notesState, setNotesState] = useState({ loading: false, error: "", notes: [] });
+  const [notesState, setNotesState] = useState({
+    loading: false,
+    error: "",
+    notes: [],
+    cached: false,
+    stale: false,
+    fetchedAt: "",
+  });
   const requestIdRef = useRef(0);
   const isManager = user.role === "manager";
   const deals = isManager ? salesData.teamDeals : salesData.ownDeals;
@@ -62,17 +69,28 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
       .sort((left, right) => dealTime(right) - dealTime(left));
   }, [deals, search, stage]);
 
-  async function selectDeal(deal) {
+  async function selectDeal(deal, { forceRefresh = false } = {}) {
     const requestId = ++requestIdRef.current;
     setSelectedDeal(deal);
-    setNotesState({ loading: true, error: "", notes: [] });
+    setNotesState((previous) => ({
+      ...previous,
+      loading: true,
+      error: "",
+      notes: selectedDeal?.id === deal.id ? previous.notes : [],
+    }));
     try {
-      const payload = await fetchZohoData("zoho-deal-notes", { dealId: deal.id });
+      const payload = await fetchZohoData("zoho-deal-notes", {
+        dealId: deal.id,
+        ...(forceRefresh ? { refresh: "1" } : {}),
+      });
       if (requestId !== requestIdRef.current) return;
       setNotesState({
         loading: false,
         error: "",
         notes: Array.isArray(payload.notes) ? payload.notes : [],
+        cached: Boolean(payload.cached),
+        stale: Boolean(payload.stale),
+        fetchedAt: text(payload.fetchedAt),
       });
     } catch (error) {
       if (requestId !== requestIdRef.current) return;
@@ -81,6 +99,9 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
         loading: false,
         error: error?.message || "Deal notes could not be loaded.",
         notes: [],
+        cached: false,
+        stale: false,
+        fetchedAt: "",
       });
     }
   }
@@ -184,8 +205,18 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
           {selectedDeal && (
             <>
               <div style={{ paddingBottom: 14, borderBottom: "1px solid var(--border)", marginBottom: 14 }}>
-                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>
-                  {text(selectedDeal.Deal_Name) || "Unnamed Deal"}
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>
+                    {text(selectedDeal.Deal_Name) || "Unnamed Deal"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => selectDeal(selectedDeal, { forceRefresh: true })}
+                    disabled={notesState.loading}
+                    style={{ flexShrink: 0, padding: "7px 10px", fontSize: 11 }}
+                  >
+                    {notesState.loading ? "Checking..." : "Refresh notes"}
+                  </button>
                 </div>
                 <div style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 6 }}>
                   {text(selectedDeal.Stage) || "No stage"} · {lookupName(selectedDeal.Associated_Platform) || "No platform"} · {text(selectedDeal.Owner?.name) || "Unknown owner"}
@@ -193,6 +224,16 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
                 <div style={{ color: "var(--text-dim)", fontSize: 11, marginTop: 4 }}>
                   Last Zoho activity: {formatDate(selectedDeal.Last_Activity_Time)}
                 </div>
+                {!notesState.loading && !notesState.error && notesState.fetchedAt && (
+                  <div style={{ color: notesState.stale ? "#f59e0b" : "var(--text-dim)", fontSize: 10, marginTop: 4 }}>
+                    {notesState.stale
+                      ? "Showing the last saved copy because Zoho could not be reached."
+                      : notesState.cached
+                        ? "Loaded from the private 10-minute cache."
+                        : "Checked in Zoho and saved privately for 10 minutes."}
+                    {" "}Checked {formatDate(notesState.fetchedAt)}.
+                  </div>
+                )}
               </div>
 
               {notesState.loading && (
