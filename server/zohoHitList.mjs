@@ -10,12 +10,17 @@ import {
   crmHygieneCounts,
 } from "../supabase/functions/_shared/crmHygiene.mjs";
 import { buildTeamSalesSummary } from "../supabase/functions/_shared/teamSalesSummary.mjs";
+import {
+  sanitizeZohoNotes,
+  validZohoDealId,
+} from "../supabase/functions/_shared/dealNotes.mjs";
 import { fetchJsonWithRetry } from "../supabase/functions/_shared/fetchJson.mjs";
 
 const DEFAULT_ACCOUNTS_DOMAIN = "https://accounts.zoho.eu";
 const DEFAULT_API_DOMAIN = "https://www.zohoapis.eu";
 const DEFAULT_CRM_ORG_SLUG = "wildvisionltd";
 const DEFAULT_SCOPE = "ZohoCRM.modules.deals.READ";
+const NOTES_SCOPE = "ZohoCRM.modules.deals.READ,ZohoCRM.modules.notes.READ";
 export const HIT_LIST_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 let cachedSnapshot = null;
@@ -374,6 +379,61 @@ export async function getZohoCrmHygiene({
   };
 }
 
+export async function getZohoDealNotes({
+  dealId,
+  env = process.env,
+  allowLocalCredentialFile = false,
+  localCredentialFile = "",
+} = {}) {
+  if (!validZohoDealId(dealId)) {
+    const error = new Error("A valid Zoho Deal is required.");
+    error.code = "ZOHO_DEAL_REQUIRED";
+    throw error;
+  }
+
+  const config = await resolveConfig({
+    env,
+    allowLocalCredentialFile,
+    localCredentialFile,
+  });
+  config.scope = NOTES_SCOPE;
+  const auth = await getAccessToken(config);
+  const notes = [];
+
+  for (let page = 1; page <= 10; page += 1) {
+    const url = new URL(`${auth.apiDomain}/crm/v8/Deals/${dealId}/Notes`);
+    url.searchParams.set(
+      "fields",
+      "Note_Title,Note_Content,Created_Time,Modified_Time,Created_By,Modified_By",
+    );
+    url.searchParams.set("per_page", "200");
+    url.searchParams.set("page", String(page));
+    const { response, payload } = await fetchJsonWithRetry(url, {
+      headers: { Authorization: `Zoho-oauthtoken ${auth.accessToken}` },
+    });
+
+    if (response.status === 204) break;
+    if (!response.ok) {
+      const error = new Error("Zoho could not return Deal notes.");
+      error.code = response.status === 401 || response.status === 403
+        ? "ZOHO_NOTES_PERMISSION_MISSING"
+        : "ZOHO_NOTES_READ_FAILED";
+      throw error;
+    }
+
+    notes.push(...sanitizeZohoNotes(payload));
+    if (!payload.info?.more_records) break;
+  }
+
+  return {
+    source: "zoho",
+    readOnly: true,
+    dealId: String(dealId),
+    count: notes.length,
+    notes,
+  };
+}
+
 export { buildHitList };
 
 export function publicZohoError(error) {
@@ -385,6 +445,12 @@ export function publicZohoError(error) {
   }
   if (error?.code === "ZOHO_OWNER_REQUIRED") {
     return { status: 400, message: error.message };
+  }
+  if (error?.code === "ZOHO_DEAL_REQUIRED") {
+    return { status: 400, message: error.message };
+  }
+  if (error?.code === "ZOHO_NOTES_PERMISSION_MISSING") {
+    return { status: 503, message: "The Zoho connection does not have notes permission." };
   }
   return { status: 502, message: "Zoho data could not be loaded. No CRM records were changed." };
 }

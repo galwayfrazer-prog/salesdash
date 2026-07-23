@@ -2,6 +2,7 @@ import { supabase, supabaseAnonKey, supabaseUrl } from "./supabaseClient.js";
 import { createAuthorizedFunctionRequester } from "./sessionRecovery.js";
 
 const ALLOWED_FUNCTIONS = new Set([
+  "zoho-deal-notes",
   "zoho-hit-list",
   "zoho-sales-deals",
 ]);

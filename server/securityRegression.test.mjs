@@ -54,6 +54,16 @@ assert.match(sharedAuthSource, /wildvision\\\.io/);
 assert.doesNotMatch(sharedAuthSource, /\.update\(/);
 assert.doesNotMatch(sharedAuthSource, /\.eq\("email"/);
 
+const dealNotesFunctionSource = await readFile(
+  path.join(root, "supabase", "functions", "get-zoho-deal-notes", "index.ts"),
+  "utf8",
+);
+assert.match(dealNotesFunctionSource, /requireSalesOsMember/);
+assert.match(dealNotesFunctionSource, /canReadDealNotes/);
+assert.match(dealNotesFunctionSource, /request\.method !== "GET"/);
+assert.match(dealNotesFunctionSource, /\.eq\("deal_id", dealId\)/);
+assert.doesNotMatch(dealNotesFunctionSource, /console\.(?:log|error)\([^)]*Note_Content/i);
+
 const migrationSource = await readFile(
   path.join(root, "supabase", "migrations", "202607170001_zoho_hit_list_cache.sql"),
   "utf8",

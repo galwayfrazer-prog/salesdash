@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.get-zoho-crm-hygiene]
 verify_jwt = false
+
+[functions.get-zoho-deal-notes]
+verify_jwt = false

@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   getZohoHitList,
   getZohoCrmHygiene,
+  getZohoDealNotes,
   getZohoSalesDeals,
   HIT_LIST_REFRESH_INTERVAL_MS,
   publicZohoError,
@@ -68,6 +69,15 @@ function localZohoHitListApi({ mode }) {
     });
   }
 
+  async function loadDealNotes(dealId) {
+    return getZohoDealNotes({
+      dealId,
+      env,
+      allowLocalCredentialFile: true,
+      localCredentialFile,
+    });
+  }
+
   return {
     name: "local-zoho-hit-list-api",
     configureServer(server) {
@@ -103,7 +113,8 @@ function localZohoHitListApi({ mode }) {
         const isHitListRequest = requestUrl.pathname === "/api/zoho-hit-list";
         const isSalesDealsRequest = requestUrl.pathname === "/api/zoho-sales-deals";
         const isCrmHygieneRequest = requestUrl.pathname === "/api/zoho-crm-hygiene";
-        if (!isHitListRequest && !isSalesDealsRequest && !isCrmHygieneRequest) return next();
+        const isDealNotesRequest = requestUrl.pathname === "/api/zoho-deal-notes";
+        if (!isHitListRequest && !isSalesDealsRequest && !isCrmHygieneRequest && !isDealNotesRequest) return next();
 
         if (!isLoopbackAddress(request.socket.remoteAddress)) {
           response.statusCode = 403;
@@ -131,6 +142,8 @@ function localZohoHitListApi({ mode }) {
           const forceRefresh = requestUrl.searchParams.get("refresh") === "1";
           const payload = isHitListRequest
             ? await loadHitList({ forceRefresh })
+            : isDealNotesRequest
+              ? await loadDealNotes(requestUrl.searchParams.get("dealId") || "")
             : isCrmHygieneRequest
               ? await loadCrmHygiene({ forceRefresh })
               : await loadSalesDeals({
