@@ -27,8 +27,6 @@ function dealTime(deal) {
   return Date.parse(deal?.Modified_Time || deal?.Last_Activity_Time || deal?.Created_Time || "") || 0;
 }
 
-const DEAL_PANEL_HEIGHT = "clamp(360px, calc(100vh - 145px), 760px)";
-
 export default function ZohoDeals({ user, salesData, onAuthRequired }) {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("all");
@@ -111,15 +109,24 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
   const visibleDeals = filteredDeals.slice(0, 200);
 
   return (
-    <div className="fi">
-      <div style={{ marginBottom: 18 }}>
+    <div
+      className="fi"
+      style={{
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ marginBottom: 18, flexShrink: 0 }}>
         <h1 style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 40, lineHeight: 1, textTransform: "uppercase", marginBottom: 6 }}>Zoho Deals</h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
           Read-only Deal information and notes from Zoho CRM.
         </p>
       </div>
 
-      <div style={{ fontSize: 12, color: "var(--text-dim2)", marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: "var(--text-dim2)", marginBottom: 14, flexShrink: 0 }}>
         {isManager ? "Managers can inspect team Deals." : "You can inspect Deals assigned to your Zoho email."}
         {salesData.generatedAt ? ` Updated ${new Date(salesData.generatedAt).toLocaleString()}.` : ""}
       </div>
@@ -130,11 +137,11 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(360px,1fr))", gap: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(360px,1fr))", gap: 14, alignItems: "stretch", flex: 1, minHeight: 0 }}>
         <section
           className="card"
           aria-label="Zoho Deals"
-          style={{ height: DEAL_PANEL_HEIGHT, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
+          style={{ height: "100%", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
         >
           <div style={{ display: "flex", gap: 8, padding: 12, borderBottom: "1px solid var(--border)", flexWrap: "wrap", flexShrink: 0 }}>
             <input
@@ -204,7 +211,7 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
         <section
           className="card"
           aria-label="Selected Deal notes"
-          style={{ height: DEAL_PANEL_HEIGHT, minHeight: 0, padding: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}
+          style={{ height: "100%", minHeight: 0, padding: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}
         >
           {!selectedDeal && (
             <div style={{ flex: 1, minHeight: 0, display: "grid", placeItems: "center", textAlign: "center", color: "var(--text-muted)" }}>

@@ -1144,7 +1144,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         </div>
         <button onClick={()=>setOpen(o=>!o)} style={{background:"none",border:"none",color:B.muted,cursor:"pointer",padding:"10px",fontSize:13,borderTop:`1px solid ${B.border}`}}>{open?"◀":"▶"}</button>
       </div>
-      <main ref={contentRef} tabIndex={-1} aria-label="Sales OS content" style={{flex:1,minWidth:0,minHeight:0,overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",scrollbarGutter:"stable",outline:"none",padding:26}}>
+      <main ref={contentRef} tabIndex={-1} aria-label="Sales OS content" style={{flex:1,minWidth:0,minHeight:0,overflowY:view==="zoho-deals"?"hidden":"auto",overflowX:"hidden",overscrollBehavior:"contain",scrollbarGutter:view==="zoho-deals"?"auto":"stable",outline:"none",padding:26}}>
         {view==="dashboard"&&(statsEnabled
           ?<SalesDataGate salesData={salesData}><Dashboard user={user} allUsers={salesUsers} announcement={getAnnouncement()} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>
           :<SalesDataGate salesData={salesData}><Admin user={user} allUsers={salesUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} summaryOnly /></SalesDataGate>)}
