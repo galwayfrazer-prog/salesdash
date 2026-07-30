@@ -697,25 +697,25 @@ export default function App() {
 
         /* ── THEME VARIABLES ── */
         :root {
-          --bg: #000000;
-          --bg-card: #0d0d0d;
-          --bg-sub: #0a0a0a;
-          --bg-inner: #080808;
-          --bg-hover: #111111;
-          --border: #1a1a1a;
-          --border-sub: #1e1e1e;
-          --border-strong: #2a2a2a;
+          --bg: #0a0e2a;
+          --bg-card: #101642;
+          --bg-sub: #0d1235;
+          --bg-inner: #080b22;
+          --bg-hover: #161d4e;
+          --border: #1e2555;
+          --border-sub: #232b60;
+          --border-strong: #2d3670;
           --text: #ffffff;
-          --text-2: #dddddd;
-          --text-3: #cccccc;
-          --text-muted: #bbbbbb;
-          --text-dim: #888888;
-          --text-dim2: #666666;
-          --text-dim3: #444444;
-          --input-bg: #0a0a0a;
-          --input-border: #1e1e1e;
-          --placeholder: #444444;
-          --scrollbar: #222222;
+          --text-2: #dde0ee;
+          --text-3: #ccd0e4;
+          --text-muted: #b3b9d4;
+          --text-dim: #8189aa;
+          --text-dim2: #626a8c;
+          --text-dim3: #454d70;
+          --input-bg: #0d1235;
+          --input-border: #232b60;
+          --placeholder: #454d70;
+          --scrollbar: #2a3268;
         }
         .light-mode {
           --bg: #f5f6fa;
@@ -740,6 +740,7 @@ export default function App() {
         }
 
         *{box-sizing:border-box;margin:0;padding:0;}
+        html,body{background:var(--bg);}
         ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:2px;}
         .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;}
         .btn{border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;border-radius:8px;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;}
@@ -762,7 +763,7 @@ export default function App() {
         .app-loading-screen{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:var(--bg);}
         .app-loading-stack{width:180px;display:grid;justify-items:center;gap:20px;text-align:center;}
         .app-loading-logo{display:block;width:40px;height:40px;object-fit:contain;transform:translateX(3px);}
-        .app-loading-spinner{width:32px;height:32px;border:3px solid #1a1a1a;border-top-color:${B.orange};border-radius:50%;animation:spin 0.7s linear infinite;}
+        .app-loading-spinner{width:32px;height:32px;border:3px solid #1e2555;border-top-color:${B.orange};border-radius:50%;animation:spin 0.7s linear infinite;}
         .app-loading-label{width:100%;font-size:13px;line-height:1;color:var(--text-dim3);letter-spacing:0.06em;text-align:center;text-transform:uppercase;}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
@@ -880,7 +881,7 @@ function SetupScreen({ user, refreshUser, setView }) {
         <div style={{display:"flex",gap:5,marginBottom:28}}>
           {stepLabels.map((s,i)=>(
             <div key={s} style={{flex:1}}>
-              <div style={{height:3,borderRadius:2,background:i<=step?c:"#1a1a1a",transition:"background 0.3s"}} />
+              <div style={{height:3,borderRadius:2,background:i<=step?c:"#1e2555",transition:"background 0.3s"}} />
               <div style={{fontSize:10,color:i<=step?c:B.muted,marginTop:3,textTransform:"uppercase",letterSpacing:"0.06em"}}>{s}</div>
             </div>
           ))}
@@ -920,7 +921,7 @@ function SetupScreen({ user, refreshUser, setView }) {
                 <label>Your Title</label>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginTop:4}}>
                   {TITLE_OPTIONS.map(t=>(
-                    <div key={t} onClick={()=>setForm(p=>({...p,title:t}))} style={{padding:"9px 12px",borderRadius:8,border:`1px solid ${form.title===t?c:"#1e1e1e"}`,background:form.title===t?c+"18":"transparent",cursor:"pointer",fontSize:13,color:form.title===t?c:"#bbb",transition:"all 0.15s",fontWeight:form.title===t?600:400}}>
+                    <div key={t} onClick={()=>setForm(p=>({...p,title:t}))} style={{padding:"9px 12px",borderRadius:8,border:`1px solid ${form.title===t?c:"#232b60"}`,background:form.title===t?c+"18":"transparent",cursor:"pointer",fontSize:13,color:form.title===t?c:"#bbb",transition:"all 0.15s",fontWeight:form.title===t?600:400}}>
                       {t}
                     </div>
                   ))}
@@ -1075,7 +1076,7 @@ function useZohoSalesData(user, onAuthRequired) {
 
 function SalesDataGate({ salesData, children }) {
   if (salesData.loading&&!salesData.ready) {
-    return <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:B.orange,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading Sales OS numbers from Zoho...</div></div>;
+    return <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1e2555",borderTopColor:B.orange,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading Sales OS numbers from Zoho...</div></div>;
   }
   if (salesData.error&&!salesData.ready) {
     return <div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"14px 18px",fontSize:14,color:"#ef4444"}}><strong>Could not load Zoho sales numbers.</strong> {salesData.error} No manual or demo totals are being shown. <button className="btn btn-g btn-sm" onClick={salesData.reload} style={{marginLeft:10}}>Try again</button></div>;
@@ -1183,7 +1184,7 @@ function MeetingRecapCard({ user }) {
   const myTasks = (recap.tasks||[]).filter(t=>!t.assignee||t.assignee===user.nickname||t.assignee===user.displayName||t.assignee==="All");
 
   return (
-    <div style={{background:"#0a0d12",border:"1px solid #3b82f644",borderRadius:12,padding:expanded?"16px 20px":"10px 16px",marginBottom:14,transition:"padding 0.15s"}}>
+    <div style={{background:"#0c1338",border:"1px solid #3b82f655",borderRadius:12,padding:expanded?"16px 20px":"10px 16px",marginBottom:14,transition:"padding 0.15s"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setExpanded(e=>!e)}>
         <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
           <span style={{fontSize:16,flexShrink:0}}>📋</span>
@@ -1288,7 +1289,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
 
       {/* Team announcement banner */}
       {announcement&&(
-        <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+        <div style={{background:`linear-gradient(135deg,${B.orange}22,#101642)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:18,flexShrink:0}}>{announcement.emoji||"📣"}</span>
             <div>
@@ -1316,7 +1317,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
       {/* Performance Score + Momentum */}
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10,marginBottom:14}}>
         {/* Performance Score */}
-        <div className="card" style={{padding:18,borderColor:perfScoreColor(perfData.score)+"44",background:`linear-gradient(135deg,${perfScoreColor(perfData.score)}0a,#0d0d0d)`}}>
+        <div className="card" style={{padding:18,borderColor:perfScoreColor(perfData.score)+"44",background:`linear-gradient(135deg,${perfScoreColor(perfData.score)}0a,#101642)`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div>
           <div style={{fontSize:11,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Sales OS Score (Estimate)</div>
@@ -1348,7 +1349,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
           </div>
         </div>
         {/* Momentum */}
-        <div className="card" style={{padding:18,borderColor:momentumColor(momentum.trend)+"44",background:`linear-gradient(135deg,${momentumColor(momentum.trend)}0a,#0d0d0d)`,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+        <div className="card" style={{padding:18,borderColor:momentumColor(momentum.trend)+"44",background:`linear-gradient(135deg,${momentumColor(momentum.trend)}0a,#101642)`,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
           <div style={{fontSize:11,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Momentum</div>
           <div>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:momentumColor(momentum.trend),lineHeight:1,marginBottom:4}}>
@@ -1445,7 +1446,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
       </div>
 
       {incentive&&(
-        <div style={{background:`linear-gradient(135deg,${B.orange}18,#0d0d0d)`,border:`1px solid ${B.orange}44`,borderRadius:12,padding:14,marginBottom:12}}>
+        <div style={{background:`linear-gradient(135deg,${B.orange}18,#101642)`,border:`1px solid ${B.orange}44`,borderRadius:12,padding:14,marginBottom:12}}>
           <div style={{fontSize:14,fontWeight:600,color:B.orange,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:3}}>🔥 Current Incentive</div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:23,fontWeight:700,marginBottom:2}}>{incentive.title}</div>
           <div style={{fontSize:14,color:"var(--text-2)"}}>{incentive.description}</div>
@@ -1589,7 +1590,7 @@ function RepStats({ user, allUsers, salesData }) {
       {error&&<div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#ef4444"}}><strong>Could not load Zoho stats.</strong> {error} No demo numbers are being shown.</div>}
       {!error&&stale&&<div role="status" style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#d97706"}}>Showing the last saved Zoho snapshot because the newest refresh failed.</div>}
 
-      {blockingLoading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
+      {blockingLoading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1e2555",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
 
       {!blockingLoading&&<>
         {/* Tab bar */}
@@ -1745,7 +1746,7 @@ function RepStats({ user, allUsers, salesData }) {
                   {[...history].reverse().map((qh,i)=>{
                     const isCurrent=i===0;
                     return (
-                      <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"0a":"#080808",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#1e1e1e"}`}}>
+                      <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"0a":"#080b22",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#232b60"}`}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#16a34a":qh.closeRate>=40?"#d97706":"#ef4444"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>avg cycle</div></div>
@@ -1763,7 +1764,7 @@ function RepStats({ user, allUsers, salesData }) {
         {/* ── TEAM STATS (manager only) ── */}
         {activeTab==="team"&&isManager&&(
           salesData.teamDetailsLoading&&teamZohoDeals.length===0
-            ? <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1a1a1a",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading detailed team stats...</div></div>
+            ? <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1e2555",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading detailed team stats...</div></div>
             : salesData.teamDetailsError&&teamZohoDeals.length===0
               ? <div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"10px 16px",fontSize:13,color:"#ef4444"}}>Detailed team stats could not be loaded. The rest of Sales OS is still available.</div>
               : <TeamStatsView allUsers={allUsers} deals={filterByPeriod(teamZohoDeals)} c={c} />
@@ -2350,7 +2351,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
 
       {/* ── PERSONAL FOCUS PROMPT ── */}
       {focusPlatform && focusPlatform.gap > 0 && (
-        <div style={{ background: `linear-gradient(135deg,${focusPlatform.color}18,#0d0d0d)`, border: `1px solid ${focusPlatform.color}44`, borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
+        <div style={{ background: `linear-gradient(135deg,${focusPlatform.color}18,#101642)`, border: `1px solid ${focusPlatform.color}44`, borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: focusPlatform.color, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Your Focus This Quarter</div>
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
             {focusPlatform.gap} more <span style={{ color: focusPlatform.color }}>{focusPlatform.platform}</span> signing{focusPlatform.gap > 1 ? "s" : ""} needed
@@ -2431,7 +2432,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
         {/* Team platform totals */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: isManager ? 20 : 0 }}>
           {teamData.map(p => (
-            <div key={p.platform} style={{ background: "#080808", borderRadius: 10, padding: "14px 16px", border: `1px solid ${p.color}33` }}>
+            <div key={p.platform} style={{ background: "#080b22", borderRadius: 10, padding: "14px 16px", border: `1px solid ${p.color}33` }}>
               <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 700, color: p.color, marginBottom: 8 }}>{p.platform}</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 5, marginBottom: 3 }}>
                 <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 36, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{p.teamSigs}</div>
@@ -2463,7 +2464,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
               const t = targets[u.email] || {};
               const c = u.accentColor || B.orange;
               return (
-                <div key={u.email} style={{ background: "#080808", borderRadius: 10, padding: "14px 16px", border: `1px solid ${c}22` }}>
+                <div key={u.email} style={{ background: "#080b22", borderRadius: 10, padding: "14px 16px", border: `1px solid ${c}22` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                     <Avatar user={u} size={28} />
                     <div style={{ flex: 1 }}>
@@ -2480,7 +2481,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                       const pc = PLATFORM_COLOR[p];
                       const gap = tSig > 0 ? tSig - sig : null;
                       return (
-                        <div key={p} style={{ padding: "10px 12px", background: "#0a0a0a", borderRadius: 8, border: `1px solid ${pc}22` }}>
+                        <div key={p} style={{ padding: "10px 12px", background: "#0d1235", borderRadius: 8, border: `1px solid ${pc}22` }}>
                           <div style={{ fontSize: 12, color: pc, fontWeight: 700, marginBottom: 6 }}>{p}</div>
                           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginBottom: 2 }}>
                             <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{sig}</span>
@@ -2637,9 +2638,9 @@ const TIER_BORDER= {Small:'#16a34a44',Mid:'#d9770644',Large:'#7c3aed44'};
 
 // Sales OS design tokens (dark mode)
 const D = {
-  bg:'#000000', card:'#0d0d0d', sub:'#080808', border:'#1a1a1a',
-  border2:'#1e1e1e', orange:'#ff6700', text:'#ffffff', muted:'#bbbbbb',
-  dim:'#888888', fb:'#1877f2', msn:'#ff00a8', spotify:'#1db954',
+  bg:'#0a0e2a', card:'#101642', sub:'#0d1235', border:'#1e2555',
+  border2:'#232b60', orange:'#ff6700', text:'#ffffff', muted:'#b3b9d4',
+  dim:'#8189aa', fb:'#1877f2', msn:'#ff00a8', spotify:'#1db954',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2827,7 +2828,7 @@ function Board({ players, managerView, prizes, animGhost }) {
     if (Object.values(SNAKES).map(Number).includes(sq)) return '#1f0606';
     if (LADDERS[sq]) return '#0a2010';
     if (Object.values(LADDERS).map(Number).includes(sq)) return '#071808';
-    return (row+col)%2===0 ? '#0d0d18' : '#090912';
+    return (row+col)%2===0 ? '#141b4a' : '#101640';
   }
 
   const ghostPos = animGhost ? (
@@ -3046,7 +3047,7 @@ function PickPrizeModal({ mechanic, prizes, onPick, onClose }) {
             </button>
           ))}
         </div>
-        <button onClick={onClose} style={{marginTop:12,background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+        <button onClick={onClose} style={{marginTop:12,background:'#1e2555',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
       </div>
     </div>
   );
@@ -3064,13 +3065,13 @@ function SwapModal({ currentPlayer, players, onSwap, onClose }) {
         <div style={{fontSize:14,color:D.dim,marginBottom:16}}>{currentPlayer.puck} {currentPlayer.name} is on square {currentPlayer.pos}. Choose who to swap with:</div>
         <div style={{display:'grid',gap:8}}>
           {others.map(p=>(
-            <button key={p.id} onClick={()=>onSwap(p.id)} style={{background:D.card,border:'1px solid #1e1e1e',borderRadius:8,padding:'10px 14px',cursor:'pointer',textAlign:'left',fontSize:15,display:'flex',alignItems:'center',gap:10}}>
+            <button key={p.id} onClick={()=>onSwap(p.id)} style={{background:D.card,border:'1px solid #232b60',borderRadius:8,padding:'10px 14px',cursor:'pointer',textAlign:'left',fontSize:15,display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:24}}>{p.puck}</span>
               <div><div style={{fontWeight:700,color:D.text}}>{p.name}</div><div style={{fontSize:12,color:D.dim}}>Square {p.pos||'Start'}</div></div>
             </button>
           ))}
         </div>
-        <button onClick={onClose} style={{marginTop:12,background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+        <button onClick={onClose} style={{marginTop:12,background:'#1e2555',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
       </div>
     </div>
   );
@@ -3099,10 +3100,10 @@ function Scoreboard({ players, settings }) {
               const mid=p.prizes.filter(x=>x.tier==='Mid').length;
               const large=p.prizes.filter(x=>x.tier==='Large').length;
               return (
-                <tr key={p.id} style={{background:i%2===0?D.card:'#080808',borderBottom:`1px solid ${D.border}`}}>
+                <tr key={p.id} style={{background:i%2===0?D.card:'#080b22',borderBottom:`1px solid ${D.border}`}}>
                   <td style={{padding:'8px 10px'}}><span style={{fontSize:20}}>{p.puck}</span> <span style={{fontWeight:600,color:D.text}}>{p.name}</span></td>
                   <td style={{color:p.pos===100?'#a78bfa':D.text,padding:'8px 10px',fontWeight:700}}>{p.pos||'Start'}{p.pos===100?' 🏆':''}</td>
-                  <td style={{padding:'8px 10px'}}><span style={{color:D.text,background:p.rolls>0?D.fb+'22':'#1a1a1a',borderRadius:12,padding:'2px 8px',fontWeight:700}}>{p.rolls}</span></td>
+                  <td style={{padding:'8px 10px'}}><span style={{color:D.text,background:p.rolls>0?D.fb+'22':'#1e2555',borderRadius:12,padding:'2px 8px',fontWeight:700}}>{p.rolls}</span></td>
                   <td style={{padding:'8px 10px',color:D.fb,fontWeight:600}}>{p.fb}/{settings.facebookThreshold}</td>
                   <td style={{padding:'8px 10px',color:D.msn,fontWeight:600}}>{p.msn}/{settings.msnThreshold}</td>
                   <td style={{padding:'8px 10px',color:D.spotify,fontWeight:600}}>{p.spotify}/{settings.spotifyThreshold}</td>
@@ -3172,7 +3173,7 @@ function RollRequestTab({ players, state, onSubmit }) {
       <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:20,display:'grid',gap:14}}>
         <div>
           <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Player</label>
-          <select value={form.playerId} onChange={e=>setForm(p=>({...p,playerId:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}>
+          <select value={form.playerId} onChange={e=>setForm(p=>({...p,playerId:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #232b60',borderRadius:8,fontSize:14}}>
             <option value=''>Select player...</option>
             {active.map(p=><option key={p.id} value={p.id}>{p.puck} {p.name}</option>)}
           </select>
@@ -3188,24 +3189,24 @@ function RollRequestTab({ players, state, onSubmit }) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div>
             <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>No. of signings</label>
-            <input type="number" min={1} value={form.signings} onChange={e=>setForm(p=>({...p,signings:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+            <input type="number" min={1} value={form.signings} onChange={e=>setForm(p=>({...p,signings:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #232b60',borderRadius:8,fontSize:14}}/>
           </div>
           <div>
             <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Date</label>
-            <input value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+            <input value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={{width:'100%',padding:'10px 12px',border:'1px solid #232b60',borderRadius:8,fontSize:14}}/>
           </div>
         </div>
         <div>
           <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Signing names / channels *</label>
-          <input value={form.names} onChange={e=>setForm(p=>({...p,names:e.target.value}))} placeholder="Channel A, Channel B, Channel C" style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+          <input value={form.names} onChange={e=>setForm(p=>({...p,names:e.target.value}))} placeholder="Channel A, Channel B, Channel C" style={{width:'100%',padding:'10px 12px',border:'1px solid #232b60',borderRadius:8,fontSize:14}}/>
         </div>
         <div>
           <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Evidence / Reference (optional)</label>
-          <input value={form.ref} onChange={e=>setForm(p=>({...p,ref:e.target.value}))} placeholder="CRM link, Slack message, spreadsheet row..." style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}/>
+          <input value={form.ref} onChange={e=>setForm(p=>({...p,ref:e.target.value}))} placeholder="CRM link, Slack message, spreadsheet row..." style={{width:'100%',padding:'10px 12px',border:'1px solid #232b60',borderRadius:8,fontSize:14}}/>
         </div>
         <div>
           <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Notes</label>
-          <textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14,resize:'vertical'}}/>
+          <textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{width:'100%',padding:'10px 12px',border:'1px solid #232b60',borderRadius:8,fontSize:14,resize:'vertical'}}/>
         </div>
 
         {form.playerId && form.platform!=='Manual/Other' && (
@@ -3458,7 +3459,7 @@ function ManagerPanel({ state, onUpdate }) {
             {resolved.length>0&&(
               <div>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-                  <span style={{background:'#1a1a1a',color:D.dim,border:`1px solid ${D.border}`,borderRadius:10,padding:'2px 10px',fontSize:12,fontWeight:700}}>RESOLVED</span>
+                  <span style={{background:'#1e2555',color:D.dim,border:`1px solid ${D.border}`,borderRadius:10,padding:'2px 10px',fontSize:12,fontWeight:700}}>RESOLVED</span>
                   <span style={{fontSize:13,color:D.dim,fontWeight:600}}>{resolved.length}</span>
                 </div>
                 <div style={{display:'grid',gap:10,opacity:0.75}}>
@@ -3512,14 +3513,14 @@ function ManagerPanel({ state, onUpdate }) {
               </thead>
               <tbody>
                 {state.prizes.map((p,i)=>(
-                  <tr key={p.id} style={{background:i%2===0?D.card:'#080808',borderBottom:`1px solid ${D.border}`}}>
+                  <tr key={p.id} style={{background:i%2===0?D.card:'#080b22',borderBottom:`1px solid ${D.border}`}}>
                     <td style={{padding:'7px 10px',fontWeight:700,color:D.text}}>{p.sq}</td>
                     <td style={{padding:'7px 10px'}}><span style={{color:D.text,background:TIER_BG[p.tier],borderRadius:8,padding:'2px 8px',fontWeight:700,fontSize:12}}>{p.tier}</span></td>
                     <td style={{padding:'7px 10px',maxWidth:200}}>{p.desc}{p.mechanic&&<span style={{marginLeft:6,fontSize:10,background:'#e0e7ff',color:'#4338ca',borderRadius:8,padding:'1px 6px'}}>mechanic</span>}</td>
                     <td style={{padding:'7px 10px',color:p.claimed?'#15803d':'#6b7280'}}>{p.claimed?p.claimedBy:'—'}</td>
                     <td style={{padding:'7px 10px',fontSize:11,color:D.dim}}>{p.claimedDate||'—'}</td>
                     <td style={{padding:'7px 10px'}}>
-                      <button onClick={()=>markPrize(p.id,'givenOut',!p.givenOut)} style={{background:p.givenOut?'#0a1f0a':'#1a1a1a',border:`1px solid ${p.givenOut?'#16a34a44':D.border}`,borderRadius:6,padding:'3px 8px',cursor:'pointer',fontSize:12,fontWeight:600,color:p.givenOut?TIER_COLOR.Small:D.dim}}>
+                      <button onClick={()=>markPrize(p.id,'givenOut',!p.givenOut)} style={{background:p.givenOut?'#0a1f0a':'#1e2555',border:`1px solid ${p.givenOut?'#16a34a44':D.border}`,borderRadius:6,padding:'3px 8px',cursor:'pointer',fontSize:12,fontWeight:600,color:p.givenOut?TIER_COLOR.Small:D.dim}}>
                         {p.givenOut?'✅ Yes':'No'}
                       </button>
                     </td>
@@ -3551,7 +3552,7 @@ function ManagerPanel({ state, onUpdate }) {
             {[['managerApprovalRequired','Manager approval required'],['partialProgressCarryover','Partial progress carries over'],['manualRollCreditsAllowed','Manual roll credits allowed'],['allowOvershootFinish','Allow overshoot finish (reach 100 without exact roll)'],['fallbackEnabled','Fallback tokens enabled'],['pickAnyLargeNeedsApproval','Large prizes need approval when picked'],['swapChainReactions','Swap triggers snakes/ladders on new square']].map(([k,l])=>(
               <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:8,borderTop:`1px solid ${D.border}`}}>
                 <label style={{color:D.text,fontWeight:600,fontSize:14,flex:1,paddingRight:12}}>{l}</label>
-                <button onClick={()=>setEditSettings(s=>({...s,[k]:!s[k]}))} style={{color:D.text,background:editSettings[k]?D.orange:'#1a1a1a',border:`1px solid ${editSettings[k]?D.orange:D.border}`,borderRadius:20,padding:'6px 16px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,minWidth:60}}>
+                <button onClick={()=>setEditSettings(s=>({...s,[k]:!s[k]}))} style={{color:D.text,background:editSettings[k]?D.orange:'#1e2555',border:`1px solid ${editSettings[k]?D.orange:D.border}`,borderRadius:20,padding:'6px 16px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,minWidth:60}}>
                   {editSettings[k]?'ON':'OFF'}
                 </button>
               </div>
@@ -3624,7 +3625,7 @@ function ManagerPanel({ state, onUpdate }) {
               <textarea value={rulesText} onChange={e=>setRulesText(e.target.value)} rows={16} style={{width:'100%',padding:12,border:`1px solid ${D.border}`,borderRadius:8,fontSize:13,fontFamily:'monospace',resize:'vertical'}}/>
               <div style={{display:'flex',gap:8,marginTop:8}}>
                 <button onClick={()=>{onUpdate(s=>({...s,rules:rulesText}));setEditRules(false);}} style={{color:D.text,background:'#16a34a',border:'none',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>Save</button>
-                <button onClick={()=>setEditRules(false)} style={{background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+                <button onClick={()=>setEditRules(false)} style={{background:'#1e2555',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
               </div>
             </>
           ):(
@@ -3694,7 +3695,7 @@ function PlayerEditCard({ p, onUpdate, onMove, onReset, onGrant, onRemove }) {
   if (!p.active) return (
     <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:10,padding:12,opacity:0.5,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
       <span style={{color:D.text}}>{p.puck} {p.name} (removed)</span>
-      <button onClick={()=>onUpdate(s=>({...s,players:s.players.map(x=>x.id===p.id?{...x,active:true}:x)}))} style={{background:'#1a1a1a',border:`1px solid ${D.border}`,color:D.muted,borderRadius:6,padding:'4px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12}}>Re-add</button>
+      <button onClick={()=>onUpdate(s=>({...s,players:s.players.map(x=>x.id===p.id?{...x,active:true}:x)}))} style={{background:'#1e2555',border:`1px solid ${D.border}`,color:D.muted,borderRadius:6,padding:'4px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12}}>Re-add</button>
     </div>
   );
 
@@ -3717,7 +3718,7 @@ function PlayerEditCard({ p, onUpdate, onMove, onReset, onGrant, onRemove }) {
           <input value={moveVal} onChange={e=>setMoveVal(e.target.value)} placeholder="Move to sq..." type="number" min={0} max={100} style={{padding:'6px 8px',border:`1px solid ${D.border}`,borderRadius:6,fontSize:13,width:90}}/>
           <button onClick={()=>{if(moveVal)onMove(p.id,moveVal);setMoveVal('');}} style={{background:'#d97706',color:'#fff',border:'none',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Move</button>
         </div>
-        <button onClick={()=>onReset(p.id)} style={{background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Reset</button>
+        <button onClick={()=>onReset(p.id)} style={{background:'#1e2555',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Reset</button>
         <button onClick={()=>onGrant(p.id,'rolls',1)} style={{background:D.fb+'22',color:'#93c5fd',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+Roll</button>
         <button onClick={()=>onGrant(p.id,'rolls',-1)} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #ef444433',borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>-Roll</button>
         <button onClick={()=>onGrant(p.id,'fallback',1)} style={{background:D.fb+'22',color:'#93c5fd',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+FB</button>
@@ -4026,9 +4027,9 @@ function SnakesLaddersGame({ user }) {
         .snl-btn-p{background:#ff6700;color:#fff;padding:10px 20px;}
         .snl-btn-p:hover:not(:disabled){background:#e55d00;transform:translateY(-1px);}
         .snl-btn-p:disabled{opacity:0.4;cursor:not-allowed;}
-        .snl-btn-g{background:transparent;color:#bbb;border:1px solid #2a2a2a;padding:8px 16px;}
+        .snl-btn-g{background:transparent;color:#bbb;border:1px solid #2d3670;padding:8px 16px;}
         .snl-btn-g:hover{border-color:#444;color:#fff;}
-        .snl-card{background:#0d0d0d;border:1px solid #1a1a1a;border-radius:12px;}
+        .snl-card{background:#101642;border:1px solid #1e2555;border-radius:12px;}
       `}</style>
 
       {/* Compact header — winner banner + undo only, no duplicate branding (already inside Incentives tab) */}
@@ -4046,7 +4047,7 @@ function SnakesLaddersGame({ user }) {
       )}
 
       {/* Sub-tabs (compact pill style matching dashboard conventions) */}
-      <div style={{display:'flex',gap:3,background:"#0a0a0a",border:`1px solid ${D.border}`,borderRadius:8,padding:3,marginBottom:18,width:'fit-content',overflowX:'auto'}}>
+      <div style={{display:'flex',gap:3,background:"#0d1235",border:`1px solid ${D.border}`,borderRadius:8,padding:3,marginBottom:18,width:'fit-content',overflowX:'auto'}}>
         {TABS.map(({k,l})=>(
           <button key={k} onClick={()=>setTab(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",background:tab===k?D.orange:"transparent",color:tab===k?"#fff":"#888",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',transition:"all 0.15s"}}>
             {l}
@@ -4077,7 +4078,7 @@ function SnakesLaddersGame({ user }) {
                 <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:12}}>🎲 Roll Dice</div>
                 <div style={{marginBottom:12}}>
                   <label style={{color:D.muted,display:'block',fontSize:12,fontWeight:700,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.05em'}}>Select player</label>
-                  <select value={selectedPlayer||''} onChange={e=>setSelectedPlayer(e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #1e1e1e',borderRadius:8,fontSize:14}}>
+                  <select value={selectedPlayer||''} onChange={e=>setSelectedPlayer(e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #232b60',borderRadius:8,fontSize:14}}>
                     <option value=''>Choose player...</option>
                     {activePlayers.map(p=>(
                       <option key={p.id} value={p.id}>{p.puck} {p.name} — {p.rolls} roll{p.rolls!==1?'s':''} ({p.pos||'Start'})</option>
@@ -4223,12 +4224,12 @@ function SnakesLaddersGame({ user }) {
             <div style={{fontSize:14,color:D.dim,marginBottom:16}}>Choose a fallback reward. Manager will need to approve.</div>
             <div style={{display:'grid',gap:7}}>
               {state.settings.fallbackPool.map(opt=>(
-                <button key={opt} onClick={()=>submitFallback(opt)} style={{background:D.card,border:`1px solid #1a1a1a`,borderRadius:8,padding:'10px 14px',cursor:'pointer',textAlign:'left',fontSize:14,fontWeight:600,color:D.text}}>
+                <button key={opt} onClick={()=>submitFallback(opt)} style={{background:D.card,border:`1px solid #1e2555`,borderRadius:8,padding:'10px 14px',cursor:'pointer',textAlign:'left',fontSize:14,fontWeight:600,color:D.text}}>
                   {opt}
                 </button>
               ))}
             </div>
-            <button onClick={()=>setFallbackModal(null)} style={{marginTop:12,background:'#1a1a1a',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
+            <button onClick={()=>setFallbackModal(null)} style={{marginTop:12,background:'#1e2555',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Cancel</button>
           </div>
         </div>
       )}
@@ -4270,7 +4271,7 @@ function Incentives({ user, allUsers, salesEvents, salesData }) {
       </div>
 
       {incTab==="game"&&<>
-        <div style={{background:"#0d0d0d",border:"1px solid #1a1a1a",borderRadius:10,padding:"10px 14px",marginBottom:14,color:"var(--text-muted)",fontSize:12,lineHeight:1.5}}>
+        <div style={{background:"#101642",border:"1px solid #1e2555",borderRadius:10,padding:"10px 14px",marginBottom:14,color:"var(--text-muted)",fontSize:12,lineHeight:1.5}}>
           Game players and roll history are a shared manual list saved by the team. Someone can appear here before they create or sign in to a Sales OS account.
         </div>
         <SnakesLaddersGame user={user} />
@@ -4297,7 +4298,7 @@ function Incentives({ user, allUsers, salesEvents, salesData }) {
       )}
       {!incentive&&!editing&&<div className="card" style={{padding:48,textAlign:"center"}}><div style={{fontSize:32,marginBottom:10}}>🏆</div><div style={{color:"#e5e5e5",fontSize:14}}>{isManager?"Set an incentive above to fire up the team.":"No active incentive. Check back soon."}</div></div>}
       {incentive&&<>
-        <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:14,padding:22,marginBottom:18}}>
+        <div style={{background:`linear-gradient(135deg,${B.orange}22,#101642)`,border:`1px solid ${B.orange}55`,borderRadius:14,padding:22,marginBottom:18}}>
           <div style={{fontSize:10,fontWeight:600,color:B.orange,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:7}}>Active Incentive</div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,marginBottom:5}}>{incentive.title}</div>
           <div style={{fontSize:13,color:"var(--text-2)",marginBottom:8}}>{incentive.description}</div>
@@ -4345,7 +4346,7 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
   return (
     <div className="fi" style={{maxWidth:480}}>
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:38,fontWeight:700,textTransform:"uppercase",marginBottom:22}}>My Profile</div>
-      <div style={{background:`linear-gradient(135deg,${c}18,#0d0d0d)`,border:`1px solid ${c}44`,borderRadius:14,padding:20,marginBottom:22,display:"flex",alignItems:"center",gap:14}}>
+      <div style={{background:`linear-gradient(135deg,${c}18,#101642)`,border:`1px solid ${c}44`,borderRadius:14,padding:20,marginBottom:22,display:"flex",alignItems:"center",gap:14}}>
         <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{
           const file = e.target.files?.[0];
           if (!file) return;
@@ -4372,7 +4373,7 @@ function Profile({ user, refreshUser, lightMode, toggleLightMode }) {
             <label>Title</label>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:4}}>
               {TITLE_OPTIONS.map(t=>(
-                <div key={t} onClick={()=>setForm(p=>({...p,title:t}))} style={{padding:"8px 10px",borderRadius:7,border:`1px solid ${form.title===t?c:"#1e1e1e"}`,background:form.title===t?c+"18":"transparent",cursor:"pointer",fontSize:12,color:form.title===t?c:"#bbb",transition:"all 0.15s",fontWeight:form.title===t?600:400}}>
+                <div key={t} onClick={()=>setForm(p=>({...p,title:t}))} style={{padding:"8px 10px",borderRadius:7,border:`1px solid ${form.title===t?c:"#232b60"}`,background:form.title===t?c+"18":"transparent",cursor:"pointer",fontSize:12,color:form.title===t?c:"#bbb",transition:"all 0.15s",fontWeight:form.title===t?600:400}}>
                   {t}
                 </div>
               ))}
@@ -4608,7 +4609,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
       <div style={{fontSize:12,color:"var(--text-dim2)",marginTop:-14,marginBottom:18}}>Sales totals come from read-only Zoho data{salesData.generatedAt?` · updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. {summaryOnly?"Your access-only account is not included in these numbers.":"Other manager tools below stay inside Sales OS."}</div>
 
       {summaryOnly&&currentAnnouncement&&(
-        <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+        <div style={{background:`linear-gradient(135deg,${B.orange}22,#101642)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:18,flexShrink:0}}>{currentAnnouncement.emoji||"📣"}</span>
           <div>
             <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{currentAnnouncement.text}</div>
@@ -4636,7 +4637,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
       {/* ── EXECUTIVE SUMMARY ── */}
       {tab==="summary"&&(
         <div>
-          <div className="card" style={{padding:24,marginBottom:14,background:"linear-gradient(135deg,#0d0d0d,#0a0a0a)",borderColor:"#ffffff18"}}>
+          <div className="card" style={{padding:24,marginBottom:14,background:"linear-gradient(135deg,#101642,#0d1235)",borderColor:"#ffffff18"}}>
             <div style={{fontSize:11,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:16}}>Executive Summary · Q{q+1} {now.getFullYear()}</div>
             {summaryLines.length===0
               ? <div style={{color:"#e5e5e5",fontSize:14}}>No Zoho handoffs or Sales OS targets are available yet.</div>
@@ -4890,7 +4891,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           {(recap.summary||recap.tasks.length>0)&&(
             <div style={{marginTop:20}}>
               <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Preview (as reps see it)</div>
-              <div style={{background:"#0a0d12",border:"1px solid #3b82f644",borderRadius:12,padding:"16px 20px"}}>
+              <div style={{background:"#0c1338",border:"1px solid #3b82f655",borderRadius:12,padding:"16px 20px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:16}}>📋</span>
@@ -4926,7 +4927,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           {currentAnnouncement&&(
             <div style={{marginBottom:14}}>
               <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Current Announcement</div>
-              <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+              <div style={{background:`linear-gradient(135deg,${B.orange}22,#101642)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
                   <span style={{fontSize:18,flexShrink:0}}>{currentAnnouncement.emoji||"📣"}</span>
                   <div style={{minWidth:0}}>
@@ -4963,7 +4964,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           {announcement.text&&(
             <div>
               <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>New Announcement Preview</div>
-              <div style={{background:`linear-gradient(135deg,${B.orange}22,#0d0d0d)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:10}}>
+              <div style={{background:`linear-gradient(135deg,${B.orange}22,#101642)`,border:`1px solid ${B.orange}55`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:18}}>{announcement.emoji||"📣"}</span>
                 <div>
                   <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{announcement.text}</div>
