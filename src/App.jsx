@@ -700,8 +700,8 @@ export default function App() {
           --bg: #0a0e2a;
           --bg-card: #101642;
           --bg-sub: #0d1235;
-          --bg-inner: #080b22;
-          --bg-hover: #161d4e;
+          --bg-inner: #18205a;
+          --bg-hover: #1e2668;
           --border: #1e2555;
           --border-sub: #232b60;
           --border-strong: #2d3670;
@@ -709,12 +709,12 @@ export default function App() {
           --text-2: #dde0ee;
           --text-3: #ccd0e4;
           --text-muted: #b3b9d4;
-          --text-dim: #8189aa;
-          --text-dim2: #626a8c;
-          --text-dim3: #7a83ad;
+          --text-dim: #949cbe;
+          --text-dim2: #8189aa;
+          --text-dim3: #949cbe;
           --input-bg: #0d1235;
           --input-border: #232b60;
-          --placeholder: #7a83ad;
+          --placeholder: #8189aa;
           --scrollbar: #2a3268;
         }
         .light-mode {
@@ -1184,7 +1184,7 @@ function MeetingRecapCard({ user }) {
   const myTasks = (recap.tasks||[]).filter(t=>!t.assignee||t.assignee===user.nickname||t.assignee===user.displayName||t.assignee==="All");
 
   return (
-    <div style={{background:"#0c1338",border:"1px solid #38bdf855",borderRadius:12,padding:expanded?"16px 20px":"10px 16px",marginBottom:14,transition:"padding 0.15s"}}>
+    <div style={{background:"#16215c",border:"1px solid #38bdf877",borderRadius:12,padding:expanded?"16px 20px":"10px 16px",marginBottom:14,transition:"padding 0.15s"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setExpanded(e=>!e)}>
         <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
           <span style={{fontSize:16,flexShrink:0}}>📋</span>
@@ -1627,7 +1627,7 @@ function RepStats({ user, allUsers, salesData }) {
                 return (
                   <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#22c55e":"#f59e0b"):"#555",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#22c55e":"#f59e0b"):"#8189aa",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
                     <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} handoffs · {p.lost} rejected/lost</div>
                     {p.total>0&&<div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#22c55e":"#f59e0b",borderRadius:3,transition:"width 0.5s"}} /></div>}
                   </div>
@@ -1646,7 +1646,7 @@ function RepStats({ user, allUsers, salesData }) {
                 return (
                   <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.avgDays!==null?c:"#555",lineHeight:1,marginBottom:4}}>{p.avgDays!==null?p.avgDays+"d":"—"}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.avgDays!==null?c:"#8189aa",lineHeight:1,marginBottom:4}}>{p.avgDays!==null?p.avgDays+"d":"—"}</div>
                     <div style={{fontSize:14,color:"var(--text-dim)"}}>{p.count} deal{p.count!==1?"s":""}</div>
                   </div>
                 );
@@ -1661,7 +1661,7 @@ function RepStats({ user, allUsers, salesData }) {
               <div style={{fontSize:15,color:"var(--text-dim)",marginBottom:14}}>Deals that made it all the way to Live — ops got them over the line.</div>
               <div style={{display:"grid",gap:8}}>
                 {liveAll.slice(0,8).map((d,i)=>{
-                  const plat=stats.normPlat(d),pc=PLATFORM_COLOR[plat]||"#888";
+                  const plat=stats.normPlat(d),pc=PLATFORM_COLOR[plat]||"#a0a8c8";
                   const cyc=d.Created_Time&&d.Closing_Date?Math.floor((new Date(d.Closing_Date)-new Date(d.Created_Time))/864e5):null;
                   return (
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8,border:"1px solid var(--border-sub)"}}>
@@ -1705,7 +1705,7 @@ function RepStats({ user, allUsers, salesData }) {
                 </div>
                 <div style={{display:"flex",gap:10}}>
                   {history.map((qh,i)=>(
-                    <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#666"}}>{qh.label}</div>
+                    <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#949cbe"}}>{qh.label}</div>
                   ))}
                 </div>
               </div>
@@ -1724,14 +1724,14 @@ function RepStats({ user, allUsers, salesData }) {
                           return (
                             <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
                               <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{cyc>0?cyc+"d":"—"}</div>
-                              <div style={{width:"100%",height:`${h}px`,background:isCurrent?c+"44":"#33333388",borderRadius:"4px 4px 0 0",border:`1px solid ${isCurrent?c:"#444"}`,transition:"height 0.5s"}} />
+                              <div style={{width:"100%",height:`${h}px`,background:isCurrent?c+"44":"#33333388",borderRadius:"4px 4px 0 0",border:`1px solid ${isCurrent?c:"#7a83ad"}`,transition:"height 0.5s"}} />
                             </div>
                           );
                         })}
                       </div>
                       <div style={{display:"flex",gap:10}}>
                         {history.map((qh,i)=>(
-                          <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#666"}}>{qh.label}</div>
+                          <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#949cbe"}}>{qh.label}</div>
                         ))}
                       </div>
                     </>
@@ -1746,12 +1746,12 @@ function RepStats({ user, allUsers, salesData }) {
                   {[...history].reverse().map((qh,i)=>{
                     const isCurrent=i===0;
                     return (
-                      <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"0a":"#080b22",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#232b60"}`}}>
+                      <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"1a":"#18205a",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#232b60"}`}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#22c55e":qh.closeRate>=40?"#f59e0b":"#f87171"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#22c55e":qh.closeRate>=40?"#f59e0b":"#f87171"):"#8189aa"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>avg cycle</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#22c55e"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>handoffs</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#f87171":"#555"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#f87171":"#8189aa"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
                       </div>
                     );
                   })}
@@ -1835,8 +1835,8 @@ function TeamStatsView({ allUsers, deals, c }) {
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,flex:1}}>
                   {[
-                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#22c55e":rs.closeRate>=40?"#f59e0b":"#f87171"):"#555"},
-                    {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#22c55e":"#f59e0b"):"#555"},
+                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#22c55e":rs.closeRate>=40?"#f59e0b":"#f87171"):"#8189aa"},
+                    {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#22c55e":"#f59e0b"):"#8189aa"},
                     {label:"Avg Cycle",val:rs.avgCycle!==null?rs.avgCycle+"d":"—",col:repC},
                     {label:"Handoff · Negative",val:`${rs.salesClosed.length} · ${rs.lost.length}`,col:"#ddd"},
                   ].map(s=>(
@@ -2013,7 +2013,7 @@ function LogSigning({ user, refreshUser }) {
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <input type="date" value={form.contractDate} onChange={e=>setForm(p=>({...p,contractDate:e.target.value}))} style={{flex:1,fontSize:16,padding:"13px 16px"}} />
               <button type="button" onClick={()=>setForm(p=>({...p,contractDate:todayStr()}))}
-                style={{background:"var(--border)",border:"1px solid #444",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+                style={{background:"var(--border)",border:"1px solid #7a83ad",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
                 Today
               </button>
             </div>
@@ -2168,9 +2168,9 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
                   {/* ── Platform cells ── */}
                   <div style={{flex:1,display:"flex",gap:8,alignItems:"stretch",minWidth:0}}>
                     {pData.map(({p,n,col})=>(
-                      <div key={p} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 8px",background:col+"12",border:`1px solid ${col}44`,borderRadius:10,minWidth:0}}>
-                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:n>0?col:"#444",lineHeight:1}}>{n}</div>
-                        <div style={{fontSize:11,fontWeight:700,color:n>0?col:"#555",letterSpacing:"0.06em",marginTop:3,textTransform:"uppercase"}}>{({Facebook:"FB",MSN:"MSN",Spotify:"SP"})[p]||p.slice(0,2)}</div>
+                      <div key={p} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 8px",background:col+"22",border:`1px solid ${col}66`,borderRadius:10,minWidth:0}}>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:n>0?col:"#7a83ad",lineHeight:1}}>{n}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:n>0?col:"#8189aa",letterSpacing:"0.06em",marginTop:3,textTransform:"uppercase"}}>{({Facebook:"FB",MSN:"MSN",Spotify:"SP"})[p]||p.slice(0,2)}</div>
                       </div>
                     ))}
                   </div>
@@ -2432,7 +2432,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
         {/* Team platform totals */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: isManager ? 20 : 0 }}>
           {teamData.map(p => (
-            <div key={p.platform} style={{ background: "#080b22", borderRadius: 10, padding: "14px 16px", border: `1px solid ${p.color}33` }}>
+            <div key={p.platform} style={{ background: "#18205a", borderRadius: 10, padding: "14px 16px", border: `1px solid ${p.color}33` }}>
               <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 700, color: p.color, marginBottom: 8 }}>{p.platform}</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 5, marginBottom: 3 }}>
                 <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 36, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{p.teamSigs}</div>
@@ -2464,7 +2464,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
               const t = targets[u.email] || {};
               const c = u.accentColor || B.orange;
               return (
-                <div key={u.email} style={{ background: "#080b22", borderRadius: 10, padding: "14px 16px", border: `1px solid ${c}22` }}>
+                <div key={u.email} style={{ background: "#18205a", borderRadius: 10, padding: "14px 16px", border: `1px solid ${c}22` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                     <Avatar user={u} size={28} />
                     <div style={{ flex: 1 }}>
@@ -2481,7 +2481,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                       const pc = PLATFORM_COLOR[p];
                       const gap = tSig > 0 ? tSig - sig : null;
                       return (
-                        <div key={p} style={{ padding: "10px 12px", background: "#0d1235", borderRadius: 8, border: `1px solid ${pc}22` }}>
+                        <div key={p} style={{ padding: "10px 12px", background: "#18205a", borderRadius: 8, border: `1px solid ${pc}22` }}>
                           <div style={{ fontSize: 12, color: pc, fontWeight: 700, marginBottom: 6 }}>{p}</div>
                           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginBottom: 2 }}>
                             <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{sig}</span>
@@ -2494,7 +2494,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                             <div style={{ fontSize: 12, color: gap <= 0 ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>
                               {gap <= 0 ? "✓ On target" : `${gap} to go`}
                             </div>
-                            <div style={{ fontSize: 11, color: "#999" }}>Forecast: <span style={{ color: forecast >= tSig ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{forecast}</span></div>
+                            <div style={{ fontSize: 11, color: "#adb4d0" }}>Forecast: <span style={{ color: forecast >= tSig ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{forecast}</span></div>
                           </>}
                           {!tSig && <div style={{ fontSize: 11, color: B.muted }}>No target set</div>}
                           {editing && <input type="number" placeholder="Target" value={draft[u.email]?.[`signings_${p}`] || ""} onChange={e => setDraftVal(u.email, `signings_${p}`, e.target.value)} style={{ marginTop: 6, fontSize: 12, padding: "4px 8px" }} />}
@@ -3100,7 +3100,7 @@ function Scoreboard({ players, settings }) {
               const mid=p.prizes.filter(x=>x.tier==='Mid').length;
               const large=p.prizes.filter(x=>x.tier==='Large').length;
               return (
-                <tr key={p.id} style={{background:i%2===0?D.card:'#080b22',borderBottom:`1px solid ${D.border}`}}>
+                <tr key={p.id} style={{background:i%2===0?D.card:'#18205a',borderBottom:`1px solid ${D.border}`}}>
                   <td style={{padding:'8px 10px'}}><span style={{fontSize:20}}>{p.puck}</span> <span style={{fontWeight:600,color:D.text}}>{p.name}</span></td>
                   <td style={{color:p.pos===100?'#a78bfa':D.text,padding:'8px 10px',fontWeight:700}}>{p.pos||'Start'}{p.pos===100?' 🏆':''}</td>
                   <td style={{padding:'8px 10px'}}><span style={{color:D.text,background:p.rolls>0?D.fb+'22':'#1e2555',borderRadius:12,padding:'2px 8px',fontWeight:700}}>{p.rolls}</span></td>
@@ -3421,7 +3421,7 @@ function ManagerPanel({ state, onUpdate }) {
     <div>
       <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:20}}>
         {subBtns.map(({k,l,badge})=>(
-          <button key={k} onClick={()=>setSub(k)} style={{padding:'8px 14px',border:`1px solid ${sub===k?D.orange:D.border}`,borderRadius:8,background:sub===k?D.orange+'22':'transparent',color:sub===k?D.orange:'#888',cursor:'pointer',fontWeight:600,fontFamily:"'DM Sans',sans-serif",fontSize:13,display:'flex',alignItems:'center',gap:6}}>
+          <button key={k} onClick={()=>setSub(k)} style={{padding:'8px 14px',border:`1px solid ${sub===k?D.orange:D.border}`,borderRadius:8,background:sub===k?D.orange+'22':'transparent',color:sub===k?D.orange:'#a0a8c8',cursor:'pointer',fontWeight:600,fontFamily:"'DM Sans',sans-serif",fontSize:13,display:'flex',alignItems:'center',gap:6}}>
             {l}
             {badge>0&&<span style={{color:D.text,background:'#ef4444',borderRadius:10,padding:'1px 7px',fontSize:11,fontWeight:700}}>{badge}</span>}
           </button>
@@ -3513,7 +3513,7 @@ function ManagerPanel({ state, onUpdate }) {
               </thead>
               <tbody>
                 {state.prizes.map((p,i)=>(
-                  <tr key={p.id} style={{background:i%2===0?D.card:'#080b22',borderBottom:`1px solid ${D.border}`}}>
+                  <tr key={p.id} style={{background:i%2===0?D.card:'#18205a',borderBottom:`1px solid ${D.border}`}}>
                     <td style={{padding:'7px 10px',fontWeight:700,color:D.text}}>{p.sq}</td>
                     <td style={{padding:'7px 10px'}}><span style={{color:D.text,background:TIER_BG[p.tier],borderRadius:8,padding:'2px 8px',fontWeight:700,fontSize:12}}>{p.tier}</span></td>
                     <td style={{padding:'7px 10px',maxWidth:200}}>{p.desc}{p.mechanic&&<span style={{marginLeft:6,fontSize:10,background:'#e0e7ff',color:'#4338ca',borderRadius:8,padding:'1px 6px'}}>mechanic</span>}</td>
@@ -4028,7 +4028,7 @@ function SnakesLaddersGame({ user }) {
         .snl-btn-p:hover:not(:disabled){background:#e55d00;transform:translateY(-1px);}
         .snl-btn-p:disabled{opacity:0.4;cursor:not-allowed;}
         .snl-btn-g{background:transparent;color:#bbb;border:1px solid #2d3670;padding:8px 16px;}
-        .snl-btn-g:hover{border-color:#444;color:#fff;}
+        .snl-btn-g:hover{border-color:#7a83ad;color:#fff;}
         .snl-card{background:#101642;border:1px solid #1e2555;border-radius:12px;}
       `}</style>
 
@@ -4049,7 +4049,7 @@ function SnakesLaddersGame({ user }) {
       {/* Sub-tabs (compact pill style matching dashboard conventions) */}
       <div style={{display:'flex',gap:3,background:"#0d1235",border:`1px solid ${D.border}`,borderRadius:8,padding:3,marginBottom:18,width:'fit-content',overflowX:'auto'}}>
         {TABS.map(({k,l})=>(
-          <button key={k} onClick={()=>setTab(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",background:tab===k?D.orange:"transparent",color:tab===k?"#fff":"#888",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',transition:"all 0.15s"}}>
+          <button key={k} onClick={()=>setTab(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",background:tab===k?D.orange:"transparent",color:tab===k?"#fff":"#a0a8c8",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',transition:"all 0.15s"}}>
             {l}
           </button>
         ))}
@@ -4743,7 +4743,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
             </div>
             <div style={{display:"flex",gap:8}}>
               {months.map((mo,i)=>(
-                <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===months.length-1?B.orange:"#666"}}>{mo.label}</div>
+                <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===months.length-1?B.orange:"#949cbe"}}>{mo.label}</div>
               ))}
             </div>
           </div>
@@ -4771,7 +4771,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                   </div>
                   <div style={{display:"flex",gap:4}}>
                     {months.map((mo,i)=>(
-                      <div key={i} style={{flex:1,textAlign:"center",fontSize:9,color:i===months.length-1?pc:"#555",overflow:"hidden",whiteSpace:"nowrap"}}>{mo.label.split(" ")[0]}</div>
+                      <div key={i} style={{flex:1,textAlign:"center",fontSize:9,color:i===months.length-1?pc:"#8189aa",overflow:"hidden",whiteSpace:"nowrap"}}>{mo.label.split(" ")[0]}</div>
                     ))}
                   </div>
                 </div>
@@ -4786,7 +4786,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
             <div style={{display:"grid",gridTemplateColumns:`120px repeat(${months.length},1fr)`,gap:4,marginBottom:8}}>
               <div style={{fontSize:11,color:"var(--text-2)"}} />
               {months.map((mo,i)=>(
-                <div key={i} style={{fontSize:11,color:i===months.length-1?B.orange:"#666",textAlign:"center",fontWeight:i===months.length-1?700:400}}>{mo.label}</div>
+                <div key={i} style={{fontSize:11,color:i===months.length-1?B.orange:"#949cbe",textAlign:"center",fontWeight:i===months.length-1?700:400}}>{mo.label}</div>
               ))}
             </div>
             {allUsers.map(u=>{
@@ -4891,7 +4891,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           {(recap.summary||recap.tasks.length>0)&&(
             <div style={{marginTop:20}}>
               <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Preview (as reps see it)</div>
-              <div style={{background:"#0c1338",border:"1px solid #38bdf855",borderRadius:12,padding:"16px 20px"}}>
+              <div style={{background:"#16215c",border:"1px solid #38bdf877",borderRadius:12,padding:"16px 20px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:16}}>📋</span>
@@ -5020,7 +5020,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                 <div style={{display:"flex",gap:10,alignItems:"center"}}>
                   <input type="date" value={addForm.contractDate} onChange={e=>setAddForm(p=>({...p,contractDate:e.target.value}))} style={{flex:1,fontSize:16,padding:"13px 16px"}} />
                   <button type="button" onClick={()=>setAddForm(p=>({...p,contractDate:todayStr()}))}
-                    style={{background:"var(--border)",border:"1px solid #444",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+                    style={{background:"var(--border)",border:"1px solid #7a83ad",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
                     Today
                   </button>
                 </div>
