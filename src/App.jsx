@@ -134,7 +134,7 @@ function sbDel(key) {
 const B = {
   orange:"#ff6700", black:"var(--bg)", white:"var(--text)",
   card:"var(--bg-card)", border:"var(--border)", muted:"var(--text-muted)", dim:"var(--text-dim)",
-  fb:"#6cb6ff", msn:"#ff2db0", spotify:"#1db954",
+  fb:"#38a8ff", msn:"#f59e0b", spotify:"#1ed760",
 };
 const WV_LOGO = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20776%20760%22%3E%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M0%2C217V20C0%2C8%2C7%2C0%2C22%2C2c2%2C1%2C4%2C3%2C6%2C5%2C35%2C34%2C92%2C76%2C170%2C114%2C26%2C13%2C54%2C23%2C84%2C29%2C9%2C1%2C18-1%2C27-3%2C95-36%2C186-127%2C232-177%2C4-4%2C8-6%2C14-6%2C7%2C0%2C13%2C5%2C13%2C12v398c0%2C6-3%2C11-8%2C14L389%2C524c-4%2C3-8%2C6-10%2C11L310%2C681c-6%2C11-17%2C11-22%2C1L225%2C541c-2-4-5-6-8-8L5%2C405C2%2C403%2C0%2C400%2C0%2C396V217z%22/%3E%3C/svg%3E";
 
@@ -416,8 +416,7 @@ function calcPerformanceScore(email, allUsers, targets, salesEvents) {
 
 function perfScoreColor(score) {
   if (score >= 75) return "#22c55e";
-  if (score >= 50) return "#f59e0b";
-  return "#f87171";
+  return "#ff6700";
 }
 
 function perfScoreLabel(score) {
@@ -458,8 +457,7 @@ function calcMomentum(email, salesEvents) {
 
 function momentumColor(trend) {
   if (trend === "up") return "#22c55e";
-  if (trend === "down") return "#f87171";
-  return "#f59e0b";
+  return "#ff6700";
 }
 
 function approvedSignings(email, since, salesEvents) {
@@ -708,13 +706,13 @@ export default function App() {
           --text: #ffffff;
           --text-2: #dde0ee;
           --text-3: #ccd0e4;
-          --text-muted: #b3b9d4;
-          --text-dim: #949cbe;
-          --text-dim2: #8189aa;
-          --text-dim3: #949cbe;
+          --text-muted: #c9cee0;
+          --text-dim: #c3c9de;
+          --text-dim2: #b3b9d4;
+          --text-dim3: #c3c9de;
           --input-bg: #0d1235;
           --input-border: #232b60;
-          --placeholder: #8189aa;
+          --placeholder: #b3b9d4;
           --scrollbar: #2a3268;
         }
         .light-mode {
@@ -1605,8 +1603,8 @@ function RepStats({ user, allUsers, salesData }) {
           {/* Key numbers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
-              {label:"Provisional Outcome Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#22c55e":stats.closeRate>=40?"#f59e0b":"#f87171"):"#aaa"},
-              {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:stats.contractRate!==null?`${stats.contractClosed.length} of ${stats.contractTotal} from contract`:"needs Zoho stage history",col:stats.contractRate!==null?(stats.contractRate>=70?"#22c55e":"#f59e0b"):"#aaa"},
+              {label:"Provisional Outcome Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#22c55e":"#ff6700"):"#c3c9de"},
+              {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:stats.contractRate!==null?`${stats.contractClosed.length} of ${stats.contractTotal} from contract`:"needs Zoho stage history",col:stats.contractRate!==null?(stats.contractRate>=70?"#22c55e":"#ff6700"):"#c3c9de"},
               {label:"Avg Cycle",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"created to Zoho close date",col:c},
               {label:"Deals Live",val:stats.live.length,sub:`Q${q+1} · ${liveAll.length} all time`,col:"#22c55e"},
             ].map(s=>(
@@ -1627,7 +1625,7 @@ function RepStats({ user, allUsers, salesData }) {
                 return (
                   <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#22c55e":"#f59e0b"):"#8189aa",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#22c55e":"#f59e0b"):"#b3b9d4",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
                     <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} handoffs · {p.lost} rejected/lost</div>
                     {p.total>0&&<div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#22c55e":"#f59e0b",borderRadius:3,transition:"width 0.5s"}} /></div>}
                   </div>
@@ -1646,7 +1644,7 @@ function RepStats({ user, allUsers, salesData }) {
                 return (
                   <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.avgDays!==null?c:"#8189aa",lineHeight:1,marginBottom:4}}>{p.avgDays!==null?p.avgDays+"d":"—"}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.avgDays!==null?c:"#b3b9d4",lineHeight:1,marginBottom:4}}>{p.avgDays!==null?p.avgDays+"d":"—"}</div>
                     <div style={{fontSize:14,color:"var(--text-dim)"}}>{p.count} deal{p.count!==1?"s":""}</div>
                   </div>
                 );
@@ -1661,7 +1659,7 @@ function RepStats({ user, allUsers, salesData }) {
               <div style={{fontSize:15,color:"var(--text-dim)",marginBottom:14}}>Deals that made it all the way to Live — ops got them over the line.</div>
               <div style={{display:"grid",gap:8}}>
                 {liveAll.slice(0,8).map((d,i)=>{
-                  const plat=stats.normPlat(d),pc=PLATFORM_COLOR[plat]||"#a0a8c8";
+                  const plat=stats.normPlat(d),pc=PLATFORM_COLOR[plat]||"#c9cee0";
                   const cyc=d.Created_Time&&d.Closing_Date?Math.floor((new Date(d.Closing_Date)-new Date(d.Created_Time))/864e5):null;
                   return (
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8,border:"1px solid var(--border-sub)"}}>
@@ -1705,7 +1703,7 @@ function RepStats({ user, allUsers, salesData }) {
                 </div>
                 <div style={{display:"flex",gap:10}}>
                   {history.map((qh,i)=>(
-                    <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#949cbe"}}>{qh.label}</div>
+                    <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#c3c9de"}}>{qh.label}</div>
                   ))}
                 </div>
               </div>
@@ -1724,14 +1722,14 @@ function RepStats({ user, allUsers, salesData }) {
                           return (
                             <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
                               <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{cyc>0?cyc+"d":"—"}</div>
-                              <div style={{width:"100%",height:`${h}px`,background:isCurrent?c+"44":"#33333388",borderRadius:"4px 4px 0 0",border:`1px solid ${isCurrent?c:"#7a83ad"}`,transition:"height 0.5s"}} />
+                              <div style={{width:"100%",height:`${h}px`,background:isCurrent?c+"44":"#33333388",borderRadius:"4px 4px 0 0",border:`1px solid ${isCurrent?c:"#a8afc9"}`,transition:"height 0.5s"}} />
                             </div>
                           );
                         })}
                       </div>
                       <div style={{display:"flex",gap:10}}>
                         {history.map((qh,i)=>(
-                          <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#949cbe"}}>{qh.label}</div>
+                          <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===history.length-1?c:"#c3c9de"}}>{qh.label}</div>
                         ))}
                       </div>
                     </>
@@ -1748,10 +1746,10 @@ function RepStats({ user, allUsers, salesData }) {
                     return (
                       <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"1a":"#18205a",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#232b60"}`}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#22c55e":qh.closeRate>=40?"#f59e0b":"#f87171"):"#8189aa"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#22c55e":qh.closeRate>=40?"#f59e0b":"#f87171"):"#b3b9d4"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>avg cycle</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#22c55e"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>handoffs</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#f87171":"#8189aa"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#f87171":"#b3b9d4"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
                       </div>
                     );
                   })}
@@ -1835,8 +1833,8 @@ function TeamStatsView({ allUsers, deals, c }) {
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,flex:1}}>
                   {[
-                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#22c55e":rs.closeRate>=40?"#f59e0b":"#f87171"):"#8189aa"},
-                    {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#22c55e":"#f59e0b"):"#8189aa"},
+                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#22c55e":rs.closeRate>=40?"#f59e0b":"#f87171"):"#b3b9d4"},
+                    {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#22c55e":"#f59e0b"):"#b3b9d4"},
                     {label:"Avg Cycle",val:rs.avgCycle!==null?rs.avgCycle+"d":"—",col:repC},
                     {label:"Handoff · Negative",val:`${rs.salesClosed.length} · ${rs.lost.length}`,col:"#ddd"},
                   ].map(s=>(
@@ -2013,7 +2011,7 @@ function LogSigning({ user, refreshUser }) {
             <div style={{display:"flex",gap:10,alignItems:"center"}}>
               <input type="date" value={form.contractDate} onChange={e=>setForm(p=>({...p,contractDate:e.target.value}))} style={{flex:1,fontSize:16,padding:"13px 16px"}} />
               <button type="button" onClick={()=>setForm(p=>({...p,contractDate:todayStr()}))}
-                style={{background:"var(--border)",border:"1px solid #7a83ad",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+                style={{background:"var(--border)",border:"1px solid #a8afc9",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
                 Today
               </button>
             </div>
@@ -2169,8 +2167,8 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
                   <div style={{flex:1,display:"flex",gap:8,alignItems:"stretch",minWidth:0}}>
                     {pData.map(({p,n,col})=>(
                       <div key={p} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 8px",background:col+"22",border:`1px solid ${col}66`,borderRadius:10,minWidth:0}}>
-                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:n>0?col:"#7a83ad",lineHeight:1}}>{n}</div>
-                        <div style={{fontSize:11,fontWeight:700,color:n>0?col:"#8189aa",letterSpacing:"0.06em",marginTop:3,textTransform:"uppercase"}}>{({Facebook:"FB",MSN:"MSN",Spotify:"SP"})[p]||p.slice(0,2)}</div>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:n>0?col:"#a8afc9",lineHeight:1}}>{n}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:n>0?col:"#b3b9d4",letterSpacing:"0.06em",marginTop:3,textTransform:"uppercase"}}>{({Facebook:"FB",MSN:"MSN",Spotify:"SP"})[p]||p.slice(0,2)}</div>
                       </div>
                     ))}
                   </div>
@@ -2183,7 +2181,7 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
                         <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Zoho handoffs</div>
                         <div
                           aria-hidden={rankChange===0?"true":undefined}
-                          style={{fontSize:11,color:rankChange>0?"#22c55e":"#f87171",fontWeight:600,marginTop:1,minHeight:14,whiteSpace:"nowrap",visibility:rankChange!==0?"visible":"hidden"}}
+                          style={{fontSize:11,color:rankChange>0?"#22c55e":"#ff6700",fontWeight:600,marginTop:1,minHeight:14,whiteSpace:"nowrap",visibility:rankChange!==0?"visible":"hidden"}}
                         >
                           {rankChange!==0?`${rankChange>0?"↑":"↓"}${Math.abs(rankChange)} this wk`:"↑0 this wk"}
                         </div>
@@ -2398,7 +2396,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
 
               {/* Forecast */}
               {p.tSig > 0 && (
-                <div style={{ fontSize: 12, color: "#aaa", marginBottom: p.avgSp ? 6 : 0 }}>
+                <div style={{ fontSize: 12, color: "#c3c9de", marginBottom: p.avgSp ? 6 : 0 }}>
                   Forecast: <span style={{ color: p.forecast >= p.tSig ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{p.forecast}</span>
                 </div>
               )}
@@ -2425,7 +2423,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
 
       {/* ── TEAM VIEW (manager sees all reps, reps see team totals) ── */}
       <div className="card" style={{ padding: 20, marginBottom: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#aaa", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#c3c9de", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
           {isManager ? "Team Overview" : "Team Targets"}
         </div>
 
@@ -2494,7 +2492,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                             <div style={{ fontSize: 12, color: gap <= 0 ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>
                               {gap <= 0 ? "✓ On target" : `${gap} to go`}
                             </div>
-                            <div style={{ fontSize: 11, color: "#adb4d0" }}>Forecast: <span style={{ color: forecast >= tSig ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{forecast}</span></div>
+                            <div style={{ fontSize: 11, color: "#d0d5e6" }}>Forecast: <span style={{ color: forecast >= tSig ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{forecast}</span></div>
                           </>}
                           {!tSig && <div style={{ fontSize: 11, color: B.muted }}>No target set</div>}
                           {editing && <input type="number" placeholder="Target" value={draft[u.email]?.[`signings_${p}`] || ""} onChange={e => setDraftVal(u.email, `signings_${p}`, e.target.value)} style={{ marginTop: 6, fontSize: 12, padding: "4px 8px" }} />}
@@ -2512,7 +2510,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
       {/* Rep contribution (manager view) */}
       {isManager && allUsers.length > 0 && teamData.some(p => p.teamSigs > 0) && (
         <div className="card" style={{ padding: 18 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#aaa", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>Who's Contributing</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#c3c9de", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>Who's Contributing</div>
           <div style={{ display: "grid", gap: 14 }}>
             {PLATFORMS.map(p => {
               const total = teamData.find(x => x.platform === p)?.teamSigs || 0;
@@ -2521,7 +2519,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                 <div key={p}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                     <span style={{ fontSize: 13, color: PLATFORM_COLOR[p], fontWeight: 700, background: PLATFORM_COLOR[p] + "18", border: `1px solid ${PLATFORM_COLOR[p]}33`, borderRadius: 6, padding: "2px 10px" }}>{p}</span>
-                    <span style={{ fontSize: 13, color: "#aaa" }}>{total} signings</span>
+                    <span style={{ fontSize: 13, color: "#c3c9de" }}>{total} signings</span>
                   </div>
                   <div style={{ display: "grid", gap: 5 }}>
                     {allUsers.map(u => {
@@ -2639,8 +2637,8 @@ const TIER_BORDER= {Small:'#22c55e44',Mid:'#f59e0b44',Large:'#c084fc44'};
 // Sales OS design tokens (dark mode)
 const D = {
   bg:'#0a0e2a', card:'#101642', sub:'#0d1235', border:'#1e2555',
-  border2:'#232b60', orange:'#ff6700', text:'#ffffff', muted:'#b3b9d4',
-  dim:'#8189aa', fb:'#6cb6ff', msn:'#ff2db0', spotify:'#1db954',
+  border2:'#232b60', orange:'#ff6700', text:'#ffffff', muted:'#c9cee0',
+  dim:'#b3b9d4', fb:'#38a8ff', msn:'#f59e0b', spotify:'#1ed760',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3421,7 +3419,7 @@ function ManagerPanel({ state, onUpdate }) {
     <div>
       <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:20}}>
         {subBtns.map(({k,l,badge})=>(
-          <button key={k} onClick={()=>setSub(k)} style={{padding:'8px 14px',border:`1px solid ${sub===k?D.orange:D.border}`,borderRadius:8,background:sub===k?D.orange+'22':'transparent',color:sub===k?D.orange:'#a0a8c8',cursor:'pointer',fontWeight:600,fontFamily:"'DM Sans',sans-serif",fontSize:13,display:'flex',alignItems:'center',gap:6}}>
+          <button key={k} onClick={()=>setSub(k)} style={{padding:'8px 14px',border:`1px solid ${sub===k?D.orange:D.border}`,borderRadius:8,background:sub===k?D.orange+'22':'transparent',color:sub===k?D.orange:'#c9cee0',cursor:'pointer',fontWeight:600,fontFamily:"'DM Sans',sans-serif",fontSize:13,display:'flex',alignItems:'center',gap:6}}>
             {l}
             {badge>0&&<span style={{color:D.text,background:'#ef4444',borderRadius:10,padding:'1px 7px',fontSize:11,fontWeight:700}}>{badge}</span>}
           </button>
@@ -4028,7 +4026,7 @@ function SnakesLaddersGame({ user }) {
         .snl-btn-p:hover:not(:disabled){background:#e55d00;transform:translateY(-1px);}
         .snl-btn-p:disabled{opacity:0.4;cursor:not-allowed;}
         .snl-btn-g{background:transparent;color:#bbb;border:1px solid #2d3670;padding:8px 16px;}
-        .snl-btn-g:hover{border-color:#7a83ad;color:#fff;}
+        .snl-btn-g:hover{border-color:#a8afc9;color:#fff;}
         .snl-card{background:#101642;border:1px solid #1e2555;border-radius:12px;}
       `}</style>
 
@@ -4049,7 +4047,7 @@ function SnakesLaddersGame({ user }) {
       {/* Sub-tabs (compact pill style matching dashboard conventions) */}
       <div style={{display:'flex',gap:3,background:"#0d1235",border:`1px solid ${D.border}`,borderRadius:8,padding:3,marginBottom:18,width:'fit-content',overflowX:'auto'}}>
         {TABS.map(({k,l})=>(
-          <button key={k} onClick={()=>setTab(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",background:tab===k?D.orange:"transparent",color:tab===k?"#fff":"#a0a8c8",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',transition:"all 0.15s"}}>
+          <button key={k} onClick={()=>setTab(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",background:tab===k?D.orange:"transparent",color:tab===k?"#fff":"#c9cee0",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',transition:"all 0.15s"}}>
             {l}
           </button>
         ))}
@@ -4655,7 +4653,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
             {[
               {label:"Zoho Handoffs",val:totalSigs,sub:totalTarget>0?`Target: ${totalTarget}`:"No target",col:B.orange},
               {label:"Pace Estimate",val:totalForecast,sub:totalTarget>0?`${Math.round(((totalForecast-totalTarget)/Math.max(totalTarget,1))*100)}% vs target`:"—",col:totalTarget>0&&totalForecast>=totalTarget?"#22c55e":"#f59e0b"},
-              {label:"Days Left in Q",val:daysLeft,sub:`of ${daysTotal} total`,col:"#aaa"},
+              {label:"Days Left in Q",val:daysLeft,sub:`of ${daysTotal} total`,col:"#c3c9de"},
               {label:"Manual Pending",val:pending.length,sub:pending.length>0?"Separate tracker":"All clear ✓",col:pending.length>0?"#f87171":"#22c55e"},
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
@@ -4743,7 +4741,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
             </div>
             <div style={{display:"flex",gap:8}}>
               {months.map((mo,i)=>(
-                <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===months.length-1?B.orange:"#949cbe"}}>{mo.label}</div>
+                <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:i===months.length-1?B.orange:"#c3c9de"}}>{mo.label}</div>
               ))}
             </div>
           </div>
@@ -4771,7 +4769,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                   </div>
                   <div style={{display:"flex",gap:4}}>
                     {months.map((mo,i)=>(
-                      <div key={i} style={{flex:1,textAlign:"center",fontSize:9,color:i===months.length-1?pc:"#8189aa",overflow:"hidden",whiteSpace:"nowrap"}}>{mo.label.split(" ")[0]}</div>
+                      <div key={i} style={{flex:1,textAlign:"center",fontSize:9,color:i===months.length-1?pc:"#b3b9d4",overflow:"hidden",whiteSpace:"nowrap"}}>{mo.label.split(" ")[0]}</div>
                     ))}
                   </div>
                 </div>
@@ -4786,7 +4784,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
             <div style={{display:"grid",gridTemplateColumns:`120px repeat(${months.length},1fr)`,gap:4,marginBottom:8}}>
               <div style={{fontSize:11,color:"var(--text-2)"}} />
               {months.map((mo,i)=>(
-                <div key={i} style={{fontSize:11,color:i===months.length-1?B.orange:"#949cbe",textAlign:"center",fontWeight:i===months.length-1?700:400}}>{mo.label}</div>
+                <div key={i} style={{fontSize:11,color:i===months.length-1?B.orange:"#c3c9de",textAlign:"center",fontWeight:i===months.length-1?700:400}}>{mo.label}</div>
               ))}
             </div>
             {allUsers.map(u=>{
@@ -5020,7 +5018,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                 <div style={{display:"flex",gap:10,alignItems:"center"}}>
                   <input type="date" value={addForm.contractDate} onChange={e=>setAddForm(p=>({...p,contractDate:e.target.value}))} style={{flex:1,fontSize:16,padding:"13px 16px"}} />
                   <button type="button" onClick={()=>setAddForm(p=>({...p,contractDate:todayStr()}))}
-                    style={{background:"var(--border)",border:"1px solid #7a83ad",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+                    style={{background:"var(--border)",border:"1px solid #a8afc9",color:"var(--text)",padding:"13px 18px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
                     Today
                   </button>
                 </div>
