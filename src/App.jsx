@@ -134,7 +134,7 @@ function sbDel(key) {
 const B = {
   orange:"#ff6700", black:"var(--bg)", white:"var(--text)",
   card:"var(--bg-card)", border:"var(--border)", muted:"var(--text-muted)", dim:"var(--text-dim)",
-  fb:"#1877f2", msn:"#ff00a8", spotify:"#1db954",
+  fb:"#6cb6ff", msn:"#ff2db0", spotify:"#1db954",
 };
 const WV_LOGO = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20776%20760%22%3E%3Cpath%20fill%3D%22%23fff%22%20d%3D%22M0%2C217V20C0%2C8%2C7%2C0%2C22%2C2c2%2C1%2C4%2C3%2C6%2C5%2C35%2C34%2C92%2C76%2C170%2C114%2C26%2C13%2C54%2C23%2C84%2C29%2C9%2C1%2C18-1%2C27-3%2C95-36%2C186-127%2C232-177%2C4-4%2C8-6%2C14-6%2C7%2C0%2C13%2C5%2C13%2C12v398c0%2C6-3%2C11-8%2C14L389%2C524c-4%2C3-8%2C6-10%2C11L310%2C681c-6%2C11-17%2C11-22%2C1L225%2C541c-2-4-5-6-8-8L5%2C405C2%2C403%2C0%2C400%2C0%2C396V217z%22/%3E%3C/svg%3E";
 
@@ -147,7 +147,7 @@ const PLATFORMS = ["Facebook","MSN","Spotify"];
 const PLATFORM_COLOR = {Facebook:B.fb, MSN:B.msn, Spotify:B.spotify};
 // Rev split targets: FB and MSN only (Spotify no split target)
 const SPLIT_TARGETS = {Facebook:39.5, MSN:41.5};
-const ACCENT_COLORS = ["#ff6700","#00d4ff","#ff2d78","#7c3aed","#16a34a","#f59e0b","#06b6d4","#ec4899","#84cc16","#f97316"];
+const ACCENT_COLORS = ["#ff6700","#00d4ff","#ff2d78","#c084fc","#22c55e","#f59e0b","#06b6d4","#ec4899","#84cc16","#f97316"];
 const BADGE_EMOJIS = ["🏅","🥇","🔥","⚡","💎","🎯","🚀","👑","💪","🌟"];
 const TITLE_OPTIONS = [
   "The Closer","The Pipeline Builder","The Prospector",
@@ -415,9 +415,9 @@ function calcPerformanceScore(email, allUsers, targets, salesEvents) {
 }
 
 function perfScoreColor(score) {
-  if (score >= 75) return "#16a34a";
-  if (score >= 50) return "#d97706";
-  return "#ef4444";
+  if (score >= 75) return "#22c55e";
+  if (score >= 50) return "#f59e0b";
+  return "#f87171";
 }
 
 function perfScoreLabel(score) {
@@ -457,9 +457,9 @@ function calcMomentum(email, salesEvents) {
 }
 
 function momentumColor(trend) {
-  if (trend === "up") return "#16a34a";
-  if (trend === "down") return "#ef4444";
-  return "#d97706";
+  if (trend === "up") return "#22c55e";
+  if (trend === "down") return "#f87171";
+  return "#f59e0b";
 }
 
 function approvedSignings(email, since, salesEvents) {
@@ -711,10 +711,10 @@ export default function App() {
           --text-muted: #b3b9d4;
           --text-dim: #8189aa;
           --text-dim2: #626a8c;
-          --text-dim3: #454d70;
+          --text-dim3: #7a83ad;
           --input-bg: #0d1235;
           --input-border: #232b60;
-          --placeholder: #454d70;
+          --placeholder: #7a83ad;
           --scrollbar: #2a3268;
         }
         .light-mode {
@@ -831,7 +831,7 @@ function LoginScreen({ doLocalLogin, doGoogleLogin, localMode, configError }) {
         </div>
         {localMode&&<div style={{fontSize:12,color:"#f59e0b",marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>Local test mode. No real account is being used.</div>}
         {visibleConfigError&&<div style={{color:"#f59e0b",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#f59e0b12",borderRadius:6,border:"1px solid #f59e0b33"}}>{visibleConfigError}</div>}
-        {err&&<div style={{color:"#ef4444",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#ef444418",borderRadius:6,border:"1px solid #ef444433"}}>{err}</div>}
+        {err&&<div style={{color:"#f87171",fontSize:13,marginBottom:14,padding:"8px 12px",background:"#f8717118",borderRadius:6,border:"1px solid #f8717133"}}>{err}</div>}
         {localMode ? (
           <form onSubmit={tryLogin} className="fi">
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:18}}>Open local test.</div>
@@ -954,7 +954,7 @@ function SetupScreen({ user, refreshUser, setView }) {
           </div>
         )}
 
-        {err&&<div style={{color:"#ef4444",fontSize:13,marginTop:12}}>{err}</div>}
+        {err&&<div style={{color:"#f87171",fontSize:13,marginTop:12}}>{err}</div>}
         <div style={{display:"flex",gap:10,marginTop:22}}>
           {step>0&&<button className="btn btn-g" onClick={()=>{setStep(s=>s-1);setErr("");}}>← Back</button>}
           {step<totalSteps-1
@@ -1079,10 +1079,10 @@ function SalesDataGate({ salesData, children }) {
     return <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1e2555",borderTopColor:B.orange,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading Sales OS numbers from Zoho...</div></div>;
   }
   if (salesData.error&&!salesData.ready) {
-    return <div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"14px 18px",fontSize:14,color:"#ef4444"}}><strong>Could not load Zoho sales numbers.</strong> {salesData.error} No manual or demo totals are being shown. <button className="btn btn-g btn-sm" onClick={salesData.reload} style={{marginLeft:10}}>Try again</button></div>;
+    return <div role="alert" style={{background:"#2a0b0b",border:"1px solid #f8717155",borderRadius:10,padding:"14px 18px",fontSize:14,color:"#f87171"}}><strong>Could not load Zoho sales numbers.</strong> {salesData.error} No manual or demo totals are being shown. <button className="btn btn-g btn-sm" onClick={salesData.reload} style={{marginLeft:10}}>Try again</button></div>;
   }
   return <>
-    {(salesData.stale||salesData.error)&&<div role="status" style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"9px 14px",marginBottom:14,fontSize:13,color:"#d97706"}}>Showing the last saved Zoho snapshot because the newest refresh did not complete.</div>}
+    {(salesData.stale||salesData.error)&&<div role="status" style={{background:"#1a1200",border:"1px solid #f59e0b44",borderRadius:10,padding:"9px 14px",marginBottom:14,fontSize:13,color:"#f59e0b"}}>Showing the last saved Zoho snapshot because the newest refresh did not complete.</div>}
     {children}
   </>;
 }
@@ -1184,12 +1184,12 @@ function MeetingRecapCard({ user }) {
   const myTasks = (recap.tasks||[]).filter(t=>!t.assignee||t.assignee===user.nickname||t.assignee===user.displayName||t.assignee==="All");
 
   return (
-    <div style={{background:"#0c1338",border:"1px solid #3b82f655",borderRadius:12,padding:expanded?"16px 20px":"10px 16px",marginBottom:14,transition:"padding 0.15s"}}>
+    <div style={{background:"#0c1338",border:"1px solid #38bdf855",borderRadius:12,padding:expanded?"16px 20px":"10px 16px",marginBottom:14,transition:"padding 0.15s"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setExpanded(e=>!e)}>
         <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
           <span style={{fontSize:16,flexShrink:0}}>📋</span>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#60a5fa",letterSpacing:"0.04em",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
+            <div style={{fontSize:13,fontWeight:700,color:"#7dd3fc",letterSpacing:"0.04em",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
             {!expanded&&(
               <div style={{fontSize:12,color:"var(--text-dim3)",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                 {recap.date&&`${recap.date} · `}{myTasks.length>0?`${myTasks.length} task${myTasks.length!==1?"s":""} for you`:"No tasks assigned"}
@@ -1199,8 +1199,8 @@ function MeetingRecapCard({ user }) {
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-          {expanded&&recap.link&&<a href={recap.link} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:12,color:"#3b82f6",textDecoration:"none",fontWeight:600}}>View recording →</a>}
-          <span style={{fontSize:12,color:"#60a5fa",fontWeight:600,whiteSpace:"nowrap"}}>{expanded?"Show less ▲":"Show more ▼"}</span>
+          {expanded&&recap.link&&<a href={recap.link} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:12,color:"#38bdf8",textDecoration:"none",fontWeight:600}}>View recording →</a>}
+          <span style={{fontSize:12,color:"#7dd3fc",fontWeight:600,whiteSpace:"nowrap"}}>{expanded?"Show less ▲":"Show more ▼"}</span>
         </div>
       </div>
 
@@ -1209,11 +1209,11 @@ function MeetingRecapCard({ user }) {
           {recap.summary&&<div style={{fontSize:15,color:"var(--text-3)",lineHeight:1.6,marginBottom:myTasks.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary}</div>}
           {myTasks.length>0&&(
             <div>
-              <div style={{fontSize:11,fontWeight:600,color:"#60a5fa",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your Tasks</div>
+              <div style={{fontSize:11,fontWeight:600,color:"#7dd3fc",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your Tasks</div>
               <div style={{display:"grid",gap:5}}>
                 {myTasks.map((t,i)=>(
-                  <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"7px 10px",background:"var(--bg-inner)",borderRadius:7,border:"1px solid #1e2a3a"}}>
-                    <span style={{color:"#3b82f6",flexShrink:0,marginTop:1}}>◦</span>
+                  <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"7px 10px",background:"var(--bg-inner)",borderRadius:7,border:"1px solid #232b60"}}>
+                    <span style={{color:"#38bdf8",flexShrink:0,marginTop:1}}>◦</span>
                     <div>
                       <div style={{fontSize:15,color:"var(--text-2)"}}>{t.task}</div>
                       {t.assignee&&t.assignee!=="All"&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>→ {t.assignee}</div>}
@@ -1283,7 +1283,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
             <div style={{fontSize:14,color:"var(--text-2)",marginTop:3}}>{new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
           </div>
           {streaks.hotWeek&&<span style={{fontSize:14,fontWeight:600,color:"#f59e0b",background:"#f59e0b18",border:"1px solid #f59e0b33",borderRadius:12,padding:"2px 8px"}}>🔥 {streaks.thisWeekCount} this week</span>}
-          {streaks.weeklyStreak>=2&&<span style={{fontSize:14,fontWeight:600,color:"#16a34a",background:"#16a34a18",border:"1px solid #16a34a33",borderRadius:12,padding:"2px 8px"}}>🔁 {streaks.weeklyStreak}-week streak</span>}
+          {streaks.weeklyStreak>=2&&<span style={{fontSize:14,fontWeight:600,color:"#22c55e",background:"#22c55e18",border:"1px solid #22c55e33",borderRadius:12,padding:"2px 8px"}}>🔁 {streaks.weeklyStreak}-week streak</span>}
         </div>
       </div>
 
@@ -1309,8 +1309,8 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
 
       {/* Pending approval notice */}
       {pendingCount>0&&(
-        <div style={{background:"#1a1200",border:"1px solid #d97706",borderRadius:10,padding:"10px 16px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:15,color:"#d97706"}}>⏳ <strong>{pendingCount} manual entr{pendingCount>1?"ies":"y"}</strong> awaiting approval. These do not affect the Zoho totals.</div>
+        <div style={{background:"#1a1200",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:15,color:"#f59e0b"}}>⏳ <strong>{pendingCount} manual entr{pendingCount>1?"ies":"y"}</strong> awaiting approval. These do not affect the Zoho totals.</div>
         </div>
       )}
 
@@ -1381,7 +1381,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
             <div key={p.platform} className="card" style={{padding:16,borderColor:p.color+"33"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,color:p.color}}>{p.platform}</div>
-                {pct!==null&&<span style={{fontSize:14,fontWeight:600,color:pct>=100?"#16a34a":pct>=70?"#d97706":"#ef4444"}}>{pct}%</span>}
+                {pct!==null&&<span style={{fontSize:14,fontWeight:600,color:pct>=100?"#22c55e":pct>=70?"#f59e0b":"#f87171"}}>{pct}%</span>}
               </div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,color:p.color,lineHeight:1,marginBottom:2}}>
                 {p.signings}<span style={{fontSize:15,color:"#e5e5e5",fontWeight:400}}>{p.target>0?` / ${p.target}`:""}</span>
@@ -1393,13 +1393,13 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
               <div style={{display:"flex",gap:14,marginBottom:p.avgSplit!=null?8:0}}>
                 <div>
                   <div style={{fontSize:11,color:"var(--text-dim2)",marginBottom:2}}>This week</div>
-                  <div style={{fontSize:17,fontWeight:700,color:wkDiff>0?"#16a34a":wkDiff<0?"#ef4444":"#ddd"}}>
+                  <div style={{fontSize:17,fontWeight:700,color:wkDiff>0?"#22c55e":wkDiff<0?"#f87171":"#ddd"}}>
                     {p.thisWeek}{wkDiff!==0&&<span style={{fontSize:13,fontWeight:400}}> ({wkDiff>0?"+":""}{wkDiff})</span>}
                   </div>
                 </div>
                 <div>
                   <div style={{fontSize:11,color:"var(--text-dim2)",marginBottom:2}}>This month</div>
-                  <div style={{fontSize:17,fontWeight:700,color:moDiff>0?"#16a34a":moDiff<0?"#ef4444":"#ddd"}}>
+                  <div style={{fontSize:17,fontWeight:700,color:moDiff>0?"#22c55e":moDiff<0?"#f87171":"#ddd"}}>
                     {p.thisMonth}{moDiff!==0&&<span style={{fontSize:13,fontWeight:400}}> ({moDiff>0?"+":""}{moDiff})</span>}
                   </div>
                 </div>
@@ -1409,13 +1409,13 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
               {p.avgSplit!=null&&p.avgSplit>0&&(
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontSize:15,color:"var(--text-2)"}}>Avg split</span>
-                  <span style={{fontSize:14,fontWeight:600,color:p.avgSplit>=(p.splitTarget||0)?"#16a34a":"#ef4444"}}>
+                  <span style={{fontSize:14,fontWeight:600,color:p.avgSplit>=(p.splitTarget||0)?"#22c55e":"#f87171"}}>
                     {fmtPct(p.avgSplit)}{p.splitTarget?` / ${fmtPct(p.splitTarget)}`:""}</span>
                 </div>
               )}
               {/* Split trend */}
               {p.splitTrend&&p.splitTrend.curr!=null&&p.splitTrend.prev!=null&&(
-                <div style={{fontSize:9,color:(p.splitTrend.curr-p.splitTrend.prev)>=0?"#16a34a":"#ef4444",marginTop:2}}>
+                <div style={{fontSize:9,color:(p.splitTrend.curr-p.splitTrend.prev)>=0?"#22c55e":"#f87171",marginTop:2}}>
                   Split vs last Q: {(p.splitTrend.curr-p.splitTrend.prev)>0?"+":""}{(p.splitTrend.curr-p.splitTrend.prev).toFixed(1)}%
                 </div>
               )}
@@ -1434,10 +1434,10 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
             return (
               <div key={p.platform} style={{textAlign:"center",padding:"10px 8px",background:"var(--bg-inner)",borderRadius:8,border:`1px solid ${p.color}22`}}>
                 <div style={{fontSize:14,color:p.color,fontWeight:600,marginBottom:4}}>{p.platform}</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:25,fontWeight:700,color:overUnder!=null&&overUnder>=0?"#16a34a":"#ef4444"}}>{p.forecast}</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:25,fontWeight:700,color:overUnder!=null&&overUnder>=0?"#22c55e":"#f87171"}}>{p.forecast}</div>
                 <div style={{fontSize:13,color:"var(--text-dim)",marginTop:2}}>forecast</div>
-                {gap!=null&&<div style={{fontSize:14,fontWeight:600,marginTop:5,color:gap<=0?"#16a34a":"#d97706"}}>{gap<=0?"✓ On track":"Need "+gap+" more"}</div>}
-                {overUnder!=null&&<div style={{fontSize:13,color:overUnder>=0?"#16a34a":"#ef4444",marginTop:3}}>{overUnder>=0?"+":""}{overUnder}% vs target</div>}
+                {gap!=null&&<div style={{fontSize:14,fontWeight:600,marginTop:5,color:gap<=0?"#22c55e":"#f59e0b"}}>{gap<=0?"✓ On track":"Need "+gap+" more"}</div>}
+                {overUnder!=null&&<div style={{fontSize:13,color:overUnder>=0?"#22c55e":"#f87171",marginTop:3}}>{overUnder>=0?"+":""}{overUnder}% vs target</div>}
               </div>
             );
           })}
@@ -1587,8 +1587,8 @@ function RepStats({ user, allUsers, salesData }) {
       <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Provisional sales stats from each Deal's current stage and Zoho Closing Date.</p>
       <p style={{color:"var(--text-dim2)",fontSize:13,marginBottom:20}}>Read-only data from Zoho CRM{generatedAt?` · updated ${new Date(generatedAt).toLocaleString()}`:""}.</p>
 
-      {error&&<div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#ef4444"}}><strong>Could not load Zoho stats.</strong> {error} No demo numbers are being shown.</div>}
-      {!error&&stale&&<div role="status" style={{background:"#1a1200",border:"1px solid #d9770644",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#d97706"}}>Showing the last saved Zoho snapshot because the newest refresh failed.</div>}
+      {error&&<div role="alert" style={{background:"#2a0b0b",border:"1px solid #f8717155",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#f87171"}}><strong>Could not load Zoho stats.</strong> {error} No demo numbers are being shown.</div>}
+      {!error&&stale&&<div role="status" style={{background:"#1a1200",border:"1px solid #f59e0b44",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#f59e0b"}}>Showing the last saved Zoho snapshot because the newest refresh failed.</div>}
 
       {blockingLoading&&<div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1e2555",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading from Zoho...</div></div>}
 
@@ -1605,10 +1605,10 @@ function RepStats({ user, allUsers, salesData }) {
           {/* Key numbers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
-              {label:"Provisional Outcome Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#16a34a":stats.closeRate>=40?"#d97706":"#ef4444"):"#aaa"},
-              {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:stats.contractRate!==null?`${stats.contractClosed.length} of ${stats.contractTotal} from contract`:"needs Zoho stage history",col:stats.contractRate!==null?(stats.contractRate>=70?"#16a34a":"#d97706"):"#aaa"},
+              {label:"Provisional Outcome Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#22c55e":stats.closeRate>=40?"#f59e0b":"#f87171"):"#aaa"},
+              {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:stats.contractRate!==null?`${stats.contractClosed.length} of ${stats.contractTotal} from contract`:"needs Zoho stage history",col:stats.contractRate!==null?(stats.contractRate>=70?"#22c55e":"#f59e0b"):"#aaa"},
               {label:"Avg Cycle",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"created to Zoho close date",col:c},
-              {label:"Deals Live",val:stats.live.length,sub:`Q${q+1} · ${liveAll.length} all time`,col:"#16a34a"},
+              {label:"Deals Live",val:stats.live.length,sub:`Q${q+1} · ${liveAll.length} all time`,col:"#22c55e"},
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
@@ -1627,9 +1627,9 @@ function RepStats({ user, allUsers, salesData }) {
                 return (
                   <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#16a34a":"#d97706"):"#555",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#22c55e":"#f59e0b"):"#555",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
                     <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} handoffs · {p.lost} rejected/lost</div>
-                    {p.total>0&&<div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#16a34a":"#d97706",borderRadius:3,transition:"width 0.5s"}} /></div>}
+                    {p.total>0&&<div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#22c55e":"#f59e0b",borderRadius:3,transition:"width 0.5s"}} /></div>}
                   </div>
                 );
               })}
@@ -1698,7 +1698,7 @@ function RepStats({ user, allUsers, salesData }) {
                     return (
                       <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{rate>0?rate+"%":"—"}</div>
-                        <div style={{width:"100%",height:`${h}px`,background:isCurrent?c:rate>=60?"#16a34a44":rate>=40?"#d9770644":"#ef444444",borderRadius:"4px 4px 0 0",border:`1px solid ${isCurrent?c:rate>=60?"#16a34a":rate>=40?"#d97706":"#ef4444"}`,transition:"height 0.5s"}} />
+                        <div style={{width:"100%",height:`${h}px`,background:isCurrent?c:rate>=60?"#22c55e44":rate>=40?"#f59e0b44":"#f8717144",borderRadius:"4px 4px 0 0",border:`1px solid ${isCurrent?c:rate>=60?"#22c55e":rate>=40?"#f59e0b":"#f87171"}`,transition:"height 0.5s"}} />
                       </div>
                     );
                   })}
@@ -1748,10 +1748,10 @@ function RepStats({ user, allUsers, salesData }) {
                     return (
                       <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"0a":"#080b22",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#232b60"}`}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#16a34a":qh.closeRate>=40?"#d97706":"#ef4444"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#22c55e":qh.closeRate>=40?"#f59e0b":"#f87171"):"#555"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>avg cycle</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#16a34a"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>handoffs</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#ef4444":"#555"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#22c55e"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>handoffs</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#f87171":"#555"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
                       </div>
                     );
                   })}
@@ -1766,7 +1766,7 @@ function RepStats({ user, allUsers, salesData }) {
           salesData.teamDetailsLoading&&teamZohoDeals.length===0
             ? <div style={{display:"flex",alignItems:"center",gap:14,padding:"40px 0"}}><div style={{width:28,height:28,border:"3px solid #1e2555",borderTopColor:c,borderRadius:"50%",animation:"spin 0.7s linear infinite"}} /><div style={{color:"var(--text-2)",fontSize:15}}>Loading detailed team stats...</div></div>
             : salesData.teamDetailsError&&teamZohoDeals.length===0
-              ? <div role="alert" style={{background:"#2a0b0b",border:"1px solid #ef444455",borderRadius:10,padding:"10px 16px",fontSize:13,color:"#ef4444"}}>Detailed team stats could not be loaded. The rest of Sales OS is still available.</div>
+              ? <div role="alert" style={{background:"#2a0b0b",border:"1px solid #f8717155",borderRadius:10,padding:"10px 16px",fontSize:13,color:"#f87171"}}>Detailed team stats could not be loaded. The rest of Sales OS is still available.</div>
               : <TeamStatsView allUsers={allUsers} deals={filterByPeriod(teamZohoDeals)} c={c} />
         )}
       </>}
@@ -1808,7 +1808,7 @@ function TeamStatsView({ allUsers, deals, c }) {
       {/* Team summary strip */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:18}}>
         {[
-          {label:"Team Avg Outcome Rate",val:(() => { const rs=repStats.filter(r=>r.closeRate!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.closeRate||0),0)/rs.length)+"%":"—"; })(),col:"#16a34a"},
+          {label:"Team Avg Outcome Rate",val:(() => { const rs=repStats.filter(r=>r.closeRate!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.closeRate||0),0)/rs.length)+"%":"—"; })(),col:"#22c55e"},
           {label:"Team Avg Cycle",val:(() => { const rs=repStats.filter(r=>r.avgCycle!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.avgCycle||0),0)/rs.length)+"d":"—"; })(),col:c},
           {label:"Total Zoho Handoffs",val:repStats.reduce((s,r)=>s+r.salesClosed.length,0),col:"#ddd"},
         ].map(s=>(
@@ -1835,8 +1835,8 @@ function TeamStatsView({ allUsers, deals, c }) {
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,flex:1}}>
                   {[
-                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#16a34a":rs.closeRate>=40?"#d97706":"#ef4444"):"#555"},
-                    {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#16a34a":"#d97706"):"#555"},
+                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#22c55e":rs.closeRate>=40?"#f59e0b":"#f87171"):"#555"},
+                    {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#22c55e":"#f59e0b"):"#555"},
                     {label:"Avg Cycle",val:rs.avgCycle!==null?rs.avgCycle+"d":"—",col:repC},
                     {label:"Handoff · Negative",val:`${rs.salesClosed.length} · ${rs.lost.length}`,col:"#ddd"},
                   ].map(s=>(
@@ -1974,10 +1974,10 @@ function LogSigning({ user, refreshUser }) {
       )}
 
       {duplicateDeal&&(
-        <div style={{background:"#1a0e00",border:"1px solid #d9770688",borderRadius:10,padding:"12px 18px",marginBottom:16,display:"flex",gap:12,alignItems:"flex-start"}}>
+        <div style={{background:"#1a0e00",border:"1px solid #f59e0b88",borderRadius:10,padding:"12px 18px",marginBottom:16,display:"flex",gap:12,alignItems:"flex-start"}}>
           <span style={{fontSize:18,flexShrink:0}}>⚠️</span>
           <div>
-            <div style={{fontSize:14,fontWeight:600,color:"#d97706",marginBottom:2}}>Already logged</div>
+            <div style={{fontSize:14,fontWeight:600,color:"#f59e0b",marginBottom:2}}>Already logged</div>
             <div style={{fontSize:13,color:"#e5c97e"}}>
               <strong>{form.dealName}</strong> on <strong>{form.platform}</strong> is already {duplicateDeal.status === "pending" ? "pending approval" : "approved"} from {duplicateDeal.contractDate}. Double-check before submitting again.
             </div>
@@ -2023,7 +2023,7 @@ function LogSigning({ user, refreshUser }) {
             <textarea rows={3} placeholder="Anything else worth noting..." value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} style={{fontSize:15,padding:"13px 16px"}} />
           </div>
         </div>
-        {err&&<div style={{color:"#ef4444",fontSize:14,marginTop:12}}>{err}</div>}
+        {err&&<div style={{color:"#f87171",fontSize:14,marginTop:12}}>{err}</div>}
         <button className="btn btn-p" onClick={submit} style={{marginTop:20,width:"100%",justifyContent:"center",padding:"14px 24px",fontSize:16}}>Submit for Approval ✓</button>
       </div>
 
@@ -2035,7 +2035,7 @@ function LogSigning({ user, refreshUser }) {
             {pending.map((s,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 16px",background:"var(--bg-inner)",borderRadius:10,border:"1px solid var(--border-strong)"}}>
                 <div><div style={{fontSize:16,fontWeight:600,color:"var(--text)",marginBottom:3}}>{s.dealName}</div><div style={{fontSize:14,color:"var(--text-2)"}}>{s.platform}{s.split?` · ${s.split}`:""} · {s.contractDate}</div></div>
-                <span className="tag" style={{background:"#d9770618",color:"#d97706",fontSize:12,padding:"4px 10px"}}>Pending</span>
+                <span className="tag" style={{background:"#f59e0b18",color:"#f59e0b",fontSize:12,padding:"4px 10px"}}>Pending</span>
               </div>
             ))}
           </div>
@@ -2160,8 +2160,8 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
                     {u.title&&<div style={{fontSize:13,color:c,fontWeight:600,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.title}</div>}
                     <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
                       {streaks.hotWeek&&<span style={{fontSize:11,background:"#f59e0b18",color:"#f59e0b",border:"1px solid #f59e0b33",borderRadius:8,padding:"1px 6px",fontWeight:600}}>🔥 {streaks.thisWeekCount} this wk</span>}
-                      {streaks.weeklyStreak>=2&&<span style={{fontSize:11,background:"#16a34a18",color:"#16a34a",border:"1px solid #16a34a33",borderRadius:8,padding:"1px 6px",fontWeight:600}}>🔁 {streaks.weeklyStreak}wk</span>}
-                      {avgSp!=null&&<span style={{fontSize:11,background:avgSp>=spTarget?"#16a34a18":"#ef444418",color:avgSp>=spTarget?"#16a34a":"#ef4444",border:`1px solid ${avgSp>=spTarget?"#16a34a":"#ef4444"}33`,borderRadius:8,padding:"1px 6px",fontWeight:600}}>⊘ {fmtPct(avgSp)}</span>}
+                      {streaks.weeklyStreak>=2&&<span style={{fontSize:11,background:"#22c55e18",color:"#22c55e",border:"1px solid #22c55e33",borderRadius:8,padding:"1px 6px",fontWeight:600}}>🔁 {streaks.weeklyStreak}wk</span>}
+                      {avgSp!=null&&<span style={{fontSize:11,background:avgSp>=spTarget?"#22c55e18":"#f8717118",color:avgSp>=spTarget?"#22c55e":"#f87171",border:`1px solid ${avgSp>=spTarget?"#22c55e":"#f87171"}33`,borderRadius:8,padding:"1px 6px",fontWeight:600}}>⊘ {fmtPct(avgSp)}</span>}
                     </div>
                   </div>
 
@@ -2183,7 +2183,7 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
                         <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Zoho handoffs</div>
                         <div
                           aria-hidden={rankChange===0?"true":undefined}
-                          style={{fontSize:11,color:rankChange>0?"#16a34a":"#ef4444",fontWeight:600,marginTop:1,minHeight:14,whiteSpace:"nowrap",visibility:rankChange!==0?"visible":"hidden"}}
+                          style={{fontSize:11,color:rankChange>0?"#22c55e":"#f87171",fontWeight:600,marginTop:1,minHeight:14,whiteSpace:"nowrap",visibility:rankChange!==0?"visible":"hidden"}}
                         >
                           {rankChange!==0?`${rankChange>0?"↑":"↓"}${Math.abs(rankChange)} this wk`:"↑0 this wk"}
                         </div>
@@ -2343,8 +2343,8 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
 
       {/* Weakest platform alert */}
       {isManager && weakest && !settings.hideWeakFlag && weakest.pct < 70 && (
-        <div style={{ background: "#1a0808", border: "1px solid #ef444455", borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 14, color: "#ef4444" }}>⚠️ <strong>{weakest.platform}</strong> is furthest behind at {weakest.pct}% to target — focus team effort here.</div>
+        <div style={{ background: "#1a0808", border: "1px solid #f8717155", borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 14, color: "#f87171" }}>⚠️ <strong>{weakest.platform}</strong> is furthest behind at {weakest.pct}% to target — focus team effort here.</div>
           <span style={{ fontSize: 13, color: PLATFORM_COLOR[weakest.platform], fontWeight: 700, background: PLATFORM_COLOR[weakest.platform] + "22", borderRadius: 6, padding: "3px 10px" }}>{weakest.platform}</span>
         </div>
       )}
@@ -2369,7 +2369,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
       {/* ── PERSONAL PLATFORM CARDS ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
         {myData.map(p => {
-          const statusColor = p.pct == null ? B.muted : p.pct >= 100 ? "#16a34a" : p.pct >= 70 ? "#d97706" : "#ef4444";
+          const statusColor = p.pct == null ? B.muted : p.pct >= 100 ? "#22c55e" : p.pct >= 70 ? "#f59e0b" : "#f87171";
           const statusLabel = p.pct == null ? "No target" : p.pct >= 100 ? "✓ On target" : p.gap > 0 ? `${p.gap} to go` : "On target";
           return (
             <div key={p.platform} className="card" style={{ padding: 18, borderColor: p.color + "44", position: "relative", overflow: "hidden" }}>
@@ -2399,7 +2399,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
               {/* Forecast */}
               {p.tSig > 0 && (
                 <div style={{ fontSize: 12, color: "#aaa", marginBottom: p.avgSp ? 6 : 0 }}>
-                  Forecast: <span style={{ color: p.forecast >= p.tSig ? "#16a34a" : "#d97706", fontWeight: 600 }}>{p.forecast}</span>
+                  Forecast: <span style={{ color: p.forecast >= p.tSig ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{p.forecast}</span>
                 </div>
               )}
 
@@ -2407,7 +2407,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
               {p.avgSp != null && p.avgSp > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: B.muted }}>Avg split</span>
-                  <span style={{ color: p.avgSp >= (p.tSplit || 0) ? "#16a34a" : "#ef4444", fontWeight: 600 }}>{fmtPct(p.avgSp)}{p.tSplit ? " / " + fmtPct(p.tSplit) : ""}</span>
+                  <span style={{ color: p.avgSp >= (p.tSplit || 0) ? "#22c55e" : "#f87171", fontWeight: 600 }}>{fmtPct(p.avgSp)}{p.tSplit ? " / " + fmtPct(p.tSplit) : ""}</span>
                 </div>
               )}
 
@@ -2444,12 +2444,12 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                   <div style={{ height: "100%", width: `${p.pct}%`, background: p.color, borderRadius: 3, transition: "width 0.6s" }} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                  <span style={{ color: p.pct >= 100 ? "#16a34a" : p.pct >= 70 ? "#d97706" : "#ef4444", fontWeight: 600 }}>{p.pct}%</span>
-                  <span style={{ color: p.onTrack ? "#16a34a" : "#d97706" }}>Forecast: {p.teamForecast}</span>
+                  <span style={{ color: p.pct >= 100 ? "#22c55e" : p.pct >= 70 ? "#f59e0b" : "#f87171", fontWeight: 600 }}>{p.pct}%</span>
+                  <span style={{ color: p.onTrack ? "#22c55e" : "#f59e0b" }}>Forecast: {p.teamForecast}</span>
                 </div>
               </>}
               {p.teamAvgSplit != null && p.teamAvgSplit > 0 && (
-                <div style={{ fontSize: 12, marginTop: 6, color: p.teamAvgSplit >= (p.splitTarget || 0) ? "#16a34a" : "#d97706" }}>
+                <div style={{ fontSize: 12, marginTop: 6, color: p.teamAvgSplit >= (p.splitTarget || 0) ? "#22c55e" : "#f59e0b" }}>
                   Avg split: {fmtPct(p.teamAvgSplit)}{p.splitTarget ? " / " + fmtPct(p.splitTarget) : ""}
                 </div>
               )}
@@ -2491,10 +2491,10 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                             <div style={{ height: 4, background: "#111", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
                               <div style={{ height: "100%", width: `${pct}%`, background: pc, borderRadius: 2, transition: "width 0.5s" }} />
                             </div>
-                            <div style={{ fontSize: 12, color: gap <= 0 ? "#16a34a" : "#d97706", fontWeight: 600 }}>
+                            <div style={{ fontSize: 12, color: gap <= 0 ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>
                               {gap <= 0 ? "✓ On target" : `${gap} to go`}
                             </div>
-                            <div style={{ fontSize: 11, color: "#999" }}>Forecast: <span style={{ color: forecast >= tSig ? "#16a34a" : "#d97706", fontWeight: 600 }}>{forecast}</span></div>
+                            <div style={{ fontSize: 11, color: "#999" }}>Forecast: <span style={{ color: forecast >= tSig ? "#22c55e" : "#f59e0b", fontWeight: 600 }}>{forecast}</span></div>
                           </>}
                           {!tSig && <div style={{ fontSize: 11, color: B.muted }}>No target set</div>}
                           {editing && <input type="number" placeholder="Target" value={draft[u.email]?.[`signings_${p}`] || ""} onChange={e => setDraftVal(u.email, `signings_${p}`, e.target.value)} style={{ marginTop: 6, fontSize: 12, padding: "4px 8px" }} />}
@@ -2536,7 +2536,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                             <div style={{ height: "100%", width: `${pct}%`, background: uc, borderRadius: 4, transition: "width 0.5s" }} />
                           </div>
                           <div style={{ width: 36, textAlign: "right", fontSize: 13, color: "#fff", fontWeight: 600, flexShrink: 0 }}>{uSig}</div>
-                          {avgSp > 0 && <div style={{ width: 52, textAlign: "right", fontSize: 12, color: avgSp >= (SPLIT_TARGETS[p] || 0) ? "#16a34a" : "#d97706", fontWeight: 600, flexShrink: 0 }}>{fmtPct(avgSp)}</div>}
+                          {avgSp > 0 && <div style={{ width: 52, textAlign: "right", fontSize: 12, color: avgSp >= (SPLIT_TARGETS[p] || 0) ? "#22c55e" : "#f59e0b", fontWeight: 600, flexShrink: 0 }}>{fmtPct(avgSp)}</div>}
                         </div>
                       );
                     })}
@@ -2634,13 +2634,13 @@ const DEFAULT_RULES = `1. You earn rolls by hitting qualifying sales milestones.
 
 const TIER_COLOR = {Small:'#4ade80',Mid:'#fbbf24',Large:'#a78bfa'};
 const TIER_BG    = {Small:'#0a1f0a',Mid:'#1a1000',Large:'#100820'};
-const TIER_BORDER= {Small:'#16a34a44',Mid:'#d9770644',Large:'#7c3aed44'};
+const TIER_BORDER= {Small:'#22c55e44',Mid:'#f59e0b44',Large:'#c084fc44'};
 
 // Sales OS design tokens (dark mode)
 const D = {
   bg:'#0a0e2a', card:'#101642', sub:'#0d1235', border:'#1e2555',
   border2:'#232b60', orange:'#ff6700', text:'#ffffff', muted:'#b3b9d4',
-  dim:'#8189aa', fb:'#1877f2', msn:'#ff00a8', spotify:'#1db954',
+  dim:'#8189aa', fb:'#6cb6ff', msn:'#ff2db0', spotify:'#1db954',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2692,7 +2692,7 @@ function makeInitialState() {
 // BOARD COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const SNAKE_COLORS = ['#ef4444','#f97316','#ec4899','#8b5cf6','#06b6d4','#10b981','#fbbf24','#f43f5e'];
+const SNAKE_COLORS = ['#f87171','#f97316','#ec4899','#8b5cf6','#06b6d4','#10b981','#fbbf24','#f43f5e'];
 const SNAKE_ENTRIES = Object.entries(SNAKES).map(([k,v],i)=>({from:parseInt(k),to:parseInt(v),color:SNAKE_COLORS[i%SNAKE_COLORS.length]}));
 
 const BOARD_CELL_SIZE = 74;
@@ -2977,7 +2977,7 @@ function ResultModal({ result, prizes, onClose, onUseFallback, onSnakeEscape, se
             </div>
 
             {finalPos===100 && (
-              <div style={{background:'#100820',border:'2px solid #7c3aed',borderRadius:10,padding:20,marginBottom:16}}>
+              <div style={{background:'#100820',border:'2px solid #c084fc',borderRadius:10,padding:20,marginBottom:16}}>
                 <div style={{fontSize:32,marginBottom:8}}>🏆</div>
                 <div style={{color:'#a78bfa',fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:700,textTransform:'uppercase'}}>WINNER! {playerName} reached square 100!</div>
               </div>
@@ -3168,7 +3168,7 @@ function RollRequestTab({ players, state, onSubmit }) {
       <div style={{color:D.text,fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,textTransform:'uppercase',marginBottom:4}}>🎲 Request a Roll</div>
       <p style={{fontSize:14,color:D.muted,marginBottom:20}}>Submit your signing evidence to earn a dice roll. {state.settings.managerApprovalRequired?'Manager approval required.':'Auto-approved if threshold met.'}</p>
 
-      {submitted&&<div style={{background:'#0a1f0a',border:`1px solid #16a34a44`,borderRadius:8,padding:12,marginBottom:16,fontWeight:600,color:TIER_COLOR.Small}}>✅ Roll request submitted!</div>}
+      {submitted&&<div style={{background:'#0a1f0a',border:`1px solid #22c55e44`,borderRadius:8,padding:12,marginBottom:16,fontWeight:600,color:TIER_COLOR.Small}}>✅ Roll request submitted!</div>}
 
       <div style={{background:D.card,border:`1px solid ${D.border}`,borderRadius:12,padding:20,display:'grid',gap:14}}>
         <div>
@@ -3210,7 +3210,7 @@ function RollRequestTab({ players, state, onSubmit }) {
         </div>
 
         {form.playerId && form.platform!=='Manual/Other' && (
-          <div style={{background:calcRolls>0?'#0a1f0a':'#1a1000',border:`1px solid ${calcRolls>0?'#16a34a44':'#d9770644'}`,borderRadius:8,padding:12}}>
+          <div style={{background:calcRolls>0?'#0a1f0a':'#1a1000',border:`1px solid ${calcRolls>0?'#22c55e44':'#f59e0b44'}`,borderRadius:8,padding:12}}>
             <div style={{color:calcRolls>0?TIER_COLOR.Small:TIER_COLOR.Mid,fontWeight:700,fontSize:14}}>
               {calcRolls>0 ? `✅ Qualifies for ${calcRolls} roll${calcRolls>1?'s':''}!` : `⏳ Not enough for a roll yet (threshold: ${form.platform==='Facebook'?state.settings.facebookThreshold:form.platform==='MSN'?state.settings.msnThreshold:state.settings.spotifyThreshold})`}
             </div>
@@ -3445,7 +3445,7 @@ function ManagerPanel({ state, onUpdate }) {
             {pending.length>0&&(
               <div style={{marginBottom:24}}>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-                  <span style={{background:'#1a1000',color:TIER_COLOR.Mid,border:'1px solid #d9770644',borderRadius:10,padding:'2px 10px',fontSize:12,fontWeight:700}}>⏳ PENDING</span>
+                  <span style={{background:'#1a1000',color:TIER_COLOR.Mid,border:'1px solid #f59e0b44',borderRadius:10,padding:'2px 10px',fontSize:12,fontWeight:700}}>⏳ PENDING</span>
                   <span style={{fontSize:13,color:D.muted,fontWeight:600}}>{pending.length} waiting</span>
                 </div>
                 <div style={{display:'grid',gap:10}}>
@@ -3483,12 +3483,12 @@ function ManagerPanel({ state, onUpdate }) {
             ))}
           </div>
           {/* Add player */}
-          <div style={{background:'#0a1a0a',border:`1px solid #16a34a44`,borderRadius:10,padding:16}}>
+          <div style={{background:'#0a1a0a',border:`1px solid #22c55e44`,borderRadius:10,padding:16}}>
             <div style={{fontWeight:700,color:D.text,marginBottom:8}}>Add Player</div>
             <AddPlayerForm onAdd={addPlayer} />
           </div>
           <div style={{marginTop:16,display:'flex',gap:10,flexWrap:'wrap'}}>
-            <button onClick={resetGame} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #ef444444',borderRadius:8,padding:'10px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>🔄 Reset Entire Game</button>
+            <button onClick={resetGame} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #f8717144',borderRadius:8,padding:'10px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>🔄 Reset Entire Game</button>
             <button onClick={exportState} style={{background:D.card,color:D.muted,border:`1px solid ${D.border}`,borderRadius:8,padding:'10px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>📥 Export Backup</button>
             <label style={{background:D.card,color:D.muted,border:`1px solid ${D.border}`,borderRadius:8,padding:'10px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,display:'inline-block'}}>
               📤 Import Backup
@@ -3520,14 +3520,14 @@ function ManagerPanel({ state, onUpdate }) {
                     <td style={{padding:'7px 10px',color:p.claimed?'#15803d':'#6b7280'}}>{p.claimed?p.claimedBy:'—'}</td>
                     <td style={{padding:'7px 10px',fontSize:11,color:D.dim}}>{p.claimedDate||'—'}</td>
                     <td style={{padding:'7px 10px'}}>
-                      <button onClick={()=>markPrize(p.id,'givenOut',!p.givenOut)} style={{background:p.givenOut?'#0a1f0a':'#1e2555',border:`1px solid ${p.givenOut?'#16a34a44':D.border}`,borderRadius:6,padding:'3px 8px',cursor:'pointer',fontSize:12,fontWeight:600,color:p.givenOut?TIER_COLOR.Small:D.dim}}>
+                      <button onClick={()=>markPrize(p.id,'givenOut',!p.givenOut)} style={{background:p.givenOut?'#0a1f0a':'#1e2555',border:`1px solid ${p.givenOut?'#22c55e44':D.border}`,borderRadius:6,padding:'3px 8px',cursor:'pointer',fontSize:12,fontWeight:600,color:p.givenOut?TIER_COLOR.Small:D.dim}}>
                         {p.givenOut?'✅ Yes':'No'}
                       </button>
                     </td>
                     <td style={{padding:'7px 10px',fontSize:12,color:D.dim,maxWidth:100}}>{p.notes||'—'}</td>
                     <td style={{padding:'7px 10px'}}>
                       <div style={{display:'flex',gap:4}}>
-                        {p.claimed&&<button onClick={()=>markPrize(p.id,'claimed',false)} style={{color:'#f87171',background:'#1f0a0a',border:'1px solid #ef444433',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11,fontWeight:700}}>Unclaim</button>}
+                        {p.claimed&&<button onClick={()=>markPrize(p.id,'claimed',false)} style={{color:'#f87171',background:'#1f0a0a',border:'1px solid #f8717133',borderRadius:6,padding:'3px 7px',cursor:'pointer',fontSize:11,fontWeight:700}}>Unclaim</button>}
                       </div>
                     </td>
                   </tr>
@@ -3573,7 +3573,7 @@ function ManagerPanel({ state, onUpdate }) {
           {state.fallbackRequests.length===0&&<div style={{color:D.dim}}>No fallback requests yet.</div>}
           <div style={{display:'grid',gap:8}}>
             {state.fallbackRequests.map(r=>(
-              <div key={r.id} style={{background:D.card,border:`1px solid ${r.status==='pending'?'#d9770644':r.status==='approved'?'#16a34a44':'#ef444444'}`,borderRadius:10,padding:14}}>
+              <div key={r.id} style={{background:D.card,border:`1px solid ${r.status==='pending'?'#f59e0b44':r.status==='approved'?'#22c55e44':'#f8717144'}`,borderRadius:10,padding:14}}>
                 <div style={{fontWeight:700,color:D.text}}>{r.playerName} — landed on sq.{r.square}</div>
                 <div style={{fontSize:13,color:D.dim,marginTop:4}}>Wants: <strong>{r.choice}</strong> | {r.ts}</div>
                 {r.status==='pending'&&(
@@ -3599,7 +3599,7 @@ function ManagerPanel({ state, onUpdate }) {
               {state.players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <button onClick={()=>{const json=JSON.stringify(filteredLog,null,2);const blob=new Blob([json],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='audit-log.json';a.click();}} style={{color:D.text,background:D.card,border:`1px solid ${D.border}`,borderRadius:8,padding:'7px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700}}>Export</button>
-            <button onClick={()=>{if(window.confirm('Clear all logs?'))onUpdate(s=>({...s,auditLog:[{id:uid(),ts:ts(),action:'Logs cleared',details:'All previous logs cleared by manager'}]}));}} style={{color:D.text,background:'#1f0a0a',border:'1px solid #ef444433',borderRadius:8,padding:'7px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700}}>Clear</button>
+            <button onClick={()=>{if(window.confirm('Clear all logs?'))onUpdate(s=>({...s,auditLog:[{id:uid(),ts:ts(),action:'Logs cleared',details:'All previous logs cleared by manager'}]}));}} style={{color:D.text,background:'#1f0a0a',border:'1px solid #f8717133',borderRadius:8,padding:'7px 14px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:700}}>Clear</button>
           </div>
           <div style={{maxHeight:400,overflowY:'auto',display:'grid',gap:4}}>
             {filteredLog.slice(0,200).map(e=>(
@@ -3644,7 +3644,7 @@ function RollRequestCard({ r, queuePos, onApprove, onReject }) {
   const [note, setNote] = useState('');
   const statusBg = r.status==='pending' ? '#1a1000' : r.status==='approved' ? '#0a1f0a' : '#1f0a0a';
   const statusColor = r.status==='pending' ? TIER_COLOR.Mid : r.status==='approved' ? TIER_COLOR.Small : '#f87171';
-  const borderColor = r.status==='pending' ? '#d9770644' : r.status==='approved' ? '#16a34a44' : '#ef444444';
+  const borderColor = r.status==='pending' ? '#f59e0b44' : r.status==='approved' ? '#22c55e44' : '#f8717144';
 
   return (
     <div style={{background:D.card,border:`1px solid ${borderColor}`,borderRadius:10,padding:16,position:'relative'}}>
@@ -3720,10 +3720,10 @@ function PlayerEditCard({ p, onUpdate, onMove, onReset, onGrant, onRemove }) {
         </div>
         <button onClick={()=>onReset(p.id)} style={{background:'#1e2555',border:`1px solid ${D.border}`,color:'#bbb',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Reset</button>
         <button onClick={()=>onGrant(p.id,'rolls',1)} style={{background:D.fb+'22',color:'#93c5fd',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+Roll</button>
-        <button onClick={()=>onGrant(p.id,'rolls',-1)} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #ef444433',borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>-Roll</button>
+        <button onClick={()=>onGrant(p.id,'rolls',-1)} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #f8717133',borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>-Roll</button>
         <button onClick={()=>onGrant(p.id,'fallback',1)} style={{background:D.fb+'22',color:'#93c5fd',border:`1px solid ${D.fb}44`,borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+FB</button>
-        <button onClick={()=>onGrant(p.id,'snakeEscape',1)} style={{background:'#0a1f0a',color:TIER_COLOR.Small,border:'1px solid #16a34a44',borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+🛡️</button>
-        <button onClick={()=>onRemove(p.id)} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #ef444444',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Remove</button>
+        <button onClick={()=>onGrant(p.id,'snakeEscape',1)} style={{background:'#0a1f0a',color:TIER_COLOR.Small,border:'1px solid #22c55e44',borderRadius:6,padding:'6px 8px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>+🛡️</button>
+        <button onClick={()=>onRemove(p.id)} style={{background:'#1f0a0a',color:'#f87171',border:'1px solid #f8717144',borderRadius:6,padding:'6px 10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700}}>Remove</button>
       </div>
     </div>
   );
@@ -3734,8 +3734,8 @@ function AddPlayerForm({ onAdd }) {
   const [puck,setPuck]=useState('🦊');
   return (
     <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
-      <input value={name} onChange={e=>setName(e.target.value)} placeholder="Player name" style={{padding:'8px 12px',border:'1px solid #16a34a44',borderRadius:8,fontSize:14,flex:1,minWidth:120}}/>
-      <select value={puck} onChange={e=>setPuck(e.target.value)} style={{padding:'8px 10px',border:'1px solid #16a34a44',borderRadius:8,fontSize:18}}>
+      <input value={name} onChange={e=>setName(e.target.value)} placeholder="Player name" style={{padding:'8px 12px',border:'1px solid #22c55e44',borderRadius:8,fontSize:14,flex:1,minWidth:120}}/>
+      <select value={puck} onChange={e=>setPuck(e.target.value)} style={{padding:'8px 10px',border:'1px solid #22c55e44',borderRadius:8,fontSize:18}}>
         {PUCKS.map(p=><option key={p} value={p}>{p}</option>)}
       </select>
       <button onClick={()=>{if(name.trim()){onAdd(name.trim(),puck);setName('');}}} disabled={!name.trim()} style={{color:D.text,background:'#16a34a',border:'none',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,opacity:name.trim()?1:0.4}}>Add</button>
@@ -4036,7 +4036,7 @@ function SnakesLaddersGame({ user }) {
       {(state.winner || (state.undoSnapshot && isManager)) && (
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:10}}>
           {state.winner ? (
-            <div style={{background:'#7c3aed22',border:'2px solid #7c3aed',borderRadius:10,padding:'8px 16px',color:'#a78bfa',fontWeight:800,fontSize:14}}>
+            <div style={{background:'#c084fc22',border:'2px solid #c084fc',borderRadius:10,padding:'8px 16px',color:'#a78bfa',fontWeight:800,fontSize:14}}>
               🏆 {state.winner} WINS!
             </div>
           ) : <div />}
@@ -4064,10 +4064,10 @@ function SnakesLaddersGame({ user }) {
             <div style={{flex:'0 0 auto'}}>
               <Board players={state.players} managerView={isManager} prizes={state.prizes} animGhost={animGhost}/>
               <div style={{marginTop:10,display:'flex',gap:8,flexWrap:'wrap',justifyContent:'center'}}>
-                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#0a1a0a',border:'1px solid #16a34a66',display:'inline-block',borderRadius:3}}></span>Ladder bottom</div>
-                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#0d200d',border:'1px solid #16a34a44',display:'inline-block',borderRadius:3}}></span>Ladder top</div>
-                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#1a0808',border:'1px solid #ef444466',display:'inline-block',borderRadius:3}}></span>Snake head</div>
-                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#200d0d',border:'1px solid #ef444444',display:'inline-block',borderRadius:3}}></span>Snake tail</div>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#0a1a0a',border:'1px solid #22c55e66',display:'inline-block',borderRadius:3}}></span>Ladder bottom</div>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#0d200d',border:'1px solid #22c55e44',display:'inline-block',borderRadius:3}}></span>Ladder top</div>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#1a0808',border:'1px solid #f8717166',display:'inline-block',borderRadius:3}}></span>Snake head</div>
+                <div style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:D.dim}}><span style={{width:16,height:16,background:'#200d0d',border:'1px solid #f8717144',display:'inline-block',borderRadius:3}}></span>Snake tail</div>
               </div>
             </div>
 
@@ -4654,9 +4654,9 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
               {label:"Zoho Handoffs",val:totalSigs,sub:totalTarget>0?`Target: ${totalTarget}`:"No target",col:B.orange},
-              {label:"Pace Estimate",val:totalForecast,sub:totalTarget>0?`${Math.round(((totalForecast-totalTarget)/Math.max(totalTarget,1))*100)}% vs target`:"—",col:totalTarget>0&&totalForecast>=totalTarget?"#16a34a":"#d97706"},
+              {label:"Pace Estimate",val:totalForecast,sub:totalTarget>0?`${Math.round(((totalForecast-totalTarget)/Math.max(totalTarget,1))*100)}% vs target`:"—",col:totalTarget>0&&totalForecast>=totalTarget?"#22c55e":"#f59e0b"},
               {label:"Days Left in Q",val:daysLeft,sub:`of ${daysTotal} total`,col:"#aaa"},
-              {label:"Manual Pending",val:pending.length,sub:pending.length>0?"Separate tracker":"All clear ✓",col:pending.length>0?"#ef4444":"#16a34a"},
+              {label:"Manual Pending",val:pending.length,sub:pending.length>0?"Separate tracker":"All clear ✓",col:pending.length>0?"#f87171":"#22c55e"},
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
@@ -4680,12 +4680,12 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                     <div style={{height:"100%",width:`${pct}%`,background:PLATFORM_COLOR[p],borderRadius:3,transition:"width 0.5s"}} />
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
-                    <span style={{color:pct>=100?"#16a34a":pct>=70?"#d97706":"#ef4444",fontWeight:600}}>{pct}%</span>
-                    <span style={{color:"#e5e5e5"}}>Forecast: <span style={{color:forecast>=target?"#16a34a":"#d97706",fontWeight:600}}>{forecast}</span></span>
+                    <span style={{color:pct>=100?"#22c55e":pct>=70?"#f59e0b":"#f87171",fontWeight:600}}>{pct}%</span>
+                    <span style={{color:"#e5e5e5"}}>Forecast: <span style={{color:forecast>=target?"#22c55e":"#f59e0b",fontWeight:600}}>{forecast}</span></span>
                   </div>
                 </>}
                 {avgSplit!=null&&avgSplit>0&&splitTarget&&(
-                  <div style={{fontSize:12,marginTop:6,color:avgSplit>=splitTarget?"#16a34a":"#d97706"}}>Split: {fmtPct(avgSplit)} / {fmtPct(splitTarget)}</div>
+                  <div style={{fontSize:12,marginTop:6,color:avgSplit>=splitTarget?"#22c55e":"#f59e0b"}}>Split: {fmtPct(avgSplit)} / {fmtPct(splitTarget)}</div>
                 )}
               </div>
             ))}
@@ -4822,10 +4822,10 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           {recapSaved&&<div style={{background:"#0a150a",border:"1px solid #1a3a1a",borderRadius:10,padding:"10px 16px",marginBottom:14,fontSize:13,color:"#4ade80"}}>✓ Recap posted to all rep dashboards.</div>}
 
           {currentRecap?(
-            <div className="card" style={{padding:22,marginBottom:14,borderColor:"#3b82f644"}}>
+            <div className="card" style={{padding:22,marginBottom:14,borderColor:"#38bdf844"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:14}}>
                 <div>
-                  <div style={{fontSize:12,fontWeight:700,color:"#60a5fa",letterSpacing:"0.08em",textTransform:"uppercase"}}>Current Team Recap</div>
+                  <div style={{fontSize:12,fontWeight:700,color:"#7dd3fc",letterSpacing:"0.08em",textTransform:"uppercase"}}>Current Team Recap</div>
                   <div style={{fontSize:12,color:"var(--text-dim3)",marginTop:3}}>Live on every rep's dashboard</div>
                 </div>
                 <button className="btn btn-g btn-sm" onClick={removeRecap}>Clear Current Recap</button>
@@ -4836,12 +4836,12 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                 <div style={{display:"grid",gap:5,marginBottom:currentRecap.link?12:0}}>
                   {(currentRecap.tasks||[]).map((t,i)=>(
                     <div key={t.id||i} style={{fontSize:12,color:"var(--text-2)",padding:"7px 10px",background:"var(--bg-inner)",borderRadius:7}}>
-                      {t.task} <span style={{color:"#60a5fa"}}>— {t.assignee==="All"?"Everyone":t.assignee}</span>
+                      {t.task} <span style={{color:"#7dd3fc"}}>— {t.assignee==="All"?"Everyone":t.assignee}</span>
                     </div>
                   ))}
                 </div>
               )}
-              {currentRecap.link&&<a href={currentRecap.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:"#3b82f6",fontWeight:600,textDecoration:"none"}}>View recording →</a>}
+              {currentRecap.link&&<a href={currentRecap.link} target="_blank" rel="noreferrer" style={{fontSize:12,color:"#38bdf8",fontWeight:600,textDecoration:"none"}}>View recording →</a>}
             </div>
           ):(
             <div className="card" style={{padding:18,marginBottom:14,color:"var(--text-2)",fontSize:13}}>No meeting recap is live.</div>
@@ -4867,9 +4867,9 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                 <div key={t.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg-inner)",borderRadius:8,border:"1px solid var(--border-sub)"}}>
                   <div>
                     <div style={{fontSize:13,color:"var(--text)",marginBottom:2}}>{t.task}</div>
-                    <div style={{fontSize:11,color:"#3b82f6",fontWeight:600}}>{t.assignee==="All"?"Everyone":t.assignee}</div>
+                    <div style={{fontSize:11,color:"#38bdf8",fontWeight:600}}>{t.assignee==="All"?"Everyone":t.assignee}</div>
                   </div>
-                  <button onClick={()=>removeTask(t.id||i)} style={{background:"transparent",border:"none",color:"#ef4444",cursor:"pointer",fontSize:16,padding:"2px 6px"}}>×</button>
+                  <button onClick={()=>removeTask(t.id||i)} style={{background:"transparent",border:"none",color:"#f87171",cursor:"pointer",fontSize:16,padding:"2px 6px"}}>×</button>
                 </div>
               ))}
               {recap.tasks.length===0&&<div style={{color:"var(--text-dim3)",fontSize:13}}>No tasks added yet.</div>}
@@ -4891,25 +4891,25 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           {(recap.summary||recap.tasks.length>0)&&(
             <div style={{marginTop:20}}>
               <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Preview (as reps see it)</div>
-              <div style={{background:"#0c1338",border:"1px solid #3b82f655",borderRadius:12,padding:"16px 20px"}}>
+              <div style={{background:"#0c1338",border:"1px solid #38bdf855",borderRadius:12,padding:"16px 20px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:16}}>📋</span>
                     <div>
-                      <div style={{fontSize:13,fontWeight:700,color:"#60a5fa",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
+                      <div style={{fontSize:13,fontWeight:700,color:"#7dd3fc",textTransform:"uppercase"}}>Weekly Meeting Recap</div>
                       {recap.date&&<div style={{fontSize:11,color:"var(--text-dim3)",marginTop:1}}>{recap.date}</div>}
                     </div>
                   </div>
-                  {recap.link&&<span style={{fontSize:12,color:"#3b82f6",fontWeight:600}}>View recording →</span>}
+                  {recap.link&&<span style={{fontSize:12,color:"#38bdf8",fontWeight:600}}>View recording →</span>}
                 </div>
                 {recap.summary&&<div style={{fontSize:13,color:"var(--text-3)",lineHeight:1.6,marginBottom:recap.tasks.length?12:0,whiteSpace:"pre-wrap"}}>{recap.summary.slice(0,300)}{recap.summary.length>300?"...":""}</div>}
                 {recap.tasks.length>0&&(
                   <div>
-                    <div style={{fontSize:11,fontWeight:600,color:"#60a5fa",textTransform:"uppercase",marginBottom:6}}>Tasks</div>
+                    <div style={{fontSize:11,fontWeight:600,color:"#7dd3fc",textTransform:"uppercase",marginBottom:6}}>Tasks</div>
                     {recap.tasks.slice(0,3).map((t,i)=>(
                       <div key={i} style={{display:"flex",gap:8,padding:"5px 8px",background:"var(--bg-inner)",borderRadius:6,marginBottom:4}}>
-                        <span style={{color:"#3b82f6"}}>◦</span>
-                        <div style={{fontSize:12,color:"var(--text-2)"}}>{t.task} <span style={{color:"#3b82f6",fontSize:11}}>— {t.assignee==="All"?"Everyone":t.assignee}</span></div>
+                        <span style={{color:"#38bdf8"}}>◦</span>
+                        <div style={{fontSize:12,color:"var(--text-2)"}}>{t.task} <span style={{color:"#38bdf8",fontSize:11}}>— {t.assignee==="All"?"Everyone":t.assignee}</span></div>
                       </div>
                     ))}
                     {recap.tasks.length>3&&<div style={{fontSize:11,color:"var(--text-dim3)"}}>+{recap.tasks.length-3} more tasks...</div>}
@@ -5030,7 +5030,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                 <textarea rows={2} placeholder="Any additional context..." value={addForm.notes} onChange={e=>setAddForm(p=>({...p,notes:e.target.value}))} style={{fontSize:15,padding:"13px 16px"}} />
               </div>
             </div>
-            {addErr&&<div style={{color:"#ef4444",fontSize:14,marginTop:12}}>{addErr}</div>}
+            {addErr&&<div style={{color:"#f87171",fontSize:14,marginTop:12}}>{addErr}</div>}
             <button className="btn btn-p" onClick={submitForRep} style={{marginTop:20,width:"100%",justifyContent:"center",padding:"14px 24px",fontSize:16}}>Save Manual Entry ✓</button>
           </div>
         </div>
@@ -5053,7 +5053,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
               </div>
               <div style={{display:"grid",gap:10}}>
               {pending.map(s=>(
-                <div key={s.id} className="card" style={{padding:18,borderColor:"#d9770633"}}>
+                <div key={s.id} className="card" style={{padding:18,borderColor:"#f59e0b33"}}>
                   {editSigning?.id===s.id?(
                     <div>
                       <div style={{fontSize:12,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:12}}>Edit — {s.submittedByName}</div>
@@ -5083,7 +5083,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
                       <div style={{display:"flex",gap:8}}>
                         <button className="btn btn-p btn-sm" onClick={()=>approveSigning(s)}>✓ Approve</button>
                         <button className="btn btn-g btn-sm" onClick={()=>setEditSigning({...s})}>Edit</button>
-                        <button onClick={()=>rejectSigning(s)} style={{padding:"6px 12px",fontSize:12,background:"transparent",border:"1px solid #3a1a1a",color:"#ef4444",borderRadius:8,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>✗ Reject</button>
+                        <button onClick={()=>rejectSigning(s)} style={{padding:"6px 12px",fontSize:12,background:"transparent",border:"1px solid #3a1a1a",color:"#f87171",borderRadius:8,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>✗ Reject</button>
                       </div>
                     </div>
                   )}
