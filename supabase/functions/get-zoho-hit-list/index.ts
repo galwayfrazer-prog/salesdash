@@ -89,10 +89,18 @@ Deno.serve(async (request) => {
 
   const { data: rows, error: rowsError } = await admin
     .from("zoho_hit_list_rows")
-    .select("row_key,creator_name,live_platform,missing_platform,owner_name,last_activity_at,deal_id,zoho_record_url")
+    .select("row_key,creator_name,live_platform,current_platforms,missing_platform,owner_name,last_activity_at,deal_id,zoho_record_url")
     .eq("sync_id", sync.id)
     .order("creator_name", { ascending: true });
   if (rowsError) return json(502, { error: "Cache rows could not be read" }, origin);
+
+  const { data: dismissals, error: dismissalsError } = await admin
+    .from("hit_list_dismissals")
+    .select("row_key,dismissed_at,dismissed_by_email");
+  if (dismissalsError) return json(502, { error: "Completed rows could not be read" }, origin);
+  const dismissalByRow = new Map((dismissals || []).map((row) => [row.row_key, row]));
+  const currentRowKeys = new Set((rows || []).map((row) => row.row_key));
+  const completedCount = [...dismissalByRow.keys()].filter((rowKey) => currentRowKeys.has(rowKey)).length;
 
   const generatedAt = sync.generated_at ? new Date(sync.generated_at).toISOString() : null;
   const ageMs = generatedAt ? Date.now() - Date.parse(generatedAt) : 0;
@@ -104,19 +112,27 @@ Deno.serve(async (request) => {
     refreshIntervalMinutes: 10,
     counts: {
       dealsScanned: sync.deals_scanned,
-      opportunities: sync.opportunities,
-      missingSpotify: sync.missing_spotify,
-      missingMicrosoftStart: sync.missing_microsoft_start,
+      opportunities: (rows || []).filter((row) => !dismissalByRow.has(row.row_key)).length,
+      missingSpotify: (rows || []).filter((row) => row.missing_platform === "Spotify" && !dismissalByRow.has(row.row_key)).length,
+      missingMicrosoftStart: (rows || []).filter((row) => row.missing_platform === "Microsoft Start" && !dismissalByRow.has(row.row_key)).length,
+      completed: completedCount,
     },
-    rows: (rows || []).map((row) => ({
-      id: row.row_key,
-      creator: row.creator_name,
-      livePlatform: row.live_platform,
-      missingPlatform: row.missing_platform,
-      owner: row.owner_name,
-      lastActivityAt: row.last_activity_at,
-      dealId: row.deal_id,
-      zohoRecordUrl: row.zoho_record_url,
-    })),
+    rows: (rows || []).map((row) => {
+      const dismissal = dismissalByRow.get(row.row_key);
+      return {
+        id: row.row_key,
+        creator: row.creator_name,
+        livePlatform: row.live_platform,
+        currentPlatforms: row.current_platforms || [],
+        missingPlatform: row.missing_platform,
+        owner: row.owner_name,
+        lastActivityAt: row.last_activity_at,
+        dealId: row.deal_id,
+        zohoRecordUrl: row.zoho_record_url,
+        completed: Boolean(dismissal),
+        completedAt: dismissal?.dismissed_at || "",
+        completedBy: dismissal?.dismissed_by_email || "",
+      };
+    }),
   }, origin);
 });

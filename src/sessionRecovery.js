@@ -192,17 +192,23 @@ export function createAuthorizedFunctionRequester({
     throw new Error("The secure Supabase connection is not configured.");
   }
 
-  async function send(url, accessToken) {
+  async function send(url, accessToken, options) {
     return fetchWithTimeout(fetchImpl, url, {
-      method: "GET",
+      method: options.method,
       headers: {
         apikey: apiKey,
         Authorization: `Bearer ${accessToken}`,
+        ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
       },
+      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     }, requestTimeoutMs);
   }
 
-  return async function request(path) {
+  return async function request(path, requestOptions = {}) {
+    const options = {
+      method: String(requestOptions.method || "GET").toUpperCase(),
+      body: requestOptions.body,
+    };
     const url = new URL(path, baseUrl).toString();
     let session = await requireSession(auth);
     let accessToken = session.access_token;
@@ -213,7 +219,7 @@ export function createAuthorizedFunctionRequester({
 
     while (true) {
       try {
-        response = await send(url, accessToken);
+        response = await send(url, accessToken, options);
       } catch (error) {
         if (networkRetryUsed) throw error;
         networkRetryUsed = true;

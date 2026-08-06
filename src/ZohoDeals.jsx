@@ -23,13 +23,18 @@ function formatDate(value) {
   });
 }
 
-function dealTime(deal) {
+function updatedTime(deal) {
   return Date.parse(deal?.Modified_Time || deal?.Last_Activity_Time || deal?.Created_Time || "") || 0;
+}
+
+function createdTime(deal) {
+  return Date.parse(deal?.Created_Time || "") || 0;
 }
 
 export default function ZohoDeals({ user, salesData, onAuthRequired }) {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("all");
+  const [sort, setSort] = useState("created-desc");
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [notesState, setNotesState] = useState({
     loading: false,
@@ -53,7 +58,7 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
 
   const filteredDeals = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return [...deals]
+    const results = [...deals]
       .filter((deal) => {
         if (stage !== "all" && text(deal.Stage) !== stage) return false;
         if (!query) return true;
@@ -65,9 +70,18 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
           lookupName(deal.Associated_Platform),
           deal.Stage,
         ].some((value) => text(value).toLowerCase().includes(query));
-      })
-      .sort((left, right) => dealTime(right) - dealTime(left));
-  }, [deals, search, stage]);
+      });
+    return results.sort((left, right) => {
+      if (sort === "created-asc") return createdTime(left) - createdTime(right);
+      if (sort === "updated-desc") return updatedTime(right) - updatedTime(left);
+      if (sort === "name-asc") return text(left.Deal_Name).localeCompare(
+        text(right.Deal_Name),
+        undefined,
+        { numeric: true, sensitivity: "base" },
+      );
+      return createdTime(right) - createdTime(left);
+    });
+  }, [deals, search, sort, stage]);
 
   async function selectDeal(deal, { forceRefresh = false } = {}) {
     const requestId = ++requestIdRef.current;
@@ -159,6 +173,17 @@ export default function ZohoDeals({ user, salesData, onAuthRequired }) {
             >
               <option value="all">All stages</option>
               {stages.map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value)}
+              aria-label="Sort Zoho Deals"
+              style={{ width: 190, maxWidth: "100%", padding: "8px 11px", fontSize: 12 }}
+            >
+              <option value="created-desc">Newest Deals first</option>
+              <option value="created-asc">Oldest Deals first</option>
+              <option value="updated-desc">Recently updated first</option>
+              <option value="name-asc">Deal name: A–Z</option>
             </select>
           </div>
 

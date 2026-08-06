@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchZohoData } from "./zohoApi.js";
+import { fetchZohoData, setHitListCompleted } from "./zohoApi.js";
 import { isAuthRequiredError } from "./sessionRecovery.js";
 
 const PLATFORM_COLORS = {
@@ -70,6 +70,7 @@ export default function HitList({ onAuthRequired }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("creator-asc");
+  const [showCompleted, setShowCompleted] = useState(false);
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({
     opportunities: 0,
@@ -81,6 +82,8 @@ export default function HitList({ onAuthRequired }) {
   const [stale, setStale] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [savingRowId, setSavingRowId] = useState("");
   const [request, setRequest] = useState({ sequence: 0, force: false });
 
   useEffect(() => {
@@ -126,12 +129,20 @@ export default function HitList({ onAuthRequired }) {
   }, []);
 
   const searchValue = search.trim().toLowerCase();
+  const activeRows = rows.filter((row) => !row.completed);
+  const displayCounts = {
+    opportunities: activeRows.length,
+    missingSpotify: activeRows.filter((row) => row.missingPlatform === "Spotify").length,
+    missingMicrosoftStart: activeRows.filter((row) => row.missingPlatform === "Microsoft Start").length,
+  };
   const visibleRows = rows
     .filter((row) => {
+      if (!showCompleted && row.completed) return false;
       const matchesFilter = filter === "all" || row.missingPlatform === filter;
       const matchesSearch = !searchValue
         || row.creator.toLowerCase().includes(searchValue)
-        || row.owner.toLowerCase().includes(searchValue);
+        || row.owner.toLowerCase().includes(searchValue)
+        || (row.currentPlatforms || []).some((platform) => platform.toLowerCase().includes(searchValue));
       return matchesFilter && matchesSearch;
     })
     .sort((left, right) => {
@@ -140,6 +151,23 @@ export default function HitList({ onAuthRequired }) {
       if (sort === "activity-oldest") return compareLastActivity(left, right, "oldest");
       return compareCreator(left, right);
     });
+
+  async function updateCompleted(row, completed) {
+    if (savingRowId) return;
+    setSavingRowId(row.id);
+    setActionError("");
+    try {
+      await setHitListCompleted(row.id, completed);
+      setRows((currentRows) => currentRows.map((item) => (
+        item.id === row.id ? { ...item, completed } : item
+      )));
+    } catch (saveError) {
+      setActionError(saveError?.message || "The completed status could not be saved.");
+      if (isAuthRequiredError(saveError)) onAuthRequired?.();
+    } finally {
+      setSavingRowId("");
+    }
+  }
 
   const filterButton = (value, label) => (
     <button
@@ -197,6 +225,12 @@ export default function HitList({ onAuthRequired }) {
         </div>
       )}
 
+      {actionError && (
+        <div role="alert" style={{ background: "#ef444412", border: "1px solid #ef444455", borderRadius: 10, padding: "12px 14px", color: "#ef4444", fontSize: 13, marginBottom: 16, flexShrink: 0 }}>
+          <strong>Could not update the completed status.</strong> {actionError} No Zoho CRM record was changed.
+        </div>
+      )}
+
       {!error && stale && (
         <div role="status" style={{ background: "#d9770612", border: "1px solid #d9770655", borderRadius: 10, padding: "10px 14px", color: "#d97706", fontSize: 13, marginBottom: 16, flexShrink: 0 }}>
           Showing the last saved list because Zoho could not refresh just now.
@@ -206,15 +240,15 @@ export default function HitList({ onAuthRequired }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 16, flexShrink: 0 }}>
         <div className="card" style={{ padding: 16 }}>
           <div style={{ color: "var(--text-dim)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Opportunities</div>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, fontWeight: 700 }}>{loading && rows.length === 0 ? "—" : counts.opportunities}</div>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, fontWeight: 700 }}>{loading && rows.length === 0 ? "—" : displayCounts.opportunities}</div>
         </div>
         <div className="card" style={{ padding: 16 }}>
           <div style={{ color: "var(--text-dim)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Missing Spotify</div>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, fontWeight: 700, color: PLATFORM_COLORS.Spotify }}>{loading && rows.length === 0 ? "—" : counts.missingSpotify}</div>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, fontWeight: 700, color: PLATFORM_COLORS.Spotify }}>{loading && rows.length === 0 ? "—" : displayCounts.missingSpotify}</div>
         </div>
         <div className="card" style={{ padding: 16 }}>
           <div style={{ color: "var(--text-dim)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Missing MSN</div>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, fontWeight: 700, color: PLATFORM_COLORS["Microsoft Start"] }}>{loading && rows.length === 0 ? "—" : counts.missingMicrosoftStart}</div>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 30, fontWeight: 700, color: PLATFORM_COLORS["Microsoft Start"] }}>{loading && rows.length === 0 ? "—" : displayCounts.missingMicrosoftStart}</div>
         </div>
       </div>
 
@@ -224,6 +258,23 @@ export default function HitList({ onAuthRequired }) {
             {filterButton("all", "All")}
             {filterButton("Spotify", "Needs Spotify")}
             {filterButton("Microsoft Start", "Needs MSN")}
+            <button
+              type="button"
+              onClick={() => setShowCompleted((value) => !value)}
+              style={{
+                border: `1px solid ${showCompleted ? "#22c55e" : "var(--border-strong)"}`,
+                background: showCompleted ? "#22c55e14" : "transparent",
+                color: showCompleted ? "#22c55e" : "var(--text-muted)",
+                padding: "8px 12px",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {showCompleted ? "Hide completed" : "Show completed"}
+            </button>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <select
@@ -255,14 +306,14 @@ export default function HitList({ onAuthRequired }) {
               top: 0,
               zIndex: 10,
               display: "grid",
-              gridTemplateColumns: "40% 16% 25% 19%",
-              minWidth: 620,
+              gridTemplateColumns: "28% 23% 13% 17% 14% 5%",
+              minWidth: 900,
               background: "var(--bg-sub)",
               borderBottom: "1px solid var(--border)",
               boxShadow: "0 5px 12px #00000040",
             }}
           >
-            {["Creator", "Missing", "Owner", "Last activity"].map((heading) => (
+            {["Creator", "Current platforms", "Missing", "Owner", "Last activity", "Done"].map((heading) => (
               <div
                 key={heading}
                 role="columnheader"
@@ -301,35 +352,53 @@ export default function HitList({ onAuthRequired }) {
             </div>
           )}
 
-          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 620 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 900 }}>
             <colgroup>
-              <col style={{ width: "40%" }} />
-              <col style={{ width: "16%" }} />
-              <col style={{ width: "25%" }} />
-              <col style={{ width: "19%" }} />
+              <col style={{ width: "28%" }} />
+              <col style={{ width: "23%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "17%" }} />
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "5%" }} />
             </colgroup>
             <tbody aria-live="polite">
               {visibleRows.map((row) => (
-                <tr key={row.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                <tr key={row.id} style={{ borderBottom: "1px solid var(--border)", opacity: row.completed ? 0.58 : 1 }}>
                   <td style={{ padding: "14px", fontWeight: 700, color: "var(--text)" }}>
                     <div>{row.creator}</div>
                     {row.zohoRecordUrl && (
                       <a href={row.zohoRecordUrl} target="_blank" rel="noreferrer" style={{ color: "var(--text-dim)", fontSize: 11, fontWeight: 600 }}>Open Deal in Zoho</a>
                     )}
                   </td>
+                  <td style={{ padding: "14px", color: "var(--text-muted)", fontSize: 12 }}>
+                    {(row.currentPlatforms || []).length > 0
+                      ? (row.currentPlatforms || []).map(displayPlatform).join(", ")
+                      : displayPlatform(row.livePlatform) || "Not recorded"}
+                  </td>
                   <td style={{ padding: "14px" }}><PlatformTag name={row.missingPlatform} /></td>
                   <td style={{ padding: "14px", color: "var(--text-muted)", fontSize: 13 }}>{row.owner}</td>
                   <td title={row.lastActivityAt || "No activity recorded"} style={{ padding: "14px", color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>{formatLastActivity(row.lastActivityAt)}</td>
+                  <td style={{ padding: "14px", textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(row.completed)}
+                      disabled={Boolean(savingRowId)}
+                      onChange={(event) => updateCompleted(row, event.target.checked)}
+                      aria-label={`${row.completed ? "Restore" : "Complete"} ${row.creator}`}
+                      title={row.completed ? "Put this opportunity back on the Hit List" : "Mark complete in Sales OS. Zoho CRM is not changed."}
+                      style={{ width: 16, height: 16, cursor: savingRowId ? "wait" : "pointer", accentColor: "#22c55e" }}
+                    />
+                  </td>
                 </tr>
               ))}
               {!loading && !error && visibleRows.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ padding: 30, textAlign: "center", color: "var(--text-dim)" }}>No creators match this filter.</td>
+                  <td colSpan="6" style={{ padding: 30, textAlign: "center", color: "var(--text-dim)" }}>No creators match this filter.</td>
                 </tr>
               )}
               {!loading && error && rows.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ padding: 30, textAlign: "center", color: "var(--text-dim)" }}>The list is unavailable until the Zoho connection works.</td>
+                  <td colSpan="6" style={{ padding: 30, textAlign: "center", color: "var(--text-dim)" }}>The list is unavailable until the Zoho connection works.</td>
                 </tr>
               )}
             </tbody>

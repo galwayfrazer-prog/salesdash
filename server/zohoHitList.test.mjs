@@ -19,6 +19,14 @@ const deals = [
     Last_Activity_Time: "2026-07-14T10:00:00+02:00",
   },
   {
+    id: "deal-2b",
+    Creator: { id: "creator-2", name: "Creator Two" },
+    Associated_Platform: { name: "YouTube" },
+    Stage: "Live",
+    Owner: { name: "Rep B" },
+    Last_Activity_Time: "2026-07-13T10:00:00+02:00",
+  },
+  {
     id: "deal-3",
     Creator: { id: "creator-3", name: "Creator Three" },
     Associated_Platform: { name: "Microsoft Start" },
@@ -65,5 +73,6 @@ assert.equal(
   rows[1].zohoRecordUrl,
   "https://crm.zoho.eu/crm/wildvisionltd/tab/Potentials/deal-2",
 );
+assert.deepEqual(rows[1].currentPlatforms, ["Spotify", "YouTube"]);
 
 console.log("Hit List rule test passed.");

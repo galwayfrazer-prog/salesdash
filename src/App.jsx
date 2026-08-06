@@ -15,6 +15,7 @@ import {
   computeZohoOutcomeStats,
   normalizeZohoPlatform,
   performanceEventsForOwner,
+  PROVISIONAL_SALES_HANDOFF_STAGES,
 } from "./zohoSalesMetrics.js";
 import {
   clearZohoSalesSnapshots,
@@ -1302,7 +1303,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
       <MeetingRecapCard user={user} />
 
       <div style={{fontSize:12,color:"var(--text-dim2)",marginBottom:12}}>
-        Sales numbers are read-only from Zoho CRM{salesData.generatedAt?` · updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. Current handoff-stage rules are provisional.
+        Sales numbers update automatically from the read-only Zoho cache every 10 minutes{salesData.generatedAt?` · last updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. A current handoff means a Deal in: {PROVISIONAL_SALES_HANDOFF_STAGES.join(", ")}.
       </div>
 
       {/* Pending approval notice */}
@@ -1582,8 +1583,18 @@ function RepStats({ user, allUsers, salesData }) {
           <button onClick={salesData.reload} disabled={loading} style={{background:"var(--border)",border:`1px solid ${c}44`,color:c,padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:loading?"not-allowed":"pointer",fontFamily:"'DM Sans',sans-serif"}}>{loading?"...":"↻"}</button>
         </div>
       </div>
-      <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Provisional sales stats from each Deal's current stage and Zoho Closing Date.</p>
+      <p style={{color:"var(--text-2)",fontSize:15,marginBottom:4}}>Current sales snapshot from each Deal's present Zoho stage and Closing Date.</p>
       <p style={{color:"var(--text-dim2)",fontSize:13,marginBottom:20}}>Read-only data from Zoho CRM{generatedAt?` · updated ${new Date(generatedAt).toLocaleString()}`:""}.</p>
+
+      <details className="card" style={{padding:"12px 15px",marginBottom:16,color:"var(--text-muted)",fontSize:13}}>
+        <summary style={{cursor:"pointer",fontWeight:700,color:"var(--text)"}}>What the current numbers mean</summary>
+        <div style={{display:"grid",gap:8,marginTop:10,lineHeight:1.5}}>
+          <div><strong>Zoho handoff:</strong> a Deal whose current stage is {PROVISIONAL_SALES_HANDOFF_STAGES.join(", ")}.</div>
+          <div><strong>How it updates:</strong> Sales OS reads the secured Zoho cache automatically every 10 minutes. The team does not enter these numbers manually in Sales OS.</div>
+          <div><strong>Current outcome snapshot:</strong> current handoffs divided by current handoffs plus Deals currently marked rejected or lost.</div>
+          <div><strong>Cycle estimate:</strong> Deal creation to the current Closing Date. A true close rate, rejection rate, contract rate and median sales cycle need Zoho stage-history data, so this page does not present the estimate as an official KPI.</div>
+        </div>
+      </details>
 
       {error&&<div role="alert" style={{background:"#2a0b0b",border:"1px solid #f8717155",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#f87171"}}><strong>Could not load Zoho stats.</strong> {error} No demo numbers are being shown.</div>}
       {!error&&stale&&<div role="status" style={{background:"#1a1200",border:"1px solid #f59e0b44",borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:13,color:"#f59e0b"}}>Showing the last saved Zoho snapshot because the newest refresh failed.</div>}
@@ -1603,9 +1614,9 @@ function RepStats({ user, allUsers, salesData }) {
           {/* Key numbers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
-              {label:"Provisional Outcome Rate",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#22c55e":"#ff6700"):"#c3c9de"},
-              {label:"Contract Rate",val:stats.contractRate!==null?stats.contractRate+"%":"—",sub:stats.contractRate!==null?`${stats.contractClosed.length} of ${stats.contractTotal} from contract`:"needs Zoho stage history",col:stats.contractRate!==null?(stats.contractRate>=70?"#22c55e":"#ff6700"):"#c3c9de"},
-              {label:"Avg Cycle",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"created to Zoho close date",col:c},
+              {label:"Current Outcome Snapshot",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#22c55e":"#ff6700"):"#c3c9de"},
+              {label:"Official Close Rate",val:"—",sub:"waiting for Zoho stage history",col:"#c3c9de"},
+              {label:"Current Cycle Estimate",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"created to Zoho close date",col:c},
               {label:"Deals Live",val:stats.live.length,sub:`Q${q+1} · ${liveAll.length} all time`,col:"#22c55e"},
             ].map(s=>(
               <div key={s.label} className="card" style={{padding:16}}>
@@ -1618,7 +1629,7 @@ function RepStats({ user, allUsers, salesData }) {
 
           {/* Platform close rate */}
           <div className="card" style={{padding:20,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Outcome Rate by Platform (Provisional)</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Current Outcome Snapshot by Platform</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
               {stats.platRates.map(p=>{
                 const pc=PLATFORM_COLOR[p.platform];
@@ -1636,7 +1647,7 @@ function RepStats({ user, allUsers, salesData }) {
 
           {/* Cycle speed */}
           <div className="card" style={{padding:20,marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Sales Cycle Speed</div>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Current Cycle Estimate by Platform</div>
             <div style={{fontSize:15,color:"var(--text-dim)",marginBottom:14}}>Days from Deal creation to the current Zoho Closing Date. Confirm this date rule before using it for official coaching.</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
               {stats.platCycles.map(p=>{
@@ -1688,7 +1699,7 @@ function RepStats({ user, allUsers, salesData }) {
             :<>
               {/* Close rate trend bars */}
               <div className="card" style={{padding:20,marginBottom:14}}>
-                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Outcome Rate Trend (Provisional)</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Current Outcome Snapshot Trend</div>
                 <div style={{display:"flex",alignItems:"flex-end",gap:10,height:140,marginBottom:12}}>
                   {history.map((qh,i)=>{
                     const rate=qh.closeRate||0, isCurrent=i===history.length-1;
@@ -1710,7 +1721,7 @@ function RepStats({ user, allUsers, salesData }) {
 
               {/* Cycle speed trend */}
               <div className="card" style={{padding:20,marginBottom:14}}>
-                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Avg Cycle Speed Trend</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:20}}>Current Cycle Estimate Trend</div>
                 {(() => {
                   const maxCyc = Math.max(...history.map(h=>h.avgCycle||0),1);
                   return (
@@ -1747,9 +1758,9 @@ function RepStats({ user, allUsers, salesData }) {
                       <div key={i} style={{display:"grid",gridTemplateColumns:"100px repeat(4,1fr)",gap:8,padding:"12px 14px",background:isCurrent?c+"1a":"#18205a",borderRadius:8,border:`1px solid ${isCurrent?c+"44":"#232b60"}`}}>
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#22c55e":qh.closeRate>=40?"#f59e0b":"#f87171"):"#b3b9d4"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>avg cycle</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>cycle estimate</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#22c55e"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>handoffs</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.lost.length>0?"#f87171":"#b3b9d4"}}>{qh.lost.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>negative</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#b3b9d4"}}>—</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>rejection rate</div></div>
                       </div>
                     );
                   })}
@@ -1795,9 +1806,9 @@ function TeamStatsView({ allUsers, deals, c }) {
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
-        <p style={{color:"var(--text-2)",fontSize:14}}>Provisional outcome rate and cycle estimate per rep, from read-only Zoho data.</p>
+        <p style={{color:"var(--text-2)",fontSize:14}}>Current-stage outcome snapshot and cycle estimate per rep, from read-only Zoho data.</p>
         <div style={{display:"flex",background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
-          {sortBtn("closeRate","Outcome Rate")}
+          {sortBtn("closeRate","Outcome Snapshot")}
           {sortBtn("cycle","Cycle Speed")}
           {sortBtn("closed","Zoho Handoffs")}
         </div>
@@ -1806,8 +1817,8 @@ function TeamStatsView({ allUsers, deals, c }) {
       {/* Team summary strip */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:18}}>
         {[
-          {label:"Team Avg Outcome Rate",val:(() => { const rs=repStats.filter(r=>r.closeRate!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.closeRate||0),0)/rs.length)+"%":"—"; })(),col:"#22c55e"},
-          {label:"Team Avg Cycle",val:(() => { const rs=repStats.filter(r=>r.avgCycle!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.avgCycle||0),0)/rs.length)+"d":"—"; })(),col:c},
+          {label:"Team Avg Outcome Snapshot",val:(() => { const rs=repStats.filter(r=>r.closeRate!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.closeRate||0),0)/rs.length)+"%":"—"; })(),col:"#22c55e"},
+          {label:"Team Avg Cycle Estimate",val:(() => { const rs=repStats.filter(r=>r.avgCycle!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.avgCycle||0),0)/rs.length)+"d":"—"; })(),col:c},
           {label:"Total Zoho Handoffs",val:repStats.reduce((s,r)=>s+r.salesClosed.length,0),col:"#ddd"},
         ].map(s=>(
           <div key={s.label} className="card" style={{padding:14}}>
@@ -1831,12 +1842,13 @@ function TeamStatsView({ allUsers, deals, c }) {
                   <div style={{fontSize:15,fontWeight:600,color:"var(--text)"}}>{rs.u.nickname||rs.u.displayName}</div>
                   {rs.u.title&&<div style={{fontSize:11,color:repC}}>{rs.u.title}</div>}
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,flex:1}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(86px,1fr))",gap:12,flex:1}}>
                   {[
-                    {label:"Outcome Rate",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#22c55e":rs.closeRate>=40?"#f59e0b":"#f87171"):"#b3b9d4"},
-                    {label:"Contract Rate",val:rs.contractRate!==null?rs.contractRate+"%":"—",col:rs.contractRate!==null?(rs.contractRate>=70?"#22c55e":"#f59e0b"):"#b3b9d4"},
-                    {label:"Avg Cycle",val:rs.avgCycle!==null?rs.avgCycle+"d":"—",col:repC},
-                    {label:"Handoff · Negative",val:`${rs.salesClosed.length} · ${rs.lost.length}`,col:"#ddd"},
+                    {label:"Outcome Snapshot",val:rs.closeRate!==null?rs.closeRate+"%":"—",col:rs.closeRate!==null?(rs.closeRate>=60?"#22c55e":rs.closeRate>=40?"#f59e0b":"#f87171"):"#b3b9d4"},
+                    {label:"Official Close Rate",val:"—",col:"#b3b9d4"},
+                    {label:"Rejection Rate",val:"—",col:"#b3b9d4"},
+                    {label:"Cycle Estimate",val:rs.avgCycle!==null?rs.avgCycle+"d":"—",col:repC},
+                    {label:"Zoho Handoffs",val:rs.salesClosed.length,col:"#ddd"},
                   ].map(s=>(
                     <div key={s.label} style={{textAlign:"center"}}>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:s.col,lineHeight:1,marginBottom:2}}>{s.val}</div>
