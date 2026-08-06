@@ -70,7 +70,7 @@ export default function HitList({ onAuthRequired }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("creator-asc");
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [completionFilter, setCompletionFilter] = useState("active");
   const [rows, setRows] = useState([]);
   const [counts, setCounts] = useState({
     opportunities: 0,
@@ -130,6 +130,7 @@ export default function HitList({ onAuthRequired }) {
 
   const searchValue = search.trim().toLowerCase();
   const activeRows = rows.filter((row) => !row.completed);
+  const completedRows = rows.filter((row) => row.completed);
   const displayCounts = {
     opportunities: activeRows.length,
     missingSpotify: activeRows.filter((row) => row.missingPlatform === "Spotify").length,
@@ -137,7 +138,8 @@ export default function HitList({ onAuthRequired }) {
   };
   const visibleRows = rows
     .filter((row) => {
-      if (!showCompleted && row.completed) return false;
+      if (completionFilter === "active" && row.completed) return false;
+      if (completionFilter === "completed" && !row.completed) return false;
       const matchesFilter = filter === "all" || row.missingPlatform === filter;
       const matchesSearch = !searchValue
         || row.creator.toLowerCase().includes(searchValue)
@@ -188,6 +190,30 @@ export default function HitList({ onAuthRequired }) {
       {label}
     </button>
   );
+
+  const completionButton = (value, label, count) => {
+    const selected = completionFilter === value;
+    return (
+      <button
+        type="button"
+        onClick={() => setCompletionFilter(value)}
+        aria-pressed={selected}
+        style={{
+          border: "none",
+          background: selected ? "var(--bg-hover)" : "transparent",
+          color: selected ? "var(--text)" : "var(--text-dim)",
+          padding: "7px 10px",
+          borderRadius: 6,
+          cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        {label} <span style={{ color: selected ? "#ff6700" : "var(--text-dim)", marginLeft: 3 }}>{count}</span>
+      </button>
+    );
+  };
 
   return (
     <div className="fi" style={{ width: "100%", height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -258,23 +284,11 @@ export default function HitList({ onAuthRequired }) {
             {filterButton("all", "All")}
             {filterButton("Spotify", "Needs Spotify")}
             {filterButton("Microsoft Start", "Needs MSN")}
-            <button
-              type="button"
-              onClick={() => setShowCompleted((value) => !value)}
-              style={{
-                border: `1px solid ${showCompleted ? "#22c55e" : "var(--border-strong)"}`,
-                background: showCompleted ? "#22c55e14" : "transparent",
-                color: showCompleted ? "#22c55e" : "var(--text-muted)",
-                padding: "8px 12px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {showCompleted ? "Hide completed" : "Show completed"}
-            </button>
+            <div aria-label="Completion status" style={{ display: "flex", gap: 2, padding: 2, border: "1px solid var(--border-strong)", borderRadius: 8, background: "var(--bg-sub)" }}>
+              {completionButton("active", "Active", activeRows.length)}
+              {completionButton("completed", "Completed", completedRows.length)}
+              {completionButton("all", "All", rows.length)}
+            </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <select
@@ -306,14 +320,14 @@ export default function HitList({ onAuthRequired }) {
               top: 0,
               zIndex: 10,
               display: "grid",
-              gridTemplateColumns: "28% 23% 13% 17% 14% 5%",
+              gridTemplateColumns: "27% 21% 13% 16% 13% 10%",
               minWidth: 900,
               background: "var(--bg-sub)",
               borderBottom: "1px solid var(--border)",
               boxShadow: "0 5px 12px #00000040",
             }}
           >
-            {["Creator", "Current platforms", "Missing", "Owner", "Last activity", "Done"].map((heading) => (
+            {["Creator", "Current platforms", "Missing", "Owner", "Last activity", "Status"].map((heading) => (
               <div
                 key={heading}
                 role="columnheader"
@@ -354,12 +368,12 @@ export default function HitList({ onAuthRequired }) {
 
           <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 900 }}>
             <colgroup>
-              <col style={{ width: "28%" }} />
-              <col style={{ width: "23%" }} />
+              <col style={{ width: "27%" }} />
+              <col style={{ width: "21%" }} />
               <col style={{ width: "13%" }} />
-              <col style={{ width: "17%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "5%" }} />
+              <col style={{ width: "16%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "10%" }} />
             </colgroup>
             <tbody aria-live="polite">
               {visibleRows.map((row) => (
@@ -379,15 +393,28 @@ export default function HitList({ onAuthRequired }) {
                   <td style={{ padding: "14px", color: "var(--text-muted)", fontSize: 13 }}>{row.owner}</td>
                   <td title={row.lastActivityAt || "No activity recorded"} style={{ padding: "14px", color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>{formatLastActivity(row.lastActivityAt)}</td>
                   <td style={{ padding: "14px", textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(row.completed)}
+                    <button
+                      type="button"
                       disabled={Boolean(savingRowId)}
-                      onChange={(event) => updateCompleted(row, event.target.checked)}
-                      aria-label={`${row.completed ? "Restore" : "Complete"} ${row.creator}`}
-                      title={row.completed ? "Put this opportunity back on the Hit List" : "Mark complete in Sales OS. Zoho CRM is not changed."}
-                      style={{ width: 16, height: 16, cursor: savingRowId ? "wait" : "pointer", accentColor: "#22c55e" }}
-                    />
+                      onClick={() => updateCompleted(row, !row.completed)}
+                      aria-label={`${row.completed ? "Restore" : "Mark done"} ${row.creator}`}
+                      title={row.completed ? "Put this opportunity back on the active Hit List" : "Mark done in Sales OS. Zoho CRM is not changed."}
+                      style={{
+                        minWidth: 82,
+                        border: `1px solid ${row.completed ? "var(--border-strong)" : "#22c55e66"}`,
+                        background: row.completed ? "transparent" : "#22c55e12",
+                        color: row.completed ? "var(--text-muted)" : "#22c55e",
+                        padding: "7px 10px",
+                        borderRadius: 7,
+                        cursor: savingRowId ? "wait" : "pointer",
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        opacity: savingRowId ? (savingRowId === row.id ? 0.55 : 0.7) : 1,
+                      }}
+                    >
+                      {savingRowId === row.id ? "Saving..." : row.completed ? "Restore" : "Mark done"}
+                    </button>
                   </td>
                 </tr>
               ))}
