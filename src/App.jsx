@@ -755,7 +755,7 @@ export default function App() {
         select option{background:var(--bg-card);color:var(--text);}
         label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;letter-spacing:0.07em;text-transform:uppercase;}
         .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
-        .nav{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:500;color:var(--text-muted);transition:all 0.15s;border:none;background:none;width:100%;}
+        .nav{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:500;color:var(--text-muted);text-align:left;transition:all 0.15s;border:none;background:none;width:100%;}
         .nav:hover{background:var(--bg-hover);color:var(--text);}
         .nav.on{background:${B.orange}18;color:${B.orange};}
         .fi{animation:fadeIn 0.25s ease;}
@@ -1099,12 +1099,13 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
   }
   const salesData = useZohoSalesData(user, handleAuthRequired);
   const statsEnabled = isSalesStatsUser(user);
+  const canViewPersonalStats = statsEnabled || user.role === "manager";
   const salesUsers = allUsers.filter(isSalesStatsUser);
   const pendingCount = user.role==="manager" ? getAllPendingSignings().length : 0;
   const nav = [
     {id:"dashboard",icon:"⚡",label:"Dashboard"},
     {id:"leaderboard",icon:"🏆",label:"Leaderboard"},
-    ...(statsEnabled?[{id:"stats",icon:"📊",label:"My Stats"}]:[]),
+    ...(canViewPersonalStats?[{id:"stats",icon:"📊",label:"My Stats"}]:[]),
     {id:"targets",icon:"🎯",label:"Targets"},
     {id:"zoho-deals",icon:"🗂️",label:"Zoho Deals"},
     {id:"hit-list",icon:"📋",label:"Hit List Report"},
@@ -1124,8 +1125,8 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
         <nav style={{flex:1,minHeight:0,overflowY:"auto",padding:"12px 8px",display:"flex",flexDirection:"column",gap:3}}>
           {nav.map(item=>(
             <button key={item.id} className={`nav${view===item.id?" on":""}`} onClick={()=>setView(item.id)} style={{justifyContent:open?"flex-start":"center",padding:"11px 14px",fontSize:15}}>
-              <span style={{fontSize:18,flexShrink:0}}>{item.icon}</span>
-              {open&&<span style={{whiteSpace:"nowrap",flex:1}}>{item.label}</span>}
+              <span aria-hidden="true" style={{fontSize:18,flex:"0 0 22px",width:22,textAlign:"center"}}>{item.icon}</span>
+              {open&&<span style={{whiteSpace:"nowrap",flex:1,minWidth:0,textAlign:"left"}}>{item.label}</span>}
               {open&&item.badge>0&&<span style={{background:"#ef4444",color:"var(--text)",borderRadius:10,padding:"2px 8px",fontSize:11,fontWeight:600,flexShrink:0}}>{item.badge}</span>}
             </button>
           ))}
@@ -1150,7 +1151,7 @@ function Shell({ user, view, setView, doLogout, allUsers, refreshAllUsers, refre
           :<SalesDataGate salesData={salesData}><Admin user={user} allUsers={salesUsers} refreshAllUsers={refreshAllUsers} salesEvents={salesData.teamEvents} salesData={salesData} summaryOnly /></SalesDataGate>)}
         {view==="zoho-deals"&&<SalesDataGate salesData={salesData}><ZohoDeals user={user} salesData={salesData} onAuthRequired={handleAuthRequired} /></SalesDataGate>}
         {view==="hit-list"&&<HitList onAuthRequired={handleAuthRequired} />}
-        {view==="stats"&&statsEnabled&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={salesUsers} salesData={salesData} /></SalesDataGate>}
+        {view==="stats"&&canViewPersonalStats&&<SalesDataGate salesData={salesData}><RepStats user={user} allUsers={salesUsers} salesData={salesData} /></SalesDataGate>}
         {view==="signings"&&statsEnabled&&<LogSigning user={user} refreshUser={refreshUser} />}
         {view==="leaderboard"&&<SalesDataGate salesData={salesData}><Leaderboard user={user} allUsers={salesUsers} salesEvents={salesData.teamEvents} salesData={salesData} /></SalesDataGate>}
         {view==="calculator"&&<Calculator user={user} />}
@@ -1303,7 +1304,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
       <MeetingRecapCard user={user} />
 
       <div style={{fontSize:12,color:"var(--text-dim2)",marginBottom:12}}>
-        Sales numbers update automatically from the read-only Zoho cache every 10 minutes{salesData.generatedAt?` · last updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. A current handoff means a Deal in: {PROVISIONAL_SALES_HANDOFF_STAGES.join(", ")}.
+        Sales numbers update automatically from the read-only Zoho cache every 10 minutes{salesData.generatedAt?` · last updated ${new Date(salesData.generatedAt).toLocaleString()}`:""}. A late-stage Deal means a Deal currently in: {PROVISIONAL_SALES_HANDOFF_STAGES.join(", ")}.
       </div>
 
       {/* Pending approval notice */}
@@ -1331,7 +1332,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
               {[
                 {label:"Target Attainment",val:perfData.attainment,weight:"40%"},
                 {label:"Split Quality",val:perfData.splitQuality,weight:"30%"},
-                {label:"Recent Zoho Handoffs",val:perfData.activity,weight:"20%"},
+                {label:"Recent Late-stage Deals",val:perfData.activity,weight:"20%"},
                 {label:"Team Rank",val:perfData.rankPct,weight:"10%"},
               ].map(s=>(
                 <div key={s.label}>
@@ -1385,7 +1386,7 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,color:p.color,lineHeight:1,marginBottom:2}}>
                 {p.signings}<span style={{fontSize:15,color:"#e5e5e5",fontWeight:400}}>{p.target>0?` / ${p.target}`:""}</span>
               </div>
-              <div style={{fontSize:15,color:"var(--text-2)",marginBottom:p.target>0?6:4}}>Zoho handoffs this quarter</div>
+              <div style={{fontSize:15,color:"var(--text-2)",marginBottom:p.target>0?6:4}}>Late-stage Deals this quarter</div>
               {p.target>0&&<div style={{height:4,background:"var(--bg-hover)",borderRadius:2,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${pct}%`,background:p.color,borderRadius:2,transition:"width 0.5s"}} /></div>}
 
               {/* Week/month comparison */}
@@ -1455,10 +1456,10 @@ function Dashboard({ user, allUsers, announcement, salesEvents, salesData }) {
 
       {/* Recent signings */}
       <div className="card" style={{padding:16}}>
-        <div style={{fontSize:15,fontWeight:600,color:B.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Recent Zoho Handoffs</div>
+        <div style={{fontSize:15,fontWeight:600,color:B.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Recent Late-stage Deals</div>
         {(() => {
           const all=[...approvedSignings(user.email,0,salesEvents)].sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
-          if (!all.length) return <div style={{color:"#e5e5e5",fontSize:15,textAlign:"center",padding:"16px 0"}}>No Zoho sales handoffs yet.</div>;
+          if (!all.length) return <div style={{color:"#e5e5e5",fontSize:15,textAlign:"center",padding:"16px 0"}}>No late-stage Deals yet.</div>;
           return <div style={{display:"grid",gap:6}}>
             {all.map((s,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 11px",background:"var(--bg-inner)",borderRadius:8,border:`1px solid ${B.border}`}}>
@@ -1589,9 +1590,9 @@ function RepStats({ user, allUsers, salesData }) {
       <details className="card" style={{padding:"12px 15px",marginBottom:16,color:"var(--text-muted)",fontSize:13}}>
         <summary style={{cursor:"pointer",fontWeight:700,color:"var(--text)"}}>What the current numbers mean</summary>
         <div style={{display:"grid",gap:8,marginTop:10,lineHeight:1.5}}>
-          <div><strong>Zoho handoff:</strong> a Deal whose current stage is {PROVISIONAL_SALES_HANDOFF_STAGES.join(", ")}.</div>
+          <div><strong>Late-stage Deal:</strong> a Deal whose current stage is {PROVISIONAL_SALES_HANDOFF_STAGES.join(", ")}.</div>
           <div><strong>How it updates:</strong> Sales OS reads the secured Zoho cache automatically every 10 minutes. The team does not enter these numbers manually in Sales OS.</div>
-          <div><strong>Current outcome snapshot:</strong> current handoffs divided by current handoffs plus Deals currently marked rejected or lost.</div>
+          <div><strong>Current outcome snapshot:</strong> current late-stage Deals divided by late-stage Deals plus Deals currently marked rejected or lost.</div>
           <div><strong>Cycle estimate:</strong> Deal creation to the current Closing Date. A true close rate, rejection rate, contract rate and median sales cycle need Zoho stage-history data, so this page does not present the estimate as an official KPI.</div>
         </div>
       </details>
@@ -1614,7 +1615,7 @@ function RepStats({ user, allUsers, salesData }) {
           {/* Key numbers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
-              {label:"Current Outcome Snapshot",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} handoffs · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#22c55e":"#ff6700"):"#c3c9de"},
+              {label:"Current Outcome Snapshot",val:stats.closeRate!==null?stats.closeRate+"%":"—",sub:`${stats.salesClosed.length} late-stage · ${stats.lost.length} rejected/lost`,col:stats.closeRate!==null?(stats.closeRate>=60?"#22c55e":"#ff6700"):"#c3c9de"},
               {label:"Official Close Rate",val:"—",sub:"waiting for Zoho stage history",col:"#c3c9de"},
               {label:"Current Cycle Estimate",val:stats.avgCycle!==null?stats.avgCycle+"d":"—",sub:"created to Zoho close date",col:c},
               {label:"Deals Live",val:stats.live.length,sub:`Q${q+1} · ${liveAll.length} all time`,col:"#22c55e"},
@@ -1637,7 +1638,7 @@ function RepStats({ user, allUsers, salesData }) {
                   <div key={p.platform} style={{background:"var(--bg-inner)",borderRadius:10,padding:"14px 16px",border:`1px solid ${pc}33`}}>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:pc,marginBottom:8}}>{p.platform}</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:700,color:p.rate!==null?(p.rate>=50?"#22c55e":"#f59e0b"):"#b3b9d4",lineHeight:1,marginBottom:4}}>{p.rate!==null?p.rate+"%":"—"}</div>
-                    <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} handoffs · {p.lost} rejected/lost</div>
+                    <div style={{fontSize:14,color:"var(--text-dim)",marginBottom:p.total>0?8:0}}>{p.closed} late-stage · {p.lost} rejected/lost</div>
                     {p.total>0&&<div style={{height:5,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${p.rate}%`,background:p.rate>=50?"#22c55e":"#f59e0b",borderRadius:3,transition:"width 0.5s"}} /></div>}
                   </div>
                 );
@@ -1759,7 +1760,7 @@ function RepStats({ user, allUsers, salesData }) {
                         <div style={{fontSize:13,fontWeight:700,color:isCurrent?c:"#ddd"}}>{qh.label}{isCurrent&&" ●"}</div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:qh.closeRate!==null?(qh.closeRate>=60?"#22c55e":qh.closeRate>=40?"#f59e0b":"#f87171"):"#b3b9d4"}}>{qh.closeRate!==null?qh.closeRate+"%":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>outcome rate</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:c}}>{qh.avgCycle!==null?qh.avgCycle+"d":"—"}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>cycle estimate</div></div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#22c55e"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>handoffs</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#22c55e"}}>{qh.salesClosed.length}</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>late-stage</div></div>
                         <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#b3b9d4"}}>—</div><div style={{fontSize:10,color:"var(--text-dim2)"}}>rejection rate</div></div>
                       </div>
                     );
@@ -1810,7 +1811,7 @@ function TeamStatsView({ allUsers, deals, c }) {
         <div style={{display:"flex",background:"var(--bg-sub)",border:`1px solid ${B.border}`,borderRadius:8,padding:3,gap:2}}>
           {sortBtn("closeRate","Outcome Snapshot")}
           {sortBtn("cycle","Cycle Speed")}
-          {sortBtn("closed","Zoho Handoffs")}
+          {sortBtn("closed","Late-stage Deals")}
         </div>
       </div>
 
@@ -1819,7 +1820,7 @@ function TeamStatsView({ allUsers, deals, c }) {
         {[
           {label:"Team Avg Outcome Snapshot",val:(() => { const rs=repStats.filter(r=>r.closeRate!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.closeRate||0),0)/rs.length)+"%":"—"; })(),col:"#22c55e"},
           {label:"Team Avg Cycle Estimate",val:(() => { const rs=repStats.filter(r=>r.avgCycle!==null); return rs.length>0?Math.round(rs.reduce((s,r)=>s+(r.avgCycle||0),0)/rs.length)+"d":"—"; })(),col:c},
-          {label:"Total Zoho Handoffs",val:repStats.reduce((s,r)=>s+r.salesClosed.length,0),col:"#ddd"},
+          {label:"Total Late-stage Deals",val:repStats.reduce((s,r)=>s+r.salesClosed.length,0),col:"#ddd"},
         ].map(s=>(
           <div key={s.label} className="card" style={{padding:14}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,color:s.col,lineHeight:1,marginBottom:4}}>{s.val}</div>
@@ -1848,7 +1849,7 @@ function TeamStatsView({ allUsers, deals, c }) {
                     {label:"Official Close Rate",val:"—",col:"#b3b9d4"},
                     {label:"Rejection Rate",val:"—",col:"#b3b9d4"},
                     {label:"Cycle Estimate",val:rs.avgCycle!==null?rs.avgCycle+"d":"—",col:repC},
-                    {label:"Zoho Handoffs",val:rs.salesClosed.length,col:"#ddd"},
+                    {label:"Late-stage Deals",val:rs.salesClosed.length,col:"#ddd"},
                   ].map(s=>(
                     <div key={s.label} style={{textAlign:"center"}}>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:s.col,lineHeight:1,marginBottom:2}}>{s.val}</div>
@@ -2116,7 +2117,7 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
   return (
     <div className="fi">
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Leaderboard</div>
-      <p style={{color:"#e5e5e5",fontSize:14,marginBottom:4}}>Ranks use read-only Zoho handoffs for the selected period.</p>
+      <p style={{color:"#e5e5e5",fontSize:14,marginBottom:4}}>Ranks use read-only late-stage Zoho Deals for the selected period.</p>
       <p style={{color:"var(--text-dim2)",fontSize:12,marginBottom:20}}>Updated {salesData.generatedAt?new Date(salesData.generatedAt).toLocaleString():"from the latest snapshot"} · stage rules are provisional.</p>
 
       {/* Controls */}
@@ -2190,7 +2191,7 @@ function Leaderboard({ user, allUsers, salesEvents, salesData }) {
                     <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
                       <div style={{textAlign:"right"}}>
                         <AnimatedNumber value={s} color={c} size={26} />
-                        <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Zoho handoffs</div>
+                        <div style={{fontSize:11,color:"var(--text-2)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Late-stage Deals</div>
                         <div
                           aria-hidden={rankChange===0?"true":undefined}
                           style={{fontSize:11,color:rankChange>0?"#22c55e":"#ff6700",fontWeight:600,marginTop:1,minHeight:14,whiteSpace:"nowrap",visibility:rankChange!==0?"visible":"hidden"}}
@@ -2392,7 +2393,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                 <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 48, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{p.sig}</div>
                 {p.tSig > 0 && <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, color: B.muted, lineHeight: 1, paddingBottom: 4 }}>/ {p.tSig}</div>}
               </div>
-              <div style={{ fontSize: 12, color: B.muted, marginBottom: 10 }}>Zoho handoffs</div>
+              <div style={{ fontSize: 12, color: B.muted, marginBottom: 10 }}>Late-stage Deals</div>
 
               {/* Progress bar */}
               {p.tSig > 0 && (
@@ -2448,7 +2449,7 @@ function Targets({ user, allUsers, salesEvents, salesData }) {
                 <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 36, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{p.teamSigs}</div>
                 {p.teamTarget > 0 && <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, color: B.muted, lineHeight: 1, paddingBottom: 3 }}>/ {p.teamTarget}</div>}
               </div>
-              <div style={{ fontSize: 12, color: B.muted, marginBottom: p.teamTarget > 0 ? 8 : 4 }}>team Zoho handoffs</div>
+              <div style={{ fontSize: 12, color: B.muted, marginBottom: p.teamTarget > 0 ? 8 : 4 }}>team late-stage Deals</div>
               {p.teamTarget > 0 && <>
                 <div style={{ height: 5, background: "#111", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
                   <div style={{ height: "100%", width: `${p.pct}%`, background: p.color, borderRadius: 3, transition: "width 0.6s" }} />
@@ -4295,7 +4296,7 @@ function Incentives({ user, allUsers, salesEvents, salesData }) {
             <div><label>Title</label><input placeholder='"Holiday to Ibiza 🏖️"' value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} /></div>
             <div><label>Description</label><textarea rows={2} value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} /></div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><label>Metric</label><select value={form.metric} onChange={e=>setForm(p=>({...p,metric:e.target.value}))}><option value="total">Most Zoho Handoffs</option>{PLATFORMS.map(p=><option key={p} value={p}>Most {p} Handoffs</option>)}</select></div>
+              <div><label>Metric</label><select value={form.metric} onChange={e=>setForm(p=>({...p,metric:e.target.value}))}><option value="total">Most Late-stage Deals</option>{PLATFORMS.map(p=><option key={p} value={p}>Most {p} Late-stage Deals</option>)}</select></div>
               <div><label>Goal</label><input type="number" value={form.goal} onChange={e=>setForm(p=>({...p,goal:e.target.value}))} /></div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -4561,7 +4562,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
     teamTotals.forEach(({p,sigs,target,forecast,pct,avgSplit,splitTarget}) => {
       if (!target) return;
       const status = pct>=100?"on target":pct>=80?"on pace":pct>=60?"slightly behind":"behind";
-      let ln = p+" is "+status+" — "+sigs+" of "+target+" Zoho handoffs";
+      let ln = p+" is "+status+" — "+sigs+" of "+target+" late-stage Deals";
       if (forecast!==sigs) ln += ", forecasting "+forecast+" by quarter end";
       ln += ".";
       if (avgSplit!=null&&avgSplit>0&&splitTarget) {
@@ -4604,7 +4605,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
 
   function activityText(event) {
     const name = event.user?.nickname||event.user?.displayName||"Someone";
-    if (event.type==="approved") return `${name} reached a Zoho sales handoff stage — ${event.signing.dealName} (${event.signing.platform}${event.signing.split?" · "+event.signing.split:""})`;
+    if (event.type==="approved") return `${name} reached a late-stage Zoho stage — ${event.signing.dealName} (${event.signing.platform}${event.signing.split?" · "+event.signing.split:""})`;
     if (event.type==="submitted") return `${name} submitted a signing for approval — ${event.signing.dealName} (${event.signing.platform})`;
     if (event.type==="rejected") return `${name}'s signing was rejected — ${event.signing.dealName}`;
     if (event.type==="badge") return `${name} was awarded the ${event.badge.emoji} ${event.badge.name} badge`;
@@ -4650,7 +4651,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           <div className="card" style={{padding:24,marginBottom:14,background:"linear-gradient(135deg,#101642,#0d1235)",borderColor:"#ffffff18"}}>
             <div style={{fontSize:11,fontWeight:600,color:"#e5e5e5",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:16}}>Executive Summary · Q{q+1} {now.getFullYear()}</div>
             {summaryLines.length===0
-              ? <div style={{color:"#e5e5e5",fontSize:14}}>No Zoho handoffs or Sales OS targets are available yet.</div>
+              ? <div style={{color:"#e5e5e5",fontSize:14}}>No late-stage Deals or Sales OS targets are available yet.</div>
               : summaryLines.map((line,i)=>(
                   <div key={i} style={{display:"flex",gap:12,marginBottom:i<summaryLines.length-1?10:0}}>
                     <div style={{width:4,background:i===0?B.orange:"#333",borderRadius:2,flexShrink:0,marginTop:3}} />
@@ -4663,7 +4664,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
           {/* Key numbers row */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
             {[
-              {label:"Zoho Handoffs",val:totalSigs,sub:totalTarget>0?`Target: ${totalTarget}`:"No target",col:B.orange},
+              {label:"Late-stage Deals",val:totalSigs,sub:totalTarget>0?`Target: ${totalTarget}`:"No target",col:B.orange},
               {label:"Pace Estimate",val:totalForecast,sub:totalTarget>0?`${Math.round(((totalForecast-totalTarget)/Math.max(totalTarget,1))*100)}% vs target`:"—",col:totalTarget>0&&totalForecast>=totalTarget?"#22c55e":"#f59e0b"},
               {label:"Days Left in Q",val:daysLeft,sub:`of ${daysTotal} total`,col:"#c3c9de"},
               {label:"Manual Pending",val:pending.length,sub:pending.length>0?"Separate tracker":"All clear ✓",col:pending.length>0?"#f87171":"#22c55e"},
@@ -4706,9 +4707,9 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
       {/* ── ACTIVITY FEED ── */}
       {tab==="activity"&&(
         <div>
-          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Zoho handoffs plus clearly separate manual approvals and badges, most recent first.</p>
+          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Late-stage Zoho Deals plus clearly separate manual approvals and badges, most recent first.</p>
           {feed.length===0
-            ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-2)"}}>No Zoho handoffs or Sales OS activity yet.</div>
+            ?<div className="card" style={{padding:40,textAlign:"center",color:"var(--text-2)"}}>No late-stage Deals or Sales OS activity yet.</div>
             :<div style={{display:"grid",gap:7}}>
               {feed.map((event,i)=>{
                 const c = event.user?.accentColor||B.orange;
@@ -4733,7 +4734,7 @@ function Admin({ user, allUsers, refreshAllUsers, salesEvents, salesData, summar
       {/* ── MONTH VS MONTH ── */}
       {tab==="monthly"&&(
         <div>
-          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Zoho handoffs grouped by Zoho Closing Date. This rule is provisional.</p>
+          <p style={{color:"#e5e5e5",fontSize:14,marginBottom:18}}>Late-stage Deals grouped by Zoho Closing Date. This rule is provisional.</p>
 
           {/* Team totals bar chart */}
           <div className="card" style={{padding:20,marginBottom:14}}>
