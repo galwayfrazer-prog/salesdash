@@ -187,6 +187,7 @@ Deno.serve(async (request) => {
         row_key: row.id,
         creator_name: row.creator,
         live_platform: row.livePlatform,
+        current_platforms: row.currentPlatforms,
         missing_platform: row.missingPlatform,
         owner_name: row.owner,
         last_activity_at: row.lastActivityAt || null,

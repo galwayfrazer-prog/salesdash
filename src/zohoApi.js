@@ -36,3 +36,13 @@ export async function fetchZohoData(functionName, searchParams = {}) {
   }
   return hostedRequest(`get-${functionName}?${query}`);
 }
+
+export async function setHitListCompleted(rowKey, completed) {
+  if (!hostedRequest) {
+    throw new Error("The secure Supabase connection is not configured.");
+  }
+  return hostedRequest("update-hit-list-dismissal", {
+    method: "POST",
+    body: { rowKey, completed: completed === true },
+  });
+}

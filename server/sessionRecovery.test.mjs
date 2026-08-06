@@ -42,6 +42,34 @@ function jsonResponse(status, body) {
 }
 
 {
+  const calls = [];
+  const auth = {
+    async getSession() { return { data: { session: session("valid-token") }, error: null }; },
+  };
+  const request = createAuthorizedFunctionRequester({
+    auth,
+    baseUrl: "https://project.example/functions/v1/",
+    apiKey: "public-key",
+    retryDelayMs: 0,
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return jsonResponse(200, { ok: true });
+    },
+  });
+  assert.deepEqual(await request("update-hit-list-dismissal", {
+    method: "POST",
+    body: { rowKey: "creator-1:spotify", completed: true },
+  }), { ok: true });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[0].options.headers["Content-Type"], "application/json");
+  assert.equal(calls[0].options.body, JSON.stringify({
+    rowKey: "creator-1:spotify",
+    completed: true,
+  }));
+}
+
+{
   let refreshes = 0;
   let requests = 0;
   const auth = {

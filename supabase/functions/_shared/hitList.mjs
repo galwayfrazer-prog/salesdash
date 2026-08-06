@@ -71,9 +71,18 @@ export function buildHitList(
       hasSpotify: false,
       liveMicrosoftStartDeal: null,
       liveSpotifyDeal: null,
+      livePlatforms: new Map(),
     };
-    const names = platformNames(deal.Associated_Platform).map(normaliseName);
+    const platformLabels = platformNames(deal.Associated_Platform);
+    const names = platformLabels.map(normaliseName);
     const isLive = normaliseName(deal.Stage) === "live";
+
+    if (isLive) {
+      for (const platform of platformLabels) {
+        const key = normaliseName(platform);
+        if (key && !existing.livePlatforms.has(key)) existing.livePlatforms.set(key, platform);
+      }
+    }
 
     if (names.includes(microsoftStart)) {
       existing.hasMicrosoftStart = true;
@@ -112,6 +121,11 @@ export function buildHitList(
       id: `${creator.creatorId}:${normaliseName(missingPlatform)}`,
       creator: creator.creatorName,
       livePlatform,
+      currentPlatforms: [...creator.livePlatforms.values()].sort((left, right) => left.localeCompare(
+        right,
+        undefined,
+        { numeric: true, sensitivity: "base" },
+      )),
       missingPlatform,
       owner: lookupName(liveDeal.Owner) || "Unassigned",
       lastActivityAt: clean(liveDeal.Last_Activity_Time),
