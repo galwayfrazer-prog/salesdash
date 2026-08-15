@@ -1,25 +1,21 @@
 \set ON_ERROR_STOP on
 
--- An approved verified work email can create its own exact membership.
-delete from public.sales_os_members where email = 'rep8@wildvision.io';
+-- The historical claim function and allowlist remain intact for migration
+-- history, but browsers can no longer use that path to create or reactivate a
+-- membership. Provisioning now belongs to authorize-sales-os after Zoho checks.
 set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000008', false);
-select * from public.claim_sales_os_membership();
-reset role;
-
 do $$
 begin
-  if not exists (
-    select 1 from public.sales_os_members
-    where email = 'rep8@wildvision.io'
-      and user_id = '00000000-0000-0000-0000-000000000008'
-      and role = 'rep'
-      and active = true
-  ) then
-    raise exception 'Approved work email could not claim its membership';
-  end if;
+  begin
+    perform * from public.claim_sales_os_membership();
+    raise exception 'Authenticated browser retained legacy membership provisioning access';
+  exception when insufficient_privilege then
+    null;
+  end;
 end;
 $$;
+reset role;
 
 insert into auth.users (
   instance_id, id, aud, role, email, email_confirmed_at, last_sign_in_at,
@@ -31,56 +27,6 @@ insert into auth.users (
 
 insert into public.sales_os_approved_emails (email, role, display_name, active)
 values ('unconfirmed@wildvision.io', 'rep', 'Unconfirmed', true);
-
-set role authenticated;
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000010', false);
-do $$
-begin
-  begin
-    perform * from public.claim_sales_os_membership();
-    raise exception 'Unapproved work email claimed a membership';
-  exception when insufficient_privilege then
-    null;
-  end;
-end;
-$$;
-
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false);
-do $$
-begin
-  begin
-    perform * from public.claim_sales_os_membership();
-    raise exception 'Personal email claimed a membership';
-  exception when insufficient_privilege then
-    null;
-  end;
-end;
-$$;
-
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', false);
-do $$
-begin
-  begin
-    perform * from public.claim_sales_os_membership();
-    raise exception 'Unconfirmed email claimed a membership';
-  exception when insufficient_privilege then
-    null;
-  end;
-end;
-$$;
-
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000009', false);
-do $$
-begin
-  begin
-    perform * from public.claim_sales_os_membership();
-    raise exception 'Inactive approved email claimed a membership';
-  exception when insufficient_privilege then
-    null;
-  end;
-end;
-$$;
-reset role;
 
 do $$
 begin

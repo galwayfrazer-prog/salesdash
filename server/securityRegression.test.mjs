@@ -28,7 +28,7 @@ for (const forbidden of [
 for (const required of [
   /auth\.signInWithOAuth/,
   /provider:\s*["']google["']/,
-  /claim_sales_os_membership/,
+  /functions\.invoke\(["']authorize-sales-os["']/,
   /getVerifiedAuthUser/,
   /auth\.onAuthStateChange/,
 ]) {
@@ -99,6 +99,22 @@ assert.match(googleAccessMigrationSource, /claim_sales_os_membership/i);
 assert.match(googleAccessMigrationSource, /email_confirmed_at is not null/i);
 assert.match(googleAccessMigrationSource, /grant execute on function public\.claim_sales_os_membership\(\) to authenticated/i);
 assert.doesNotMatch(googleAccessMigrationSource, /grant select.*sales_os_approved_emails.*authenticated/i);
+
+const automaticAccessMigrationSource = await readFile(
+  path.join(root, "supabase", "migrations", "202608150001_zoho_sales_os_automatic_access.sql"),
+  "utf8",
+);
+assert.match(automaticAccessMigrationSource, /revoke execute on function public\.claim_sales_os_membership\(\) from public, anon, authenticated/i);
+assert.doesNotMatch(automaticAccessMigrationSource, /delete\s+from\s+public\.sales_os_members/i);
+
+const automaticAccessFunctionSource = await readFile(
+  path.join(root, "supabase", "functions", "authorize-sales-os", "index.ts"),
+  "utf8",
+);
+assert.match(automaticAccessFunctionSource, /userClient\.auth\.getUser\(\)/);
+assert.match(automaticAccessFunctionSource, /ZOHO_SALES_ROLE_IDS/);
+assert.match(automaticAccessFunctionSource, /ZOHO_SALES_PROFILE_IDS/);
+assert.doesNotMatch(automaticAccessFunctionSource, /\.delete\(/);
 
 const cutoverSource = await readFile(
   path.join(root, "supabase", "cutover", "202607_sales_os_auth_lockdown.sql"),
