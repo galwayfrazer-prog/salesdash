@@ -12,7 +12,7 @@ import {
 const DEFAULT_ACCOUNTS_DOMAIN = "https://accounts.zoho.eu";
 const DEFAULT_API_DOMAIN = "https://www.zohoapis.eu";
 const DEFAULT_USER_SCOPE = "ZohoCRM.users.READ";
-const MEMBER_FIELDS = "email,user_id,role,display_name,active,stats_enabled";
+const MEMBER_FIELDS = "email,user_id,role,display_name,active,stats_enabled,legacy_access_approved";
 
 class AuthorizationError extends Error {
   status: number;
@@ -108,7 +108,7 @@ async function fetchAllZohoUsers({ accessToken, apiDomain }: { accessToken: stri
     const { response, payload } = await fetchJsonWithRetry(url, {
       headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
     });
-    if (!response.ok || !Array.isArray(payload.users)) {
+    if (!response.ok || !Array.isArray(payload.users) || typeof payload.info?.more_records !== "boolean") {
       throw new AuthorizationError(502, "Zoho could not verify Sales OS access");
     }
     users.push(...payload.users);
@@ -181,28 +181,33 @@ Deno.serve(async (request) => {
       }, origin);
     }
 
+    const memberships = await readMemberships(admin, authUser.id, auth.email);
+    const plan = planSalesOsMembership({ authUser, email: auth.email, ...memberships });
+    if (!plan.allowed) {
+      return json(403, { error: "This account is not eligible for Sales OS" }, origin);
+    }
+    const legacyMemberApproved = plan.action === "keep" && plan.member.legacy_access_approved === true;
     const zohoCredential = await getZohoAccessToken();
     const zohoUsers = await fetchAllZohoUsers(zohoCredential);
-    const zohoAccess = evaluateZohoSalesAccess({ authUser, zohoUsers, access: salesTeamAccess() });
+    const zohoAccess = evaluateZohoSalesAccess({ authUser, zohoUsers, access: salesTeamAccess(), legacyMemberApproved });
     if (zohoAccess.code === "SALES_TEAM_NOT_CONFIGURED") {
       throw new AuthorizationError(503, "Sales team access is not configured");
+    }
+    if (["ZOHO_IDENTITY_AMBIGUOUS", "ZOHO_STATUS_UNVERIFIED"].includes(zohoAccess.code || "")) {
+      throw new AuthorizationError(502, "Zoho could not verify Sales OS access");
     }
     if (!zohoAccess.allowed) {
       await deactivateExactMember(admin, authUser, auth.email);
       return json(403, { error: "This account is not eligible for Sales OS" }, origin);
     }
 
-    const memberships = await readMemberships(admin, authUser.id, auth.email);
-    const plan = planSalesOsMembership({ authUser, email: auth.email, ...memberships });
-    if (!plan.allowed) {
-      return json(403, { error: "This account is not eligible for Sales OS" }, origin);
-    }
     if (plan.action === "keep") {
       return json(200, { authorized: true, member: plan.member }, origin);
     }
 
     const newMember = {
       ...plan.member,
+      legacy_access_approved: false,
       display_name: displayNameForMember(zohoAccess.zohoUser, authUser, auth.email),
       updated_at: new Date().toISOString(),
     };

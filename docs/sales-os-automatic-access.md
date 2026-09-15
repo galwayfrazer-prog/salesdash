@@ -1,8 +1,8 @@
 # Automatic Sales OS access
 
-After Google authentication, the browser calls the `authorize-sales-os` Supabase Edge Function. The function verifies the Supabase session, the exact `@wildvision.io` email, and a matching Google identity. It then uses server-only Zoho credentials to fetch CRM users and requires exactly one matching user with `status: active` whose Zoho role or profile is in the configured Sales allowlist.
+After Google authentication, the browser calls the `authorize-sales-os` Supabase Edge Function. The function verifies the Supabase session, the exact `@wildvision.io` email, and a matching Google identity. It then uses server-only Zoho credentials to fetch CRM users and requires exactly one matching user with `status: active`. New members must also have a Zoho role or profile in the configured Sales allowlist.
 
-Eligible first-time users are inserted into `sales_os_members` as reps. Existing roles, stats settings, and active memberships are preserved. An inactive Sales OS membership is never reactivated automatically. If an active member is definitively no longer an active Sales user in Zoho, only that exact membership is deactivated; no user or membership row is deleted. A Zoho or configuration failure returns a temporary error and does not deactivate anyone.
+Eligible first-time users are inserted into `sales_os_members` as reps. At migration cutover, existing active approved memberships receive a server-only `legacy_access_approved` marker: those members retain access regardless of Sales role/profile, but still require the domain, Google identity, and active Zoho checks. Future automatic members never receive this exception, including when the migration is replayed. Existing roles and stats settings are preserved. An inactive Sales OS membership is never reactivated automatically. If a member no longer meets their applicable Zoho requirements, only that exact membership is deactivated; no user or membership row is deleted. A Zoho or configuration failure returns a temporary error and does not deactivate anyone.
 
 ## Server configuration
 
@@ -32,6 +32,8 @@ Deploy the database migration before the function so the legacy browser-callable
 
 Run:
 
+The endpoint integration test uses Node 24's TypeScript loading and module hooks (tested with Node 24.13.1). It executes the real handler against mocked HTTP services, never live users or credentials.
+
 ```powershell
 node server/salesOsAutomaticAccess.test.mjs
 npm test
@@ -39,4 +41,12 @@ npm run build
 npm run test:auth-db
 ```
 
-Before production rollout, verify one active Sales user, one active non-Sales Wild Vision user, one inactive Zoho user, and one non-Wild-Vision Google account. Only the first should enter Sales OS or receive a new membership.
+Before production rollout, verify an active Sales user, a new active non-Sales Wild Vision user, an existing approved active non-Sales member, an inactive Zoho user, and a non-Wild-Vision Google account. Only the active Sales user may receive a new membership; the existing approved active non-Sales member retains access. No client may set the legacy exception or reactivate a disabled member.
+
+## September 15 rollout hold
+
+The live database has ten active approved members and has not received this migration. Two approved Google login addresses differ from the apparent Zoho primary addresses. Their identity mapping is not confirmed; do not guess aliases, merge accounts, or deploy a cutover that disables their current access. The user requested preserving existing approved members and automatic Sales-only additions. Verify exact account ownership (or a trusted, administrator-approved Zoho user-ID mapping) before live activation. No alias exception is implemented.
+
+The Zoho UI confirms the Sales Staff profile ID `456269000003358077` and WV Sales role ID `456269000003440268`. These are configuration identifiers, not credentials. The production server grant still needs an authenticated live verification of `ZohoCRM.users.READ`. Neither a browser login nor a mocked endpoint test proves that grant works.
+
+Do not run a broad database push: a separate, unfinished Fathom migration is also present locally. Coordinate the migration/RPC revocation with the frontend cutover so the old login flow is not left calling a revoked RPC. Keep PR #4 unmerged until these checks pass.

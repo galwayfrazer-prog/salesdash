@@ -61,13 +61,21 @@ assert.equal(evaluateZohoSalesAccess({
   authUser,
   zohoUsers: [zohoSalesUser, { ...zohoSalesUser, id: "duplicate" }],
   access,
-}).code, "ZOHO_USER_NOT_FOUND");
+}).code, "ZOHO_IDENTITY_AMBIGUOUS");
 assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [zohoSalesUser], access: {} }).code, "SALES_TEAM_NOT_CONFIGURED");
 assert.equal(evaluateZohoSalesAccess({
   authUser,
   zohoUsers: [{ ...zohoSalesUser, role: {}, profile: { id: "sales-profile", name: "Sales" } }],
   access: { profileIds: ["sales-profile"] },
 }).allowed, true);
+
+const legacyActiveUser = { ...zohoSalesUser, role: { id: "editors", name: "Editors" }, profile: { id: "admin", name: "Administrator" } };
+assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [legacyActiveUser], access, legacyMemberApproved: true }).allowed, true);
+assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [legacyActiveUser], access }).allowed, false);
+assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [legacyActiveUser], access, legacyMemberApproved: "true" }).allowed, false);
+assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [{ ...legacyActiveUser, status: "inactive" }], access, legacyMemberApproved: true }).code, "ZOHO_USER_INACTIVE");
+assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [], access, legacyMemberApproved: true }).code, "ZOHO_USER_NOT_FOUND");
+assert.equal(evaluateZohoSalesAccess({ authUser: { ...authUser, email: "rep@gmail.com" }, zohoUsers: [legacyActiveUser], access, legacyMemberApproved: true }).code, "DOMAIN_NOT_ALLOWED");
 
 const existingMember = {
   user_id: authUser.id,
@@ -132,3 +140,4 @@ assert.match(migrationSource, /revoke execute on function public\.claim_sales_os
 assert.doesNotMatch(migrationSource, /delete\s+from\s+public\.sales_os_members/i);
 
 console.log("Automatic Sales OS access tests passed.");
+await import("./salesOsAccessEndpoint.test.mjs");

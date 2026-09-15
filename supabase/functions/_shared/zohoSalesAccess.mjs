@@ -50,7 +50,7 @@ function matchesConfiguredSalesTeam(zohoUser, access) {
     || profileNames.has(profileName);
 }
 
-export function evaluateZohoSalesAccess({ authUser, zohoUsers, access }) {
+export function evaluateZohoSalesAccess({ authUser, zohoUsers, access, legacyMemberApproved = false }) {
   const auth = validateGoogleAuthUser(authUser);
   if (!auth.allowed) return auth;
 
@@ -60,20 +60,30 @@ export function evaluateZohoSalesAccess({ authUser, zohoUsers, access }) {
     profileIds: (access?.profileIds || []).map(normalizeAccessValue).filter(Boolean),
     profileNames: (access?.profileNames || []).map(normalizeAccessValue).filter(Boolean),
   };
-  if (Object.values(configuredAccess).every((values) => values.length === 0)) {
-    return { allowed: false, code: "SALES_TEAM_NOT_CONFIGURED" };
-  }
-
   const matchingUsers = (Array.isArray(zohoUsers) ? zohoUsers : []).filter(
     (zohoUser) => normalizeAccessValue(zohoUser?.email) === auth.email,
   );
-  if (matchingUsers.length !== 1) {
+  if (matchingUsers.length > 1) {
+    return { allowed: false, code: "ZOHO_IDENTITY_AMBIGUOUS" };
+  }
+  if (matchingUsers.length === 0) {
     return { allowed: false, code: "ZOHO_USER_NOT_FOUND" };
   }
 
   const zohoUser = matchingUsers[0];
+  if (!["active", "inactive", "deleted"].includes(normalizeAccessValue(zohoUser?.status))) {
+    return { allowed: false, code: "ZOHO_STATUS_UNVERIFIED" };
+  }
   if (normalizeAccessValue(zohoUser?.status) !== "active") {
     return { allowed: false, code: "ZOHO_USER_INACTIVE", zohoUser };
+  }
+  // Only a trusted, server-read cutover marker may preserve existing access.
+  // Automatically provisioned users never receive this exception.
+  if (legacyMemberApproved === true) {
+    return { allowed: true, email: auth.email, zohoUser };
+  }
+  if (Object.values(configuredAccess).every((values) => values.length === 0)) {
+    return { allowed: false, code: "SALES_TEAM_NOT_CONFIGURED" };
   }
   if (!matchesConfiguredSalesTeam(zohoUser, configuredAccess)) {
     return { allowed: false, code: "ZOHO_SALES_MEMBERSHIP_REQUIRED", zohoUser };

@@ -1,10 +1,14 @@
+param(
+  [string]$LocalWorkdir = (Join-Path $PSScriptRoot ".."),
+  [string]$LocalProjectId = ""
+)
 $ErrorActionPreference = "Stop"
 
 $projectRefPath = Join-Path $PSScriptRoot "..\supabase\.temp\project-ref"
-if (-not (Test-Path $projectRefPath)) {
+if (-not $LocalProjectId -and -not (Test-Path $projectRefPath)) {
   throw "Start local Supabase first with: npx supabase start"
 }
-$projectRef = (Get-Content -Raw $projectRefPath).Trim()
+$projectRef = if ($LocalProjectId) { $LocalProjectId } else { (Get-Content -Raw $projectRefPath).Trim() }
 $container = "supabase_db_$projectRef"
 if (-not (docker ps --format "{{.Names}}" | Where-Object { $_ -eq $container })) {
   throw "Local Supabase is not running. Start it with: npx supabase start"
@@ -13,7 +17,7 @@ if (-not (docker ps --format "{{.Names}}" | Where-Object { $_ -eq $container }))
 # The standalone lockdown migration intentionally expects the legacy kv_store
 # fixture to exist. Reset only through the preparatory migrations, then install
 # the fixture before exercising the cutover and subsequent migrations.
-npx.cmd supabase db reset --local --version 202607200001
+npx.cmd supabase db reset --local --workdir $LocalWorkdir --version 202607200001
 if ($LASTEXITCODE -ne 0) { throw "Local Supabase reset failed." }
 
 $fixture = Join-Path $PSScriptRoot "..\supabase\tests\sales_os_auth_fixture.sql"
@@ -73,6 +77,9 @@ foreach ($migrationName in $postCutoverMigrations) {
   if ($LASTEXITCODE -ne 0) { throw "Post-cutover migration failed: $migrationName" }
 }
 
+$automaticAccess = Join-Path $PSScriptRoot "..\supabase\migrations\202608150001_zoho_sales_os_automatic_access.sql"
+docker cp $automaticAccess "${container}:/tmp/sales-os-automatic-access.sql"
+if ($LASTEXITCODE -ne 0) { throw "Could not copy the access migration into the disposable local test database." }
 Get-Content -Raw $googleAccess | docker exec -i $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres
 if ($LASTEXITCODE -ne 0) { throw "The automatic Google and Zoho access database test failed." }
 
@@ -81,7 +88,7 @@ if ($LASTEXITCODE -ne 0) { throw "Local Auth RLS assertions failed." }
 
 $previousErrorPreference = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-npx.cmd supabase db reset --local --version 202607200001 2> $null
+npx.cmd supabase db reset --local --workdir $LocalWorkdir --version 202607200001 2> $null
 $cleanupExitCode = $LASTEXITCODE
 $ErrorActionPreference = $previousErrorPreference
 if ($cleanupExitCode -ne 0) { throw "Local Supabase cleanup reset failed." }
