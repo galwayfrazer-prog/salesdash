@@ -20,3 +20,12 @@ verify_jwt = false
 
 [functions.authorize-sales-os]
 verify_jwt = false
+
+[functions.fathom-webhook-test]
+verify_jwt = false
+
+[functions.fathom-webhook-preview]
+verify_jwt = false
+
+[functions.get-fathom-post-call-previews]
+verify_jwt = false
