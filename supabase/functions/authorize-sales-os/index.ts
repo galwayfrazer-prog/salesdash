@@ -12,7 +12,7 @@ import {
 const DEFAULT_ACCOUNTS_DOMAIN = "https://accounts.zoho.eu";
 const DEFAULT_API_DOMAIN = "https://www.zohoapis.eu";
 const DEFAULT_USER_SCOPE = "ZohoCRM.users.READ";
-const MEMBER_FIELDS = "email,user_id,role,display_name,active,stats_enabled,legacy_access_approved";
+const MEMBER_FIELDS = "email,user_id,role,display_name,active,stats_enabled,legacy_access_approved,zoho_user_id,zoho_email";
 
 class AuthorizationError extends Error {
   status: number;
@@ -189,7 +189,13 @@ Deno.serve(async (request) => {
     const legacyMemberApproved = plan.action === "keep" && plan.member.legacy_access_approved === true;
     const zohoCredential = await getZohoAccessToken();
     const zohoUsers = await fetchAllZohoUsers(zohoCredential);
-    const zohoAccess = evaluateZohoSalesAccess({ authUser, zohoUsers, access: salesTeamAccess(), legacyMemberApproved });
+    const zohoAccess = evaluateZohoSalesAccess({
+      authUser,
+      zohoUsers,
+      access: salesTeamAccess(),
+      legacyMemberApproved,
+      expectedZohoUserId: plan.action === "keep" ? plan.member.zoho_user_id : "",
+    });
     if (zohoAccess.code === "SALES_TEAM_NOT_CONFIGURED") {
       throw new AuthorizationError(503, "Sales team access is not configured");
     }
@@ -202,12 +208,31 @@ Deno.serve(async (request) => {
     }
 
     if (plan.action === "keep") {
-      return json(200, { authorized: true, member: plan.member }, origin);
+      const canonicalZohoIdentity = {
+        zoho_user_id: String(zohoAccess.zohoUser?.id || ""),
+        zoho_email: normalizeAccessValue(zohoAccess.zohoUser?.email),
+      };
+      let member = plan.member;
+      if (member.zoho_user_id !== canonicalZohoIdentity.zoho_user_id
+        || normalizeAccessValue(member.zoho_email) !== canonicalZohoIdentity.zoho_email) {
+        const { data, error } = await admin
+          .from("sales_os_members")
+          .update({ ...canonicalZohoIdentity, updated_at: new Date().toISOString() })
+          .eq("user_id", authUser.id)
+          .eq("email", auth.email)
+          .select(MEMBER_FIELDS)
+          .single();
+        if (error) throw new AuthorizationError(503, "Sales OS membership could not be updated");
+        member = data;
+      }
+      return json(200, { authorized: true, member }, origin);
     }
 
     const newMember = {
       ...plan.member,
       legacy_access_approved: false,
+      zoho_user_id: String(zohoAccess.zohoUser?.id || ""),
+      zoho_email: normalizeAccessValue(zohoAccess.zohoUser?.email),
       display_name: displayNameForMember(zohoAccess.zohoUser, authUser, auth.email),
       updated_at: new Date().toISOString(),
     };

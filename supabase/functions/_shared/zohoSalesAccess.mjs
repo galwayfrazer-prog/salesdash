@@ -50,7 +50,7 @@ function matchesConfiguredSalesTeam(zohoUser, access) {
     || profileNames.has(profileName);
 }
 
-export function evaluateZohoSalesAccess({ authUser, zohoUsers, access, legacyMemberApproved = false }) {
+export function evaluateZohoSalesAccess({ authUser, zohoUsers, access, legacyMemberApproved = false, expectedZohoUserId = "" }) {
   const auth = validateGoogleAuthUser(authUser);
   if (!auth.allowed) return auth;
 
@@ -60,9 +60,12 @@ export function evaluateZohoSalesAccess({ authUser, zohoUsers, access, legacyMem
     profileIds: (access?.profileIds || []).map(normalizeAccessValue).filter(Boolean),
     profileNames: (access?.profileNames || []).map(normalizeAccessValue).filter(Boolean),
   };
-  const matchingUsers = (Array.isArray(zohoUsers) ? zohoUsers : []).filter(
-    (zohoUser) => normalizeAccessValue(zohoUser?.email) === auth.email,
-  );
+  const normalizedZohoUserId = normalizeAccessValue(expectedZohoUserId);
+  const matchingUsers = (Array.isArray(zohoUsers) ? zohoUsers : []).filter((zohoUser) => (
+    normalizedZohoUserId
+      ? normalizeAccessValue(zohoUser?.id) === normalizedZohoUserId
+      : normalizeAccessValue(zohoUser?.email) === auth.email
+  ));
   if (matchingUsers.length > 1) {
     return { allowed: false, code: "ZOHO_IDENTITY_AMBIGUOUS" };
   }

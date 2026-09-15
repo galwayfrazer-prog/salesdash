@@ -75,6 +75,20 @@ assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [legacyActiveUser], 
 assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [legacyActiveUser], access, legacyMemberApproved: "true" }).allowed, false);
 assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [{ ...legacyActiveUser, status: "inactive" }], access, legacyMemberApproved: true }).code, "ZOHO_USER_INACTIVE");
 assert.equal(evaluateZohoSalesAccess({ authUser, zohoUsers: [], access, legacyMemberApproved: true }).code, "ZOHO_USER_NOT_FOUND");
+assert.equal(evaluateZohoSalesAccess({
+  authUser,
+  zohoUsers: [{ ...legacyActiveUser, id: "canonical-zoho-id", email: "latest@wildvision.io" }],
+  access,
+  legacyMemberApproved: true,
+  expectedZohoUserId: "canonical-zoho-id",
+}).allowed, true, "A mapped legacy login must follow the stable Zoho identity, not a stale email alias.");
+assert.equal(evaluateZohoSalesAccess({
+  authUser,
+  zohoUsers: [{ ...legacyActiveUser, id: "someone-else" }],
+  access,
+  legacyMemberApproved: true,
+  expectedZohoUserId: "canonical-zoho-id",
+}).code, "ZOHO_USER_NOT_FOUND");
 assert.equal(evaluateZohoSalesAccess({ authUser: { ...authUser, email: "rep@gmail.com" }, zohoUsers: [legacyActiveUser], access, legacyMemberApproved: true }).code, "DOMAIN_NOT_ALLOWED");
 
 const existingMember = {
@@ -138,6 +152,8 @@ const migrationSource = await readFile(
 );
 assert.match(migrationSource, /revoke execute on function public\.claim_sales_os_membership\(\) from public, anon, authenticated/i);
 assert.doesNotMatch(migrationSource, /delete\s+from\s+public\.sales_os_members/i);
+assert.match(migrationSource, /jolyon\.binstead@wildvision\.io/);
+assert.match(migrationSource, /william@wildvision\.io/);
 
 console.log("Automatic Sales OS access tests passed.");
 await import("./salesOsAccessEndpoint.test.mjs");

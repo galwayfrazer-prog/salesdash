@@ -15,7 +15,7 @@ const user = {
   identities: [{ provider: "google", identity_data: { email: "rep@wildvision.io" } }],
 };
 const salesUser = { id: "zoho-1", email: user.email, status: "active", profile: { id: "sales" } };
-const approved = { user_id: user.id, email: user.email, role: "manager", active: true, stats_enabled: false, legacy_access_approved: true };
+const approved = { user_id: user.id, email: user.email, role: "manager", active: true, stats_enabled: false, legacy_access_approved: true, zoho_user_id: salesUser.id, zoho_email: salesUser.email };
 let scenario;
 let handler;
 const originalFetch = globalThis.fetch;
@@ -49,7 +49,12 @@ globalThis.fetch = async (input, init = {}) => {
     const body = JSON.parse(init.body);
     scenario.writes.push({ method, body });
     if (method === "POST") { scenario.member = body; return reply(body, 201); }
-    if (method === "PATCH") { assert.equal(url.searchParams.get("email"), `eq.${user.email}`); return reply(null); }
+    if (method === "PATCH") {
+      assert.equal(url.searchParams.get("email"), `eq.${user.email}`);
+      if (body.active === false) return reply(null);
+      scenario.member = { ...scenario.member, ...body };
+      return reply(scenario.member);
+    }
   }
   throw new Error(`Unexpected test request: ${method} ${url.hostname}${url.pathname}`);
 };
@@ -88,6 +93,13 @@ try {
   assert.equal(result.writes.length, 0);
   assert.equal(result.body.member.role, "manager");
   assert.equal(result.body.member.stats_enabled, false);
+  result = await run({
+    member: { ...approved, email: user.email, zoho_user_id: "canonical-id", zoho_email: "old@wildvision.io" },
+    zohoUsers: [{ ...salesUser, id: "canonical-id", email: "latest@wildvision.io", profile: { id: "admin" } }],
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.writes.length, 1);
+  assert.equal(result.body.member.zoho_email, "latest@wildvision.io");
   result = await run({ zohoUsers: [{ ...salesUser, profile: { id: "admin" } }] }, { body: { legacy_access_approved: true } });
   assert.equal(result.status, 403);
   assert.equal(result.writes.length, 0);
@@ -99,7 +111,7 @@ try {
   assert.equal(result.writes[0].body.active, false);
   for (const options of [
     { upstreamFailure: true }, { malformedPage: true },
-    { zohoUsers: [salesUser, { ...salesUser, id: "duplicate" }] },
+    { zohoUsers: [salesUser, { ...salesUser, email: "duplicate@wildvision.io" }] },
     { zohoUsers: [{ ...salesUser, status: undefined }] },
   ]) {
     result = await run({ member: approved, ...options });
