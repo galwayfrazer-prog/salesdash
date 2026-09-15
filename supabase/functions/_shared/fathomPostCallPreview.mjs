@@ -38,6 +38,38 @@ export function normalizeEmail(value) {
   return email;
 }
 
+export function isCreatorRelatedList(relation, creatorModule) {
+  const targetApiName = cleanPreviewText(creatorModule?.api_name, 200);
+  const targetModuleName = cleanPreviewText(creatorModule?.module_name, 200);
+  if (!relation || !targetApiName) return false;
+  if (relation?.module?.api_name === targetApiName) return true;
+  return relation?.type === "multiselectlookup"
+    && Boolean(targetModuleName)
+    && cleanPreviewText(relation?.connectedmodule, 200) === targetModuleName;
+}
+
+export function pinnedRelatedListMatches(relation, pinned, { targetModuleId, creatorModuleName = "" } = {}) {
+  if (
+    !relation
+    || String(relation?.id || "") !== String(pinned?.id || "")
+    || relation?.api_name !== pinned?.apiName
+    || relation?.status !== "visible"
+    || cleanPreviewText(relation?.href, 1_000) !== cleanPreviewText(pinned?.href, 1_000)
+  ) return false;
+
+  if (pinned?.type === "multiselectlookup") {
+    return relation?.type === "multiselectlookup"
+      && cleanPreviewText(relation?.connectedmodule, 200) === cleanPreviewText(creatorModuleName, 200)
+      && cleanPreviewText(relation?.connectedmodule, 200) === cleanPreviewText(pinned?.connectedModule, 200)
+      && cleanPreviewText(relation?.connectedlookupApiName, 200) === cleanPreviewText(pinned?.connectedLookupApiName, 200)
+      && cleanPreviewText(relation?.linkingmodule, 200) === cleanPreviewText(pinned?.linkingModule, 200)
+      && String(relation?.module?.id || "") === String(pinned?.linkingModuleId || "")
+      && cleanPreviewText(relation?.module?.api_name, 200) === cleanPreviewText(pinned?.linkingModuleApiName, 200);
+  }
+
+  return String(relation?.module?.id || "") === String(targetModuleId || "");
+}
+
 function decodeBase64(value) {
   const binary = atob(value);
   const bytes = new Uint8Array(binary.length);

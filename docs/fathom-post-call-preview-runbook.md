@@ -76,6 +76,8 @@ Set `ZOHO_PREVIEW_SCHEMA_JSON` as one compact JSON secret using this shape and v
 
 If Contact -> Creator is a related list, use `mode: "related_list"` and include its exact `href`. If Creator -> Deals must be resolved through the Deal lookup instead, use `mode: "deal_lookup"`; the pinned `deals.creatorField` is still mandatory. Never choose a relationship by display label alone.
 
+For a Zoho multi-select lookup, also pin `type`, `connectedModule`, `connectedLookupApiName`, `linkingModule`, `linkingModuleId`, and `linkingModuleApiName` from the metadata snapshot. The validator checks all six values and the intended Creator module before reading related records.
+
 After setting the schema secret, set `FATHOM_SCHEMA_PROBE_EXPECTED_STATUS=no_match` and run a new probe. This post-pin probe is mandatory: `no_match` is expected because the reserved synthetic attendee has no Contact, but reaching it proves the pinned metadata passed validation. A corrected pin is always tested with another fresh synthetic recording ID. Disable or repoint the old `fathom-webhook-test` subscription so one meeting cannot hit both handlers, then configure the TEST Fathom webhook subscription for `fathom-webhook-preview`. Ordinary duplicate deliveries return the stored result and do not query Zoho again.
 
 Fathom currently documents no general webhook resend endpoint, and an old captured request fails the five-minute signature window. Do not base the rollout on resending an acknowledged real meeting.

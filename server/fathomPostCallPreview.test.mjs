@@ -9,10 +9,12 @@ import {
   dealPreview,
   exactContactMatches,
   extractExternalAttendees,
+  isCreatorRelatedList,
   isSharedMailbox,
   lookupRecords,
   normalizeEmail,
   parseInternalDomains,
+  pinnedRelatedListMatches,
   resolvePreviewStatus,
   validFathomInviteeEnvelope,
   verifyFathomSignature,
@@ -24,6 +26,42 @@ assert.deepEqual(parseInternalDomains("@wildvision.io, WILDVISION.IO,invalid"), 
 assert.equal(isSharedMailbox("sales@example.com"), true);
 assert.equal(isSharedMailbox("person@example.com"), false);
 assert.equal(cleanPreviewText("a\u0000b\r\n", 20), "ab");
+
+const creatorModule = { id: "creator-module-id", api_name: "Creators", module_name: "CustomModule8" };
+const contactCreatorRelation = {
+  id: "related-list-id",
+  api_name: "Creators5",
+  href: "Contacts/{ENTITYID}/Creators5",
+  status: "visible",
+  type: "multiselectlookup",
+  connectedmodule: "CustomModule8",
+  connectedlookupApiName: "Creator",
+  linkingmodule: "LinkingModule5",
+  module: { id: "linking-module-id", api_name: "Creators_X_Contacts" },
+};
+const pinnedContactCreatorRelation = {
+  id: "related-list-id",
+  apiName: "Creators5",
+  href: "Contacts/{ENTITYID}/Creators5",
+  type: "multiselectlookup",
+  connectedModule: "CustomModule8",
+  connectedLookupApiName: "Creator",
+  linkingModule: "LinkingModule5",
+  linkingModuleId: "linking-module-id",
+  linkingModuleApiName: "Creators_X_Contacts",
+};
+assert.equal(isCreatorRelatedList(contactCreatorRelation, creatorModule), true);
+assert.equal(pinnedRelatedListMatches(contactCreatorRelation, pinnedContactCreatorRelation, {
+  targetModuleId: creatorModule.id,
+  creatorModuleName: creatorModule.module_name,
+}), true);
+assert.equal(pinnedRelatedListMatches({
+  ...contactCreatorRelation,
+  linkingmodule: "UnexpectedLinkingModule",
+}, pinnedContactCreatorRelation, {
+  targetModuleId: creatorModule.id,
+  creatorModuleName: creatorModule.module_name,
+}), false);
 
 const attendeePayload = {
   recorded_by: { email: "host@wildvision.io" },

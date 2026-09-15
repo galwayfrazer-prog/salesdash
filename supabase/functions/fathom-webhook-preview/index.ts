@@ -9,6 +9,8 @@ import {
   lookupRecords,
   normalizeEmail,
   parseInternalDomains,
+  isCreatorRelatedList,
+  pinnedRelatedListMatches,
   resolvePreviewStatus,
   validFathomInviteeEnvelope,
   verifyFathomSignature,
@@ -248,7 +250,7 @@ async function discoverZohoSchema(apiDomain: string, accessToken: string) {
     field?.data_type === "lookup" && field?.lookup?.module?.api_name === creatorModuleApiName
   );
   const contactCreatorRelatedCandidates = contactRelations.filter((related) =>
-    related?.module?.api_name === creatorModuleApiName
+    isCreatorRelatedList(related, creatorModules[0])
   );
   const creatorDealsRelatedCandidates = creatorRelations.filter((related) =>
     related?.module?.api_name === "Deals"
@@ -264,6 +266,10 @@ async function discoverZohoSchema(apiDomain: string, accessToken: string) {
     label: cleanPreviewText(item?.field_label || item?.display_label || item?.singular_label, 300),
     href: cleanPreviewText(item?.href, 1_000),
     status: cleanPreviewText(item?.status, 100),
+    type: cleanPreviewText(item?.type, 100),
+    connectedModule: cleanPreviewText(item?.connectedmodule, 200),
+    connectedLookupApiName: cleanPreviewText(item?.connectedlookupApiName, 200),
+    linkingModule: cleanPreviewText(item?.linkingmodule, 200),
     targetModuleId: cleanPreviewText(String(item?.lookup?.module?.id || item?.module?.id || ""), 100),
     targetModuleApiName: cleanPreviewText(item?.lookup?.module?.api_name || item?.module?.api_name, 200),
     layoutId: cleanPreviewText(String(item?.layout_id || ""), 100),
@@ -310,16 +316,13 @@ async function discoverZohoSchema(apiDomain: string, accessToken: string) {
     if (!match) throw new PreviewError(code);
     return match;
   };
-  const exactVisibleRelatedRef = (items: JsonObject[], expected: JsonObject, code: string) => {
-    const id = cleanPreviewText(String(expected?.id || ""), 100);
-    const apiName = cleanPreviewText(expected?.apiName, 200);
-    const href = cleanPreviewText(expected?.href, 1_000);
-    const match = items.find((item) =>
-      String(item?.id || "") === id
-      && item?.api_name === apiName
-      && item?.status === "visible"
-      && cleanPreviewText(item?.href, 1_000) === href
-    );
+  const exactVisibleRelatedRef = (
+    items: JsonObject[],
+    expected: JsonObject,
+    code: string,
+    options: JsonObject,
+  ) => {
+    const match = items.find((item) => pinnedRelatedListMatches(item, expected, options));
     if (!match) throw new PreviewError(code);
     return match;
   };
@@ -373,19 +376,21 @@ async function discoverZohoSchema(apiDomain: string, accessToken: string) {
       contactCreatorRelatedCandidates,
       contactRelation,
       "ZOHO_SCHEMA_DRIFT_CONTACT_CREATOR_RELATED_LIST",
+      { targetModuleId: String(creatorModules[0].id), creatorModuleName: creatorModules[0]?.module_name },
     );
-    if (
-      String(match?.module?.id || "") !== String(creatorModules[0].id)
-    ) {
-      throw new PreviewError("ZOHO_SCHEMA_DRIFT_CONTACT_CREATOR_RELATED_LIST");
-    }
     if (!contactLayoutField?.api_name) throw new PreviewError("ZOHO_SCHEMA_CONTACT_LAYOUT_FIELD_MISSING");
     contactCreatorPath = {
       mode: "related_list",
       apiName: match.api_name,
       id: String(match.id),
       href: match.href,
-      targetModuleId: String(creatorModules[0].id),
+      targetModuleId: String(match?.module?.id || ""),
+      type: cleanPreviewText(match?.type, 100),
+      connectedModule: cleanPreviewText(match?.connectedmodule, 200),
+      connectedLookupApiName: cleanPreviewText(match?.connectedlookupApiName, 200),
+      linkingModule: cleanPreviewText(match?.linkingmodule, 200),
+      linkingModuleId: cleanPreviewText(String(match?.module?.id || ""), 100),
+      linkingModuleApiName: cleanPreviewText(match?.module?.api_name, 200),
     };
   } else {
     throw new PreviewError("ZOHO_SCHEMA_CONTACT_CREATOR_MODE_INVALID");
@@ -407,12 +412,8 @@ async function discoverZohoSchema(apiDomain: string, accessToken: string) {
       creatorDealsRelatedCandidates,
       dealsRelation,
       "ZOHO_SCHEMA_DRIFT_CREATOR_DEALS_RELATED_LIST",
+      { targetModuleId: String(dealsModule.id) },
     );
-    if (
-      String(match?.module?.id || "") !== String(dealsModule.id)
-    ) {
-      throw new PreviewError("ZOHO_SCHEMA_DRIFT_CREATOR_DEALS_RELATED_LIST");
-    }
     if (!creatorLayoutField?.api_name) throw new PreviewError("ZOHO_SCHEMA_CREATOR_LAYOUT_FIELD_MISSING");
     creatorDealsPath = {
       mode: "related_list",
@@ -523,15 +524,12 @@ async function validateRelatedListForLayout(
     `/crm/v8/settings/related_lists?${parameters}`,
   );
   const match = rows(payload, "related_lists").find((item) =>
-    String(item?.id || "") === String(relation.id || "")
-    && item?.api_name === relation.apiName
+    pinnedRelatedListMatches(item, relation, {
+      targetModuleId: relation.targetModuleId,
+      creatorModuleName: relation.connectedModule,
+    })
   );
-  if (
-    !match
-    || match.status !== "visible"
-    || String(match?.module?.id || "") !== String(relation.targetModuleId || "")
-    || cleanPreviewText(match.href, 1_000) !== cleanPreviewText(relation.href, 1_000)
-  ) {
+  if (!match) {
     throw new PreviewError("ZOHO_SCHEMA_DRIFT_LAYOUT_RELATED_LIST");
   }
 }
