@@ -527,20 +527,24 @@ export default function App() {
     }
 
     const promise = (async () => {
-      let { data: membership, error: memberError } = await readHostedMembership(authUser.id);
-      if (memberError) throw new Error("Team membership could not be checked.");
-      if (!membership) {
-        const { error: claimError } = await withTimeout(
-          supabase.rpc("claim_sales_os_membership"),
-          15_000,
-          "Sales OS access took too long to check. Please try again.",
-          "MEMBERSHIP_TIMEOUT",
-        );
-        if (claimError) throw new Error("This work email has not been approved for Sales OS.");
-        ({ data: membership, error: memberError } = await readHostedMembership(authUser.id));
-        if (memberError) throw new Error("Team membership could not be checked.");
+      const { data: access, error: accessError } = await withTimeout(
+        supabase.functions.invoke("authorize-sales-os", { body: {} }),
+        20_000,
+        "Sales OS access took too long to check. Please try again.",
+        "MEMBERSHIP_TIMEOUT",
+      );
+      if (accessError) {
+        const status = Number(accessError?.context?.status || 0);
+        if (status === 401 || status === 403) {
+          throw new Error("This account is not eligible for Sales OS.");
+        }
+        throw new Error("Sales OS access could not be verified. Please try again.");
       }
-      if (!membership) throw new Error("This work email has not been approved for Sales OS.");
+      if (!access?.authorized) throw new Error("This account is not eligible for Sales OS.");
+
+      const { data: membership, error: memberError } = await readHostedMembership(authUser.id);
+      if (memberError) throw new Error("Team membership could not be checked.");
+      if (!membership) throw new Error("This account is not eligible for Sales OS.");
 
       await syncFromSupabase();
       const hydrated = mergeAuthenticatedUser(authUser, membership, getUser(membership.email));
@@ -584,7 +588,7 @@ export default function App() {
         }
         try { await hydrateHostedUser(authUser); }
         catch (loadError) {
-          const accessDenied = loadError?.message?.includes("not been approved");
+          const accessDenied = loadError?.message?.includes("not eligible");
           if (isAuthRequiredError(loadError) || accessDenied) {
             await supabase.auth.signOut({ scope: "local" }).catch(() => {});
           }
@@ -625,7 +629,7 @@ export default function App() {
             }
             if (authUser.id !== authUserIdRef.current) await hydrateHostedUser(authUser);
           } catch (error) {
-            const accessDenied = error?.message?.includes("not been approved");
+            const accessDenied = error?.message?.includes("not eligible");
             if (isAuthRequiredError(error) || accessDenied) {
               await supabase.auth.signOut({ scope: "local" }).catch(() => {});
             }
@@ -842,7 +846,7 @@ function LoginScreen({ doLocalLogin, doGoogleLogin, localMode, configError }) {
         ) : (
           <div className="fi">
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Sign in to Sales OS.</div>
-            <p style={{fontSize:13,color:"var(--text-muted)",lineHeight:1.5,marginBottom:18}}>Use your approved Wild Vision Google account.</p>
+            <p style={{fontSize:13,color:"var(--text-muted)",lineHeight:1.5,marginBottom:18}}>Use your active Wild Vision Sales Google account.</p>
             <button type="button" className="btn btn-p" onClick={startGoogleLogin} disabled={busy} style={{width:"100%",justifyContent:"center",background:"#fff",color:"#111",border:"1px solid #ddd"}}>
               {busy?"Opening Google...":"Continue with Google"}
             </button>

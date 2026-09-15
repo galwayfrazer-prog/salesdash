@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.update-hit-list-dismissal]
 verify_jwt = false
+
+[functions.authorize-sales-os]
+verify_jwt = false
